@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const inflightRequests = new Map();
   const fetchCachePrefix = 'imajinationFetchCache:';
   const defaultApiCacheTtlMs = 30 * 1000;
@@ -12,17 +12,20 @@
   const apiFallbackBases = resolveApiFallbackBases();
   const protectedPathPrefixes = [
     '/pages/dashboards/',
-    '/pages/bookings/checkout.html',
-    '/pages/bookings/messages.html',
+    '/pages/bookings/',
     '/pages/tools/dashboardscanner.html'
   ];
 
   function resolveApiFallbackBases() {
+    // Never use production fallbacks when running locally — they cause CORS errors
+    const isLocal = ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
     const configured = [
       window.__IMAJINATION_API_BASE__,
       localStorage.getItem('imajinationApiBase'),
-      'https://imajination.onrender.com',
-      'https://imajination-api.onrender.com'
+      ...(isLocal ? [] : [
+        'https://imajination.onrender.com',
+        'https://imajination-api.onrender.com'
+      ])
     ];
 
     const normalized = [];
@@ -116,10 +119,15 @@
 
     try {
       const parsed = new URL(url, window.location.origin);
-      return parsed.origin === window.location.origin
-        && parsed.pathname.startsWith('/api/')
-        && parsed.pathname !== '/api/security/csrf-token'
-        && parsed.pathname !== '/api/auth/session-status';
+      if (parsed.origin !== window.location.origin) return false;
+      if (!parsed.pathname.startsWith('/api/')) return false;
+      // Never cache: auth, security, or real-time availability endpoints
+      if (parsed.pathname === '/api/security/csrf-token') return false;
+      if (parsed.pathname === '/api/auth/session-status') return false;
+      if (parsed.pathname.endsWith('/tiers')) return false;
+      // Never cache single-event detail (slot counts change as tickets are sold)
+      if (/^\/api\/event\/[0-9a-f-]{36}$/.test(parsed.pathname)) return false;
+      return true;
     } catch {
       return false;
     }
@@ -594,7 +602,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <div class="flex items-center gap-3 mb-6 mt-2">
-        <img src="/assets/images/logo.png" alt="Imajination" class="h-7 object-contain object-left" onerror="this.style.display='none'">
+        <img src="/assets/images/logo.png" alt="Tugs!" class="h-7 object-contain object-left" onerror="this.style.display='none'">
       </div>
       <nav>
         ${links.map(link => `<a href="${link.href}" class="${link.className.includes('active') ? 'active-mobile' : ''}">${link.textContent.trim()}</a>`).join('')}

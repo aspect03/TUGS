@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using BCrypt.Net;
@@ -21,16 +21,18 @@ namespace ImajinationAPI.Controllers
         private readonly IConfiguration _config;
         private readonly JwtTokenService _jwtTokenService;
         private readonly TotpService _totpService;
+        private readonly ImajinationAPI.Services.EmailService _emailService;
         private const string AccessTokenCookieName = "IMAJINATION-ACCESS";
         private const string SessionTokenCookieName = "IMAJINATION-SESSION";
 
-        public AuthController(IConfiguration configuration, IMemoryCache cache, JwtTokenService jwtTokenService, TotpService totpService)
+        public AuthController(IConfiguration configuration, IMemoryCache cache, JwtTokenService jwtTokenService, TotpService totpService, ImajinationAPI.Services.EmailService emailService)
         {
             _config = configuration;
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _cache = cache;
             _jwtTokenService = jwtTokenService;
             _totpService = totpService;
+            _emailService = emailService;
         }
 
         private CookieOptions BuildAuthCookieOptions()
@@ -320,18 +322,17 @@ namespace ImajinationAPI.Controllers
                 {
                     return BadRequest(new
                     {
-                        message = "Invalid role. Allowed roles are Customer, Organizer, Artist, and Sessionist."
+                        message = "Invalid role. Allowed roles are Customer and Artist."
                     });
                 }
 
-                var requiresAdminApproval = string.Equals(normalizedRole, "Organizer", StringComparison.OrdinalIgnoreCase);
-                var accountStatus = requiresAdminApproval ? "PendingApproval" : "Active";
+                var accountStatus = "Active";
 
                 string sql = @"
-                    INSERT INTO users 
-                    (role, firstname, middlename, lastname, suffix, username, email, contactnumber, address, birthday, age, passwordhash, stagename, productionname, talent_category, member_names, is_banned, account_status) 
-                    VALUES 
-                    (@r, @fn, @mn, @ln, @sx, @un, @em, @cn, @ad, @bd, @ag, @ph, @sn, @pn, @tc, @members, FALSE, @accountStatus)";
+                    INSERT INTO users
+                    (role, firstname, middlename, lastname, suffix, username, email, contactnumber, birthday, age, passwordhash, stagename, productionname, talent_category, member_names, is_banned, account_status)
+                    VALUES
+                    (@r, @fn, @mn, @ln, @sx, @un, @em, @cn, @bd, @ag, @ph, @sn, @pn, @tc, @members, FALSE, @accountStatus)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@r", normalizedRole ?? (object)DBNull.Value);
@@ -342,7 +343,6 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@un", SecuritySupport.SanitizePlainText(req.username, 60, false) ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@em", normalizedEmail);
                 cmd.Parameters.AddWithValue("@cn", SecuritySupport.SanitizePlainText(req.contactNumber, 60, false) ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@ad", SecuritySupport.SanitizePlainText(req.address, 240, true) ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@bd", req.birthday != default ? req.birthday : (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@ag", req.age);
                 cmd.Parameters.AddWithValue("@ph", passwordHash);
@@ -365,11 +365,13 @@ namespace ImajinationAPI.Controllers
 
                 _cache.Remove(normalizedEmail);
 
+                // Fire-and-forget welcome email
+                var firstName = SecuritySupport.SanitizePlainText(req.firstName, 120, false) ?? "";
+                _ = _emailService.SendWelcomeEmailAsync(normalizedEmail, firstName, normalizedRole ?? "Customer");
+
                 return Ok(new
                 {
-                    message = requiresAdminApproval
-                        ? "Organizer registration submitted. Your account is pending admin approval before you can log in."
-                        : "Registration successful.",
+                    message = "Registration successful.",
                     accountStatus
                 });
             }
@@ -460,12 +462,12 @@ namespace ImajinationAPI.Controllers
                         else if (string.Equals(accountStatus, "PendingApproval", StringComparison.OrdinalIgnoreCase))
                         {
                             loginBlockStatusCode = StatusCodes.Status403Forbidden;
-                            loginBlockMessage = "This organizer account is still waiting for admin approval.";
+                            loginBlockMessage = "This account is still waiting for admin approval.";
                         }
                         else if (string.Equals(accountStatus, "Denied", StringComparison.OrdinalIgnoreCase))
                         {
                             loginBlockStatusCode = StatusCodes.Status403Forbidden;
-                            loginBlockMessage = "This organizer account was denied by admin. Please contact support before trying again.";
+                            loginBlockMessage = "This account was denied by admin. Please contact support before trying again.";
                         }
                         else if (BCrypt.Net.BCrypt.Verify(req.password, storedHash))
                         {
@@ -658,6 +660,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureUserModerationColumnsAsync(connection);
                 await EnsureMfaColumnsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
                 var existingUser = await FindUserByEmailAsync(connection, normalizedEmail);
                 if (existingUser is null)
@@ -690,12 +693,12 @@ namespace ImajinationAPI.Controllers
 
                 if (string.Equals(existingUser.AccountStatus, "PendingApproval", StringComparison.OrdinalIgnoreCase))
                 {
-                    return StatusCode(403, new { message = "This organizer account is still waiting for admin approval." });
+                    return StatusCode(403, new { message = "This account is still waiting for admin approval." });
                 }
 
                 if (string.Equals(existingUser.AccountStatus, "Denied", StringComparison.OrdinalIgnoreCase))
                 {
-                    return StatusCode(403, new { message = "This organizer account was denied by admin. Please contact support before trying again." });
+                    return StatusCode(403, new { message = "This account was denied by admin. Please contact support before trying again." });
                 }
 
                 if (string.IsNullOrWhiteSpace(existingUser.ProfilePicture) && !string.IsNullOrWhiteSpace(picture))
@@ -861,7 +864,7 @@ namespace ImajinationAPI.Controllers
 
                 var secret = _totpService.GenerateSecret();
                 var accountLabel = string.IsNullOrWhiteSpace(email) ? userId.ToString() : email;
-                var issuer = _config["Auth:MfaIssuer"] ?? "IMAJINATION";
+                var issuer = _config["Auth:MfaIssuer"] ?? "Tugs!";
                 var setupToken = Guid.NewGuid().ToString("N");
                 _cache.Set($"mfa-setup:{setupToken}", new PendingMfaSetup(userId, secret), TimeSpan.FromMinutes(10));
 
@@ -1470,10 +1473,10 @@ namespace ImajinationAPI.Controllers
 
             return normalized.Trim().ToLowerInvariant() switch
             {
-                "customer" => "Customer",
-                "organizer" => "Organizer",
-                "artist" => "Artist",
+                "customer"   => "Customer",
+                "artist"     => "Artist",
                 "sessionist" => "Sessionist",
+                "organizer"  => "Organizer",
                 _ => null
             };
         }

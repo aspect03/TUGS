@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Artist Details</title>
+  <title>Tugs! - Artist Details</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,14 +41,13 @@
     <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-8 w-28 sm:w-32 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
         </div>
       </a>
       <div class="hidden md:flex items-center gap-8 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
         <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
         <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Artists</a>
-        <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
         <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
       </div>
       
@@ -286,32 +286,7 @@
             </div>
           </div>
         </div>
-
-        <!-- RIGHT — sticky booking sidebar -->
-        <div class="lg:col-span-1">
-          <div class="sticky top-24 space-y-4">
-            <!-- Book button -->
-            <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
-              <button id="bookArtistBtn" type="button" title="Send a booking request" class="w-full py-4 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors shadow-[0_0_30px_-12px_rgba(239,68,68,0.6)] disabled:cursor-not-allowed disabled:bg-white/[0.07] disabled:text-white/35 disabled:shadow-none">
-                Book Artist
-              </button>
-              <div class="mt-5">
-                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-3">Genres</p>
-                <div class="flex flex-wrap gap-2" id="detailGenres"></div>
-              </div>
-            </div>
-            <!-- Spotify -->
-            <div class="hidden" id="spotifyContainer">
-              <a id="detailSpotify" href="#" target="_blank" class="w-full py-3 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl flex items-center justify-center gap-2 text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
-                <i data-lucide="music" class="w-4 h-4"></i> Listen on Spotify
-              </a>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      </div>
-    </section>
+      </section>
   </main>
 
   <div id="bookingModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -421,6 +396,14 @@
     function validateArtistBookingInput(input) {
       if (!input) return true;
 
+      // Reject past dates
+      if (input.value && new Date(input.value) < new Date()) {
+        input.setCustomValidity('Booking date cannot be in the past.');
+        input.classList.add('border-red-500');
+        updateArtistBookingDateHint('Please choose a future date and time.', 'error');
+        return false;
+      }
+
       if (isArtistBlockedBookingDate(input.value)) {
         input.setCustomValidity(`${currentArtistName} is not available on that date.`);
         input.classList.add('border-red-500');
@@ -475,22 +458,24 @@
       if (!container || container.children.length >= maxBookingSlots - 1) return;
       const row = document.createElement('div');
       row.className = 'booking-slot-row grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end';
+      const slotNowIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       row.innerHTML = `
         <div class="space-y-2">
           <label class="booking-slot-label block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Extra Slot</label>
-          <input type="datetime-local" value="${startValue}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+          <input type="datetime-local" value="${startValue}" min="${slotNowIso}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
         </div>
         <div class="space-y-2">
           <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">End time</label>
           <input type="datetime-local" value="${endValue}" class="booking-slot-end w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
         </div>
-        <button type="button" class="remove-booking-slot px-3 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-red-500/20 transition-colors">Remove</button>
+        <button type="button" class="remove-booking-slot flex items-center justify-center w-10 h-[46px] shrink-0 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 transition-colors" title="Remove slot"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
       `;
       row.querySelector('.remove-booking-slot')?.addEventListener('click', () => {
         row.remove();
         renderBookingSlots();
       });
       container.appendChild(row);
+      lucide.createIcons();
       row.querySelector('.booking-slot-start')?.addEventListener('input', (event) => validateArtistBookingInput(event.target));
       row.querySelector('.booking-slot-start')?.addEventListener('change', (event) => validateArtistBookingInput(event.target));
       validateArtistBookingInput(row.querySelector('.booking-slot-start'));
@@ -541,9 +526,8 @@
 
         const dashLink = document.getElementById('dashboardLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
         
         // Fetch User Profile Pic in the background only when needed
         if (role === 'Artist' && userId && !storedProfilePicture) {
@@ -724,6 +708,13 @@
       document.getElementById('bookingStatus').innerText = role === 'Organizer'
         ? `You are sending an organizer booking request to ${currentArtistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
         : `You are booking ${currentArtistName}. The PHP 15.00 service fee is collected before the artist can review your request.`;
+
+      // Enforce minimum date = now so past dates are not selectable
+      const nowIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+        .toISOString().slice(0, 16);
+      document.getElementById('bookingEventDate').min = nowIso;
+      document.getElementById('bookingEventEndTime').min = nowIso;
+
       await loadArtistBlockedDates();
       bookingModal.classList.remove('hidden');
       bookingModal.classList.add('flex');

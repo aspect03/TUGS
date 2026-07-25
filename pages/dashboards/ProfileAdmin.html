@@ -1,16 +1,18 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Imajination - Admin Portal</title>
+  <title>Tugs! - Admin Portal</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://unpkg.com/chart.js@4.4.3/dist/chart.umd.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/mfa-settings.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body class="bg-neutral-950 text-white antialiased min-h-screen overflow-x-hidden overflow-y-auto" style="font-family: 'Montserrat', sans-serif;">
   
@@ -19,7 +21,7 @@
   <nav class="fixed top-0 inset-x-0 z-50 w-full h-14 flex items-center justify-between px-6 border-b border-white/[0.06] bg-neutral-950/95 backdrop-blur-xl">
     <a href="/" class="font-bold text-sm uppercase tracking-widest flex items-center gap-3 text-white/90 hover:text-white transition-colors">
       <span class="inline-flex w-7 h-7 rounded-lg bg-red-500/20 border border-red-500/30 items-center justify-center flex-shrink-0"><span class="w-2 h-2 rounded-sm bg-red-500"></span></span>
-      Imajination System Admin
+      Tugs! System Admin
     </a>
     <div class="flex items-center gap-4">
       <div class="relative">
@@ -92,6 +94,24 @@
           <button type="button" data-section="security" class="admin-section-btn w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
             <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] flex-shrink-0"><i data-lucide="shield-alert" class="w-3.5 h-3.5"></i></span>
             <span>Security</span>
+          </button>
+          <button type="button" data-section="events" class="admin-section-btn w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+            <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] flex-shrink-0"><i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i></span>
+            <span>Events</span>
+          </button>
+          <button type="button" data-section="scanner" class="admin-section-btn w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+            <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] flex-shrink-0"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i></span>
+            <span>Scan Tickets</span>
+          </button>
+          <button type="button" data-section="disputes" class="admin-section-btn w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+            <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] flex-shrink-0"><i data-lucide="scale" class="w-3.5 h-3.5"></i></span>
+            <span class="flex-1 text-left">Disputes</span>
+            <span id="openDisputesBadge" class="hidden min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">0</span>
+          </button>
+          <button type="button" data-section="partners" class="admin-section-btn w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+            <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] flex-shrink-0"><i data-lucide="handshake" class="w-3.5 h-3.5"></i></span>
+            <span class="flex-1 text-left">Partners</span>
+            <span id="pendingPartnersBadge" class="hidden min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">0</span>
           </button>
         </div>
       </aside>
@@ -220,6 +240,16 @@
             <p class="text-sm font-semibold text-white">Stuck Bookings</p>
             <p class="mt-1 text-[11px] text-white/40 leading-relaxed">Force-complete bookings where one party has not confirmed.</p>
           </button>
+          <button type="button" data-section-target="events" class="admin-jump-btn group rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 text-left hover:border-emerald-400/30 hover:bg-emerald-400/[0.04] transition-all duration-150">
+            <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-3"><i data-lucide="calendar-plus" class="w-4 h-4 text-emerald-400"></i></span>
+            <p class="text-sm font-semibold text-white">Events</p>
+            <p class="mt-1 text-[11px] text-white/40 leading-relaxed">Create, edit, and manage all platform events and ticket tiers.</p>
+          </button>
+          <button type="button" id="adminMigrateSessionistBtn" class="group rounded-xl border border-amber-500/20 bg-amber-500/[0.03] p-4 text-left hover:border-amber-400/40 hover:bg-amber-500/[0.07] transition-all duration-150">
+            <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-3"><i data-lucide="arrow-right-left" class="w-4 h-4 text-amber-400"></i></span>
+            <p class="text-sm font-semibold text-white">Migrate Roles</p>
+            <p class="mt-1 text-[11px] text-white/40 leading-relaxed">Convert existing Sessionist accounts to Artist role (one-time migration).</p>
+          </button>
           <button type="button" id="adminRefreshDashboardBtn" class="group rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 text-left hover:border-white/20 hover:bg-white/[0.04] transition-all duration-150">
             <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-white/[0.06] border border-white/[0.08] mb-3"><i data-lucide="refresh-cw" class="w-4 h-4 text-white/50"></i></span>
             <p class="text-sm font-semibold text-white">Refresh</p>
@@ -265,9 +295,8 @@
 
               <div id="verificationRoleFilters" class="flex flex-wrap gap-1.5 mb-4">
                 <button type="button" data-verification-filter="All" class="admin-verification-filter px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-[11px] font-semibold uppercase tracking-wider">All</button>
-                <button type="button" data-verification-filter="Organizer" class="admin-verification-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Organizer</button>
                 <button type="button" data-verification-filter="Artist" class="admin-verification-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Artist</button>
-                <button type="button" data-verification-filter="Sessionist" class="admin-verification-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Sessionist</button>
+                <button type="button" data-verification-filter="Customer" class="admin-verification-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Customer</button>
               </div>
 
               <div id="verificationQueueList" class="space-y-2.5 overflow-y-auto pr-2 min-h-0">
@@ -341,11 +370,7 @@
               <div id="accountModerationFilters" class="flex flex-wrap gap-1.5 mb-4">
                 <button type="button" data-role-filter="All" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/10 text-white text-[11px] font-semibold uppercase tracking-wider">All</button>
                 <button type="button" data-role-filter="Customer" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Customer</button>
-                <button type="button" data-role-filter="Organizer" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Organizer</button>
                 <button type="button" data-role-filter="Artist" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Artist</button>
-                <button type="button" data-role-filter="Sessionist" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Sessionist</button>
-                <button type="button" data-role-filter="PendingApproval" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Pending</button>
-                <button type="button" data-role-filter="Denied" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Denied</button>
                 <button type="button" data-role-filter="Banned" class="admin-role-filter px-2.5 py-1.5 rounded-lg bg-white/[0.04] text-white/50 hover:text-white text-[11px] font-semibold uppercase tracking-wider transition-colors">Banned</button>
               </div>
               <div class="overflow-auto flex-1 min-h-0 pr-2">
@@ -369,6 +394,47 @@
         </section>
 
         <section id="adminSection-analytics" class="admin-section hidden space-y-5 min-h-0 overflow-y-auto pr-1">
+
+          <!-- Trend Charts -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 space-y-5">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-violet-500/10 border border-violet-500/20"><i data-lucide="trending-up" class="w-4 h-4 text-violet-400"></i></span>
+                <h3 class="text-base font-bold text-white">Platform Trends</h3>
+              </div>
+              <div class="flex items-center gap-2">
+                <select id="trendsDaysSelect" class="px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/70 outline-none">
+                  <option value="30">Last 30 days</option>
+                  <option value="90" selected>Last 90 days</option>
+                  <option value="180">Last 6 months</option>
+                  <option value="365">Last year</option>
+                </select>
+                <button type="button" id="refreshTrendsBtn" class="px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/60 hover:text-white transition-all">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline"></i>
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div class="bg-black/20 rounded-2xl p-4">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-3">Daily Signups</p>
+                <div class="h-32"><canvas id="trendsSignupsChart"></canvas></div>
+              </div>
+              <div class="bg-black/20 rounded-2xl p-4">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-3">Daily Bookings</p>
+                <div class="h-32"><canvas id="trendsBookingsChart"></canvas></div>
+              </div>
+              <div class="bg-black/20 rounded-2xl p-4">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-3">Ticket Revenue (₱)</p>
+                <div class="h-32"><canvas id="trendsRevenueChart"></canvas></div>
+              </div>
+            </div>
+            <!-- Role donut -->
+            <div class="flex items-center gap-5 pt-3 border-t border-white/[0.05]">
+              <div class="w-24 h-24 flex-shrink-0"><canvas id="trendsRolesChart"></canvas></div>
+              <div id="trendsRolesLegend" class="flex flex-wrap gap-x-5 gap-y-2"></div>
+            </div>
+          </div>
+
           <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 min-h-0">
       <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6 flex flex-col min-h-0">
         <div class="flex items-center gap-3 mb-5">
@@ -504,8 +570,7 @@
               <select id="reportTypeFilter" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/70 outline-none">
                 <option value="">All Types</option>
                 <option value="artist">Artist</option>
-                <option value="sessionist">Sessionist</option>
-                <option value="organizer">Organizer</option>
+                <option value="customer">Customer</option>
                 <option value="event">Event</option>
               </select>
               <button type="button" id="refreshReportsBtn" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/70 hover:text-white hover:bg-white/[0.08] transition-all">
@@ -591,9 +656,440 @@
             </div>
           </div>
         </section>
+
+        <!-- =========================================================
+             EVENTS MODULE — Create, Edit, Manage all platform events
+             ========================================================= -->
+        <section id="adminSection-events" class="admin-section hidden space-y-5 min-h-0 overflow-y-auto pr-1">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-emerald-400/70 mb-1">Event Management</p>
+              <h3 class="text-xl font-extrabold text-white">All Events</h3>
+            </div>
+            <button type="button" id="adminOpenCreateEventBtn" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-500 transition-colors shadow-lg">
+              <i data-lucide="plus" class="w-4 h-4"></i> Create Event
+            </button>
+          </div>
+
+          <!-- Event list -->
+          <div id="adminEventsList" class="space-y-3">
+            <div class="rounded-2xl border border-white/[0.06] bg-black/20 p-5">
+              <p class="text-sm text-white/40">Loading events...</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- =========================================================
+             DISPUTES MODULE — Booking dispute mediation
+             ========================================================= -->
+        <section id="adminSection-disputes" class="admin-section hidden space-y-5 min-h-0 overflow-y-auto pr-1">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-orange-400/70 mb-1">Mediation Center</p>
+              <h3 class="text-xl font-extrabold text-white">Booking Disputes</h3>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="disputeStatusFilter" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/70 outline-none">
+                <option value="">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="Resolved">Resolved</option>
+              </select>
+              <button type="button" onclick="loadAdminDisputes()" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/60 hover:text-white transition-all">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="adminDisputesList" class="space-y-3">
+            <p class="text-sm text-white/40">Loading disputes…</p>
+          </div>
+        </section>
+
+        <!-- ── PARTNER INQUIRIES SECTION ── -->
+        <section id="adminSection-partners" class="admin-section hidden space-y-6">
+          <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h2 class="text-xl font-extrabold text-white tracking-tight">Partner Inquiries</h2>
+              <p class="text-xs text-white/40 mt-1">Event proposals submitted through the Landing Page partner form.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="partnerStatusFilter" class="px-3 py-2 bg-black/40 border border-white/[0.09] rounded-xl text-xs text-white outline-none">
+                <option value="">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="In Review">In Review</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+              <button type="button" onclick="loadPartnerInquiries()" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/60 hover:text-white transition-all">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="partnerInquiriesList" class="space-y-3">
+            <p class="text-sm text-white/40">Loading partner inquiries…</p>
+          </div>
+        </section>
+
+        <!-- Partner Detail Modal -->
+        <div id="partnerDetailModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div class="w-full max-w-lg rounded-2xl border border-white/[0.09] bg-neutral-950 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+              <h3 class="text-sm font-bold text-white">Partner Inquiry</h3>
+              <button onclick="document.getElementById('partnerDetailModal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] text-white/50 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="partnerDetailBody" class="overflow-y-auto p-6 space-y-4 text-sm text-white/80 flex-1"></div>
+            <div class="px-6 pb-5 pt-3 border-t border-white/[0.07] space-y-3">
+              <textarea id="partnerAdminNotes" rows="2" placeholder="Internal notes (visible only to admins)…" class="w-full px-3 py-2.5 bg-black/40 border border-white/10 rounded-xl text-xs text-white placeholder:text-white/25 outline-none focus:border-red-500/50 resize-none"></textarea>
+              <div class="flex flex-wrap gap-2">
+                <button onclick="updatePartnerStatus('In Review')" class="px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/25 text-blue-300 text-[10px] font-bold uppercase tracking-wider hover:bg-blue-500/25 transition-colors">Mark In Review</button>
+                <button onclick="updatePartnerStatus('Approved')" class="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/25 transition-colors">Approve</button>
+                <button onclick="updatePartnerStatus('Rejected')" class="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500/20 transition-colors">Reject</button>
+                <p id="partnerUpdateStatus" class="text-[10px] text-white/40 self-center ml-auto"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolve Dispute Modal -->
+        <div id="resolveDisputeModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div class="w-full max-w-md rounded-2xl border border-white/[0.09] bg-neutral-950 shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+              <h2 class="text-base font-bold text-white">Resolve Dispute</h2>
+              <button onclick="document.getElementById('resolveDisputeModal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] text-white/50 hover:text-white transition-all"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+              <input type="hidden" id="resolveDisputeId">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Resolution</label>
+                <select id="resolveDisputeResolution" class="w-full px-3 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-orange-500/40">
+                  <option value="Dismissed">Dismissed — No action taken</option>
+                  <option value="Refunded">Refunded — Full refund issued</option>
+                  <option value="PartialRefund">Partial Refund</option>
+                  <option value="WarningIssued">Warning Issued to party</option>
+                  <option value="NoAction">No Action Required</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Admin Notes (visible to both parties)</label>
+                <textarea id="resolveDisputeNotes" rows="3" placeholder="Summarize the decision and reasoning…"
+                  class="w-full px-3 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-orange-500/40 resize-none"></textarea>
+              </div>
+              <p id="resolveDisputeStatus" class="text-xs text-white/50 hidden"></p>
+              <button onclick="submitDisputeResolution()" class="w-full py-3 rounded-xl bg-orange-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-orange-500 transition-colors">
+                Submit Resolution
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================================================
+             SCANNER MODULE — QR Ticket Entrance Scanner
+             ========================================================= -->
+        <section id="adminSection-scanner" class="admin-section hidden space-y-5 min-h-0 overflow-y-auto pr-1">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.25em] text-red-400/70 mb-1">Entrance Control</p>
+              <h3 class="text-xl font-extrabold text-white">Ticket Scanner</h3>
+            </div>
+          </div>
+
+          <!-- Event Selector -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Select Event to Scan</label>
+            <select id="scannerEventSelect" class="w-full px-4 py-3 bg-black/40 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 transition-all">
+              <option value="">-- Select an event --</option>
+            </select>
+            <p id="scannerEventInfo" class="mt-2 text-xs text-white/40 hidden"></p>
+          </div>
+
+          <!-- Scanner Module (shown after event selected) -->
+          <div id="adminScannerModule" class="hidden space-y-4">
+            <div class="bg-neutral-900/50 border border-white/[0.07] rounded-2xl p-5">
+              <div id="adminCameraHelpBox" class="hidden mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
+                <p class="text-xs font-bold uppercase tracking-[0.24em] text-amber-300 mb-1">Camera Access Help</p>
+                <p id="adminCameraHelpText" class="text-sm leading-relaxed text-amber-100/90"></p>
+              </div>
+              <div id="adminQrReader" class="rounded-2xl overflow-hidden bg-black w-full max-w-sm mx-auto aspect-square flex items-center justify-center text-white/30 text-sm"></div>
+              <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                <button id="adminStartScannerBtn" class="flex-1 px-4 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-500 transition-colors">Start Camera</button>
+                <button id="adminStopScannerBtn" class="hidden flex-1 px-4 py-3 bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/15 transition-colors">Stop Camera</button>
+                <label class="flex-1 px-4 py-3 bg-white/[0.04] border border-white/[0.08] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/[0.08] transition-colors text-center cursor-pointer">
+                  Upload QR Image<input id="adminQrImageInput" type="file" accept="image/*" class="hidden">
+                </label>
+              </div>
+              <p id="adminScannerStatus" class="mt-3 text-xs text-white/50 uppercase tracking-wider text-center">Tap Start Camera to begin scanning.</p>
+            </div>
+
+            <!-- Scan Result -->
+            <div id="adminScanResult" class="hidden bg-neutral-900/50 border border-white/[0.07] rounded-2xl p-6 text-center">
+              <div id="adminResultBox" class="flex flex-col items-center gap-2">
+                <i id="adminResultIcon" data-lucide="check-circle" class="w-10 h-10"></i>
+                <h2 id="adminResultTitle" class="text-xl font-bold uppercase tracking-wider">SUCCESS!</h2>
+                <p id="adminResultMsg" class="text-sm font-semibold"></p>
+                <p id="adminResultDetails" class="text-xs text-white/50"></p>
+                <button onclick="adminResumeScanning()" class="mt-4 px-5 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors">Scan Next Ticket</button>
+              </div>
+            </div>
+
+            <!-- Scan Log -->
+            <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="text-sm font-bold text-white">Scan Log <span class="text-white/30 font-normal text-xs ml-1">(this session)</span></h4>
+                <button onclick="adminClearScanLog()" class="text-xs text-white/40 hover:text-white/70 transition-colors">Clear</button>
+              </div>
+              <div id="adminScanLog" class="space-y-2 max-h-64 overflow-y-auto">
+                <p class="text-xs text-white/30 text-center py-4">No scans yet.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Create / Edit Event Modal -->
+        <div id="adminEventModal" class="hidden fixed inset-0 z-[60] items-start justify-center bg-black/85 backdrop-blur-sm overflow-y-auto py-6 px-4">
+          <div class="w-full max-w-3xl rounded-[2rem] border border-white/[0.09] bg-neutral-950 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)] my-4">
+
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-7 py-5 border-b border-white/[0.07]">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center justify-center w-9 h-9 rounded-xl bg-red-500/15 border border-red-500/25 flex-shrink-0">
+                  <i data-lucide="calendar-plus" class="w-4 h-4 text-red-400"></i>
+                </span>
+                <div>
+                  <p class="text-[9px] font-bold uppercase tracking-[0.24em] text-red-400/70">Tugs! Admin</p>
+                  <h2 id="adminEventModalTitle" class="text-lg font-extrabold text-white tracking-tight mt-0.5">Create Event</h2>
+                </div>
+              </div>
+              <button id="adminCloseEventModalBtn" type="button" class="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <form id="adminEventForm" class="p-7 space-y-6">
+              <input type="hidden" id="adminEventId" value="">
+              <input type="hidden" id="adminEvPosterData" value="">
+
+              <!-- SECTION 1: Poster Upload -->
+              <div>
+                <p class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/30 mb-3">Event Poster</p>
+                <div id="adminPosterDropZone" class="relative group w-full aspect-[21/9] rounded-2xl border-2 border-dashed border-white/[0.12] bg-white/[0.02] hover:border-red-500/40 hover:bg-white/[0.04] transition-all cursor-pointer flex flex-col items-center justify-center gap-3 overflow-hidden">
+                  <img id="adminPosterPreview" src="" alt="" class="hidden absolute inset-0 w-full h-full object-cover rounded-2xl opacity-80">
+                  <div id="adminPosterPlaceholder" class="flex flex-col items-center gap-2 pointer-events-none">
+                    <span class="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08]">
+                      <i data-lucide="image-plus" class="w-6 h-6 text-white/40"></i>
+                    </span>
+                    <p class="text-sm font-semibold text-white/50">Click or drag to upload poster</p>
+                    <p class="text-[11px] text-white/25">JPG, PNG, WEBP · auto-compressed · recommended 16:9</p>
+                  </div>
+                  <div id="adminPosterOverlay" class="hidden absolute inset-0 bg-black/50 items-center justify-center gap-3 rounded-2xl">
+                    <button type="button" id="adminPosterChangeBtn" class="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-wider hover:bg-white/20 transition-colors">Change</button>
+                    <button type="button" id="adminPosterRemoveBtn" class="px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold uppercase tracking-wider hover:bg-red-500/30 transition-colors">Remove</button>
+                  </div>
+                </div>
+                <input type="file" id="adminPosterFileInput" accept="image/*" class="hidden">
+                <p id="adminPosterError" class="mt-2 text-[11px] text-red-400 hidden"></p>
+              </div>
+
+              <!-- SECTION 2: Core Info -->
+              <div>
+                <p class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/30 mb-3">Event Details</p>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Event Title *</label>
+                    <input id="adminEvTitle" type="text" required placeholder="e.g. Shanni Birthday Gig" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Date & Time *</label>
+                      <input id="adminEvTime" type="datetime-local" required class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all [color-scheme:dark]">
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">City</label>
+                      <input id="adminEvCity" type="text" placeholder="e.g. Manila" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Venue / Location *</label>
+                    <input id="adminEvLocation" type="text" required placeholder="e.g. 123 Main St, Taguig" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Event Type</label>
+                      <input id="adminEvType" type="text" placeholder="Live Gig" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                    </div>
+                    <div>
+                      <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Genres</label>
+                      <input id="adminEvGenres" type="text" placeholder="Rock, Pop, Indie" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Description</label>
+                    <textarea id="adminEvDesc" rows="3" placeholder="Describe the event, lineup highlights, what to expect..." class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all resize-none"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 3: Ticket Tiers -->
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/30">Ticket Tiers</p>
+                  <button type="button" id="adminAddTierBtn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600/15 border border-red-500/25 text-red-300 text-[10px] font-bold uppercase tracking-wider hover:bg-red-600/25 transition-colors">
+                    <i data-lucide="plus" class="w-3 h-3"></i> Add Tier
+                  </button>
+                </div>
+
+                <!-- Tier rows injected by JS -->
+                <div id="adminTiersList" class="space-y-2.5 mb-3"></div>
+
+                <!-- Slot summary -->
+                <div class="flex items-center justify-between px-4 py-2.5 rounded-xl bg-black/20 border border-white/[0.06]">
+                  <div class="flex items-center gap-4 text-[11px]">
+                    <span class="text-white/40 uppercase tracking-wider">Total allocated:</span>
+                    <span id="adminTierSlotsTotal" class="font-bold text-white">0</span>
+                    <span class="text-white/25">slots across</span>
+                    <span id="adminTierCount" class="font-bold text-white">0</span>
+                    <span class="text-white/25">tier(s)</span>
+                  </div>
+                  <p id="adminTierSlotsWarning" class="hidden text-[11px] text-amber-400 flex items-center gap-1">
+                    <i data-lucide="alert-triangle" class="w-3 h-3"></i> <span></span>
+                  </p>
+                </div>
+
+                <!-- Max per customer + Status -->
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Max Tickets / Customer</label>
+                    <input id="adminEvMaxTickets" type="number" min="1" max="20" placeholder="5" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 focus:bg-white/[0.06] transition-all">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Status</label>
+                    <select id="adminEvStatus" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 transition-all">
+                      <option value="Upcoming">Upcoming</option>
+                      <option value="Draft">Draft</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Hidden fields for backward compat -->
+                <input type="hidden" id="adminEvPrice" value="0">
+                <input type="hidden" id="adminEvSlots" value="0">
+              </div>
+
+              <!-- SECTION 4: Artist Lineup -->
+              <div>
+                <div class="flex items-center gap-3 mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/30">Artist Lineup</p>
+                  <span class="px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[9px] text-white/30 uppercase tracking-widest">Optional</span>
+                </div>
+
+                <!-- Current lineup chips -->
+                <div id="adminLineupList" class="flex flex-wrap gap-2 mb-3 min-h-0 empty:hidden"></div>
+
+                <!-- Search registered artist -->
+                <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2.5 mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">Add Registered Artist / Sessionist</p>
+                  <div class="relative">
+                    <input id="adminLineupSearchInput" type="text" placeholder="Search by name…" autocomplete="off"
+                      class="w-full px-4 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/40 transition-all pr-10">
+                    <i data-lucide="search" class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none"></i>
+                  </div>
+                  <!-- Filter chips — injected by JS on first focus -->
+                  <div id="adminLineupFilters" class="hidden space-y-2"></div>
+                  <div id="adminLineupSearchResults" class="hidden space-y-1 max-h-48 overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- Add external artist -->
+                <div class="rounded-2xl border border-amber-500/[0.12] bg-amber-500/[0.04] p-4 space-y-2.5">
+                  <p class="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-300/60">External Artist <span class="text-white/25 normal-case tracking-normal font-normal">— not yet on the platform</span></p>
+                  <div class="flex gap-2">
+                    <input id="adminExternalArtistName" type="text" placeholder="Artist / band name"
+                      class="flex-1 px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-amber-500/30 transition-all">
+                    <select id="adminExternalArtistRole" class="px-3 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white outline-none focus:border-amber-500/30 transition-all">
+                      <option value="Artist">Artist</option>
+                      <option value="Sessionist">Sessionist</option>
+                    </select>
+                    <button type="button" id="adminAddExternalBtn" class="px-4 py-2.5 bg-amber-600/70 border border-amber-500/30 text-white text-xs font-bold rounded-xl hover:bg-amber-500/80 transition-colors whitespace-nowrap">+ Add</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SECTION 5: Promo / Sale -->
+              <div>
+                <div class="flex items-center gap-3 mb-3">
+                  <p class="text-[9px] font-bold uppercase tracking-[0.22em] text-white/30">Promo / Sale</p>
+                  <span class="px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[9px] text-white/30 uppercase tracking-widest">Optional</span>
+                </div>
+                <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Promo Name</label>
+                    <input id="adminEvSaleName" type="text" placeholder="e.g. Early Bird" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/40 transition-all">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Discount Type</label>
+                    <select id="adminEvSaleType" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white outline-none focus:border-red-500/40 transition-all">
+                      <option value="">None</option>
+                      <option value="percent">Percent off (%)</option>
+                      <option value="amount">Fixed amount (₱)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Discount Value</label>
+                    <input id="adminEvSaleValue" type="number" min="0" step="0.01" placeholder="0" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/40 transition-all">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Promo Ticket Limit</label>
+                    <input id="adminEvSaleQtyLimit" type="number" min="1" placeholder="Unlimited if blank" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/40 transition-all">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Sale Starts</label>
+                    <input id="adminEvSaleStarts" type="datetime-local" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white outline-none focus:border-red-500/40 transition-all [color-scheme:dark]">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 mb-1.5">Sale Ends</label>
+                    <input id="adminEvSaleEnds" type="datetime-local" class="w-full px-3.5 py-2.5 bg-black/40 border border-white/[0.07] rounded-xl text-sm text-white outline-none focus:border-red-500/40 transition-all [color-scheme:dark]">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="pt-2 border-t border-white/[0.06] flex flex-col gap-3">
+                <p id="adminEventFormStatus" class="text-xs text-white/45 min-h-[1rem] text-center"></p>
+                <div class="flex gap-3">
+                  <button type="button" id="adminCancelEventBtn" class="flex-1 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-xs font-bold uppercase tracking-[0.16em] hover:bg-white/[0.08] transition-colors">Cancel</button>
+                  <button type="submit" id="adminEventSubmitBtn" class="flex-1 py-3.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-[0.16em] hover:bg-red-500 transition-colors shadow-[0_8px_20px_-8px_rgba(239,68,68,0.5)]">Save Event</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
       </div>
     </div>
 </main>
+
+  <!-- Per-Event Analytics Modal -->
+  <div id="adminEventAnalyticsModal" class="hidden fixed inset-0 z-[60] flex items-start justify-center bg-black/85 backdrop-blur-sm overflow-y-auto py-6 px-4">
+    <div class="w-full max-w-4xl rounded-[2rem] border border-white/[0.09] bg-neutral-950 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8)] my-4">
+      <div class="flex items-center justify-between px-7 py-5 border-b border-white/[0.07] sticky top-0 bg-neutral-950/95 backdrop-blur-sm rounded-t-[2rem] z-10">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="flex items-center justify-center w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex-shrink-0">
+            <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-400"></i>
+          </span>
+          <div class="min-w-0">
+            <p class="text-[9px] font-bold uppercase tracking-[0.24em] text-emerald-400/70">Event Analytics</p>
+            <h2 id="evAnalyticsTitle" class="text-base font-extrabold text-white tracking-tight mt-0.5 truncate"></h2>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button id="evAnalyticsEditBtn" type="button" class="px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-xs font-bold uppercase tracking-wider transition-all">Edit Event</button>
+          <button id="closeEvAnalyticsBtn" type="button" class="flex items-center justify-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+      <div class="p-7 space-y-7" id="evAnalyticsBody">
+        <!-- Injected by JS -->
+      </div>
+    </div>
+  </div>
 
   <!-- Admin Change Password Modal -->
   <div id="adminChangePasswordModal" class="hidden fixed inset-0 z-[60] items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -1131,6 +1627,13 @@
         section.classList.toggle('hidden', section.id !== `adminSection-${sectionName}`);
       });
 
+      if (sectionName === 'events') {
+        loadAdminEvents();
+      }
+      if (sectionName === 'partners') {
+        loadPartnerInquiries();
+      }
+
       document.querySelectorAll('.admin-section-btn').forEach((button) => {
         const isActive = button.dataset.section === sectionName;
         button.className = isActive
@@ -1150,6 +1653,7 @@
           renderRecentSignups(Array.isArray(adminDashboardData.recentSignups) ? adminDashboardData.recentSignups : []);
           renderAnalyticsFeeOverview(adminDashboardData.paymentSummary || {});
           renderBookingLogs(Array.isArray(adminDashboardData.bookingLogs) ? adminDashboardData.bookingLogs : []);
+          loadAdminTrends();
         } else if (sectionName === 'bookings') {
           loadStuckBookings();
         } else if (sectionName === 'payments') {
@@ -2199,6 +2703,8 @@
           actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-action="${banned ? 'unban' : 'ban'}" class="admin-user-action text-xs uppercase font-bold transition-colors ${banned ? 'text-emerald-400 hover:text-emerald-300' : 'text-red-400 hover:text-red-300'}">${banned ? 'Unban' : 'Ban'}</button>`);
         }
 
+        actionButtons.push(`<button data-user-id="${escapeHtml(user.userId)}" data-user-name="${escapeHtml(user.displayName)}" data-action="delete" class="admin-user-action text-xs uppercase font-bold transition-colors text-red-500 hover:text-red-300">Delete</button>`);
+
         const statusTone = banned
           ? 'text-red-400'
           : pendingApproval
@@ -2270,21 +2776,64 @@
           const action = button.dataset.action;
           if (!userId || !action) return;
 
+          if (action === 'delete') {
+            const userName = button.dataset.userName || 'this account';
+            const confirmation = await window.systemDialog?.prompt(
+              `This permanently deletes ${userName}, their login access, and linked records across the system.\n\nType DELETE to continue.`,
+              {
+                title: 'Delete Account',
+                kicker: 'Permanent Action',
+                placeholder: 'Type DELETE',
+                okText: 'Delete',
+                required: true
+              }
+            );
+
+            if (confirmation === null) return;
+            if (confirmation !== 'DELETE') {
+              await window.systemDialog?.alert('Account deletion cancelled. Type DELETE exactly to confirm.', {
+                title: 'Confirmation Needed',
+                kicker: 'Permanent Action'
+              });
+              return;
+            }
+          }
+
           const originalText = button.innerText;
           button.disabled = true;
           button.innerText = 'Saving...';
 
           try {
-            const response = await fetch(`/api/admin/users/${userId}/moderation`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action })
-            });
+            const response = action === 'delete'
+              ? await fetch(`/api/admin/users/${userId}/delete`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ confirmation: 'DELETE' })
+                })
+              : await fetch(`/api/admin/users/${userId}/moderation`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action })
+                });
 
-            if (!response.ok) throw new Error('Failed to update user moderation.');
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || (action === 'delete' ? 'Failed to delete account.' : 'Failed to update user moderation.'));
+
+            if (action === 'delete') {
+              await window.systemDialog?.alert(payload.message || 'Account deleted successfully.', {
+                title: 'Account Deleted',
+                kicker: 'Admin Moderation'
+              });
+            }
             await loadAdminDashboard();
           } catch (error) {
             console.warn('User moderation update failed:', error);
+            if (action === 'delete') {
+              await window.systemDialog?.alert(error.message || 'Failed to delete account.', {
+                title: 'Delete Failed',
+                kicker: 'Admin Moderation'
+              });
+            }
             button.disabled = false;
             button.innerText = originalText;
           }
@@ -2633,6 +3182,31 @@
       });
     }
 
+    document.getElementById('adminMigrateSessionistBtn')?.addEventListener('click', async () => {
+      const confirmed = await window.systemDialog?.confirm(
+        'This will convert all existing Sessionist accounts to Artist role in the database.\n\nThis action is safe to run multiple times — it only affects accounts still stored as Sessionist.\n\nProceed?',
+        { title: 'Migrate Sessionist → Artist', okText: 'Run Migration', kicker: 'One-Time Migration' }
+      );
+      if (!confirmed) return;
+
+      const btn = document.getElementById('adminMigrateSessionistBtn');
+      btn.disabled = true;
+      const originalText = btn.querySelector('p:nth-child(2)')?.innerText;
+      if (btn.querySelector('p:nth-child(2)')) btn.querySelector('p:nth-child(2)').innerText = 'Running...';
+
+      try {
+        const res = await fetch('/api/admin/migrate/sessionist-to-artist', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Migration failed.');
+        await window.systemDialog?.alert(data.message || 'Migration complete.', { title: 'Migration Done', kicker: 'Role Management' });
+      } catch (err) {
+        await window.systemDialog?.alert(err.message || 'Migration failed.', { title: 'Migration Error', kicker: 'Role Management' });
+      } finally {
+        btn.disabled = false;
+        if (btn.querySelector('p:nth-child(2)') && originalText) btn.querySelector('p:nth-child(2)').innerText = originalText;
+      }
+    });
+
     document.getElementById('adminImageLightboxClose')?.addEventListener('click', closeAdminImageLightbox);
     document.getElementById('adminImageLightbox')?.addEventListener('click', (event) => {
       if (event.target?.id === 'adminImageLightbox') closeAdminImageLightbox();
@@ -2640,6 +3214,1853 @@
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeAdminImageLightbox();
     });
+
+    // ============================================================
+    // EVENTS MODULE
+    // ============================================================
+    let adminEventsData = [];
+    let adminEventLineup = []; // current working lineup for create/edit modal
+    let adminEventTiers  = []; // current working tiers for create/edit modal
+
+    // ── TIER BUILDER ──────────────────────────────────────────────────────────
+
+    const TIER_COLORS = ['#e53e3e','#e07b00','#7c3aed','#0891b2','#059669','#db2777','#ca8a04'];
+
+    function renderAdminTiers() {
+      const list    = document.getElementById('adminTiersList');
+      const total   = document.getElementById('adminTierSlotsTotal');
+      const count   = document.getElementById('adminTierCount');
+      const warning = document.getElementById('adminTierSlotsWarning');
+      if (!list) return;
+
+      if (!adminEventTiers.length) {
+        list.innerHTML = `
+          <div class="flex flex-col items-center gap-2 py-6 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.01]">
+            <i data-lucide="tickets" class="w-8 h-8 text-white/15"></i>
+            <p class="text-xs text-white/30">No tiers yet. Click <strong class="text-white/50">+ Add Tier</strong> to create your first ticket type.</p>
+          </div>`;
+        lucide.createIcons();
+        total.textContent = '0'; count.textContent = '0';
+        warning.classList.add('hidden');
+        document.getElementById('adminEvSlots').value = '0';
+        document.getElementById('adminEvPrice').value = '0';
+        return;
+      }
+
+      list.innerHTML = `
+        <!-- Header -->
+        <div class="hidden sm:grid grid-cols-[1fr_100px_80px_80px_40px] gap-2 px-3 pb-1">
+          <span class="text-[9px] font-bold uppercase tracking-wider text-white/30">Tier Name</span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-white/30">Price (₱)</span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-white/30">Slots</span>
+          <span class="text-[9px] font-bold uppercase tracking-wider text-white/30">Color</span>
+          <span></span>
+        </div>
+        ${adminEventTiers.map((t, idx) => `
+          <div class="tier-row grid grid-cols-1 sm:grid-cols-[1fr_100px_80px_80px_40px] gap-2 items-center p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.10] transition-colors" data-idx="${idx}">
+            <!-- Name -->
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-8 rounded-full flex-shrink-0" style="background:${t.color||'#e53e3e'}"></span>
+              <input type="text" class="tier-name flex-1 bg-transparent border-b border-white/[0.12] text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 py-1 transition-colors" placeholder="e.g. VIP" value="${escapeHtml(t.name||'')}">
+            </div>
+            <!-- Price -->
+            <div class="flex items-center gap-1">
+              <span class="text-white/40 text-xs">₱</span>
+              <input type="text" inputmode="numeric" class="tier-price w-full bg-transparent border-b border-white/[0.12] text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 py-1 transition-colors" placeholder="0" value="${t.price||0}">
+            </div>
+            <!-- Slots -->
+            <input type="text" inputmode="numeric" class="tier-slots w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors" placeholder="slots" value="${t.totalSlots||0}">
+            <!-- Color swatch picker -->
+            <div class="flex items-center gap-1 flex-wrap">
+              ${TIER_COLORS.map(c => `<button type="button" data-color="${c}" class="tier-color-btn w-5 h-5 rounded-full transition-all ${(t.color||'#e53e3e')===c ? 'ring-2 ring-white/60 scale-110' : 'opacity-60 hover:opacity-100'}" style="background:${c}"></button>`).join('')}
+            </div>
+            <!-- Remove -->
+            <button type="button" class="tier-remove w-7 h-7 flex items-center justify-center rounded-xl bg-white/[0.04] hover:bg-red-500/15 hover:text-red-400 text-white/40 transition-colors ml-auto" title="Remove tier">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+            <!-- Optional description (toggle) -->
+            <div class="sm:col-span-5">
+              <input type="text" class="tier-desc w-full bg-transparent text-xs text-white/50 placeholder:text-white/20 outline-none border-b border-transparent focus:border-white/[0.10] py-0.5 transition-colors" placeholder="Add a short description (optional)…" value="${escapeHtml(t.description||'')}">
+            </div>
+          </div>`).join('')}`;
+
+      // Sold-out badges on existing tiers
+      adminEventTiers.forEach((t, idx) => {
+        if (t.slotsSold > 0) {
+          const row = list.querySelector(`[data-idx="${idx}"]`);
+          if (row) {
+            const badge = document.createElement('span');
+            badge.className = 'text-[9px] font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full ml-2';
+            badge.textContent = `${t.slotsSold} sold`;
+            row.querySelector('.tier-name')?.after(badge);
+          }
+        }
+      });
+
+      lucide.createIcons();
+
+      // Bind input changes — use data-idx from row, not forEach index
+      // Also block Enter key inside tier inputs from submitting the form
+      list.querySelectorAll('.tier-row').forEach((row) => {
+        const getIdx = () => parseInt(row.dataset.idx);
+
+        // Prevent Enter in tier inputs from accidentally submitting the form
+        row.querySelectorAll('input').forEach(inp => {
+          inp.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); }
+          });
+        });
+
+        row.querySelector('.tier-name')?.addEventListener('input', (e) => {
+          const i = getIdx(); if (i >= 0 && i < adminEventTiers.length) { adminEventTiers[i].name = e.target.value; updateTierSummary(); }
+        });
+        row.querySelector('.tier-price')?.addEventListener('input', (e) => {
+          const i = getIdx(); if (i >= 0 && i < adminEventTiers.length) { adminEventTiers[i].price = parseFloat(e.target.value)||0; updateTierSummary(); }
+        });
+        row.querySelector('.tier-slots')?.addEventListener('input', (e) => {
+          const i = getIdx(); if (i >= 0 && i < adminEventTiers.length) { adminEventTiers[i].totalSlots = parseInt(e.target.value)||0; updateTierSummary(); }
+        });
+        row.querySelector('.tier-desc')?.addEventListener('input', (e) => {
+          const i = getIdx(); if (i >= 0 && i < adminEventTiers.length) { adminEventTiers[i].description = e.target.value; }
+        });
+      });
+      list.querySelectorAll('.tier-color-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('.tier-row');
+          const idx = parseInt(row.dataset.idx);
+          adminEventTiers[idx].color = btn.dataset.color;
+          renderAdminTiers();
+        });
+      });
+      list.querySelectorAll('.tier-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('.tier-row');
+          const idx = parseInt(row.dataset.idx);
+          if (adminEventTiers[idx].slotsSold > 0) {
+            window.systemDialog?.alert('This tier has sold tickets and cannot be removed.', { title: 'Cannot Remove', kicker: 'Tier' });
+            return;
+          }
+          adminEventTiers.splice(idx, 1);
+          renderAdminTiers();
+        });
+      });
+
+      updateTierSummary();
+    }
+
+    function updateTierSummary() {
+      const total   = adminEventTiers.reduce((s, t) => s + (parseInt(t.totalSlots)||0), 0);
+      const lowestPrice = adminEventTiers.length > 0 ? Math.min(...adminEventTiers.map(t => parseFloat(t.price)||0)) : 0;
+      document.getElementById('adminTierSlotsTotal').textContent = total;
+      document.getElementById('adminTierCount').textContent = adminEventTiers.length;
+      document.getElementById('adminEvSlots').value = total;
+      document.getElementById('adminEvPrice').value = lowestPrice;
+
+      const warn = document.getElementById('adminTierSlotsWarning');
+      if (adminEventTiers.some(t => !t.name || !t.name.trim())) {
+        warn.querySelector('span').textContent = 'All tiers need a name.';
+        warn.classList.remove('hidden');
+      } else if (total === 0 && adminEventTiers.length > 0) {
+        warn.querySelector('span').textContent = 'Total slots is 0.';
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
+    }
+
+    function addDefaultTier(name = '', price = 0, slots = 0, color = '') {
+      const newIdx = adminEventTiers.length;
+      adminEventTiers.push({
+        id: null, name, price,
+        totalSlots: slots,
+        slotsSold: 0,
+        description: '',
+        color: color || TIER_COLORS[newIdx % TIER_COLORS.length],
+        sortOrder: newIdx
+      });
+      renderAdminTiers();
+      // Scroll to and focus the new tier's name input so the user clearly sees it
+      requestAnimationFrame(() => {
+        const newRow = document.querySelector(`#adminTiersList .tier-row[data-idx="${newIdx}"]`);
+        if (newRow) {
+          newRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          newRow.querySelector('.tier-name')?.select();
+        }
+      });
+    }
+
+    document.getElementById('adminAddTierBtn')?.addEventListener('click', () => {
+      const defaults = [
+        { name: 'General Admission', price: 500, color: '#059669' },
+        { name: 'VIP', price: 1500, color: '#7c3aed' },
+        { name: 'Early Bird', price: 300, color: '#ca8a04' },
+        { name: 'Front Row', price: 2500, color: '#e53e3e' }
+      ];
+      const next = defaults[adminEventTiers.length] || { name: `Tier ${adminEventTiers.length + 1}`, price: 0, color: TIER_COLORS[adminEventTiers.length % TIER_COLORS.length] };
+      addDefaultTier(next.name, next.price, 0, next.color);
+    });
+    let adminAllArtists = null; // cached for search
+
+    function setPosterPreview(dataUrl) {
+      const preview = document.getElementById('adminPosterPreview');
+      const placeholder = document.getElementById('adminPosterPlaceholder');
+      const overlay = document.getElementById('adminPosterOverlay');
+      const dataInput = document.getElementById('adminEvPosterData');
+      if (!preview || !placeholder || !overlay) return;
+      if (dataUrl) {
+        preview.src = dataUrl;
+        preview.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        dataInput.value = dataUrl;
+      } else {
+        preview.src = '';
+        preview.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+        dataInput.value = '';
+      }
+    }
+
+    function bindPosterUpload() {
+      const dropZone = document.getElementById('adminPosterDropZone');
+      const fileInput = document.getElementById('adminPosterFileInput');
+      const errorEl = document.getElementById('adminPosterError');
+      const changeBtn = document.getElementById('adminPosterChangeBtn');
+      const removeBtn = document.getElementById('adminPosterRemoveBtn');
+      if (!dropZone || !fileInput) return;
+
+      const MAX_OUTPUT_SIZE = 3.5 * 1024 * 1024;
+      const MAX_DIMENSION = 1920;
+
+      function compressImage(file, callback) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+              const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            let quality = 0.88;
+            let dataUrl = canvas.toDataURL('image/jpeg', quality);
+            while (dataUrl.length > MAX_OUTPUT_SIZE * 1.37 && quality > 0.45) {
+              quality -= 0.08;
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+            }
+            callback(dataUrl);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          if (errorEl) { errorEl.innerText = 'Only image files are supported.'; errorEl.classList.remove('hidden'); }
+          return;
+        }
+        if (errorEl) errorEl.classList.add('hidden');
+        if (file.size > MAX_OUTPUT_SIZE) {
+          if (errorEl) { errorEl.innerText = 'Compressing image…'; errorEl.classList.remove('hidden'); errorEl.classList.remove('text-red-400'); errorEl.classList.add('text-white/50'); }
+          compressImage(file, (dataUrl) => {
+            if (errorEl) { errorEl.innerText = 'Image compressed automatically.'; errorEl.classList.remove('text-white/50'); errorEl.classList.add('text-emerald-400'); }
+            setPosterPreview(dataUrl);
+          });
+        } else {
+          const reader = new FileReader();
+          reader.onload = (ev) => setPosterPreview(ev.target.result);
+          reader.readAsDataURL(file);
+        }
+      }
+
+      dropZone.addEventListener('click', (e) => {
+        if (e.target.closest('#adminPosterOverlay')) return;
+        fileInput.click();
+      });
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-red-500/50'); });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-red-500/50'));
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-red-500/50');
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFile(file);
+      });
+      fileInput.addEventListener('change', () => { if (fileInput.files?.[0]) handleFile(fileInput.files[0]); });
+      changeBtn?.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+      removeBtn?.addEventListener('click', (e) => { e.stopPropagation(); setPosterPreview(null); fileInput.value = ''; });
+    }
+
+    async function openAdminEventModal(event = null) {
+      const modal = document.getElementById('adminEventModal');
+      const titleEl = document.getElementById('adminEventModalTitle');
+      if (!modal) return;
+
+      document.getElementById('adminEventId').value = event?.id || '';
+      titleEl.innerText = event ? 'Edit Event' : 'Create Event';
+      document.getElementById('adminEvTitle').value = event?.title || '';
+      document.getElementById('adminEvDesc').value = event?.description || '';
+      document.getElementById('adminEvCity').value = event?.city || '';
+      document.getElementById('adminEvLocation').value = event?.location || '';
+      document.getElementById('adminEvType').value = event?.eventType || 'Live Gig';
+      document.getElementById('adminEvGenres').value = event?.genres || '';
+      document.getElementById('adminEvPrice').value = event?.price ?? '';
+      document.getElementById('adminEvSlots').value = event?.slots ?? '';
+      document.getElementById('adminEvMaxTickets').value = event?.maxTicketsPerCustomer || 5;
+      document.getElementById('adminEvStatus').value = event?.status || 'Upcoming';
+      document.getElementById('adminEvSaleName').value = event?.saleName || '';
+      document.getElementById('adminEvSaleType').value = event?.saleType || '';
+      document.getElementById('adminEvSaleValue').value = event?.saleValue ?? '';
+      document.getElementById('adminEvSaleQtyLimit').value = event?.saleQuantityLimit ?? '';
+      document.getElementById('adminEvSaleStarts').value = event?.saleStartsAt ? new Date(event.saleStartsAt).toISOString().slice(0,16) : '';
+      document.getElementById('adminEvSaleEnds').value = event?.saleEndsAt ? new Date(event.saleEndsAt).toISOString().slice(0,16) : '';
+
+      if (event?.time) {
+        document.getElementById('adminEvTime').value = new Date(event.time).toISOString().slice(0,16);
+      } else {
+        document.getElementById('adminEvTime').value = '';
+      }
+
+      // Poster — show existing poster or clear
+      setPosterPreview(event?.posterUrl || null);
+      document.getElementById('adminEvPosterData').value = event?.posterUrl || '';
+      const fileInput = document.getElementById('adminPosterFileInput');
+      if (fileInput) fileInput.value = '';
+
+      // Set min datetime to now so the picker itself blocks past dates
+      const nowIso = new Date(Date.now() + 60000).toISOString().slice(0, 16);
+      const timeInput = document.getElementById('adminEvTime');
+      if (timeInput) timeInput.min = nowIso;
+
+      // Tiers — fetch from /tiers endpoint when editing (list endpoint doesn't include tiers)
+      adminEventTiers = [];
+      if (event?.id) {
+        try {
+          const tiersRes = await fetch(`/api/event/${event.id}/tiers`);
+          if (tiersRes.ok) {
+            const tiersData = await tiersRes.json().catch(() => []);
+            adminEventTiers = (tiersData || []).map(t => ({ ...t }));
+          }
+        } catch { /* ignore — fall through to migration */ }
+      }
+      if (!adminEventTiers.length && event?.price) {
+        // Migrate old single-tier events into the new system
+        adminEventTiers = [{ id: null, name: 'General Admission', price: Number(event.price)||0, totalSlots: Number(event.slots)||0, slotsSold: Number(event.ticketsSold)||0, description: '', color: '#059669', sortOrder: 0 }];
+      }
+      renderAdminTiers();
+
+      // Lineup — merge artistLineup + sessionistLineup into working state
+      adminEventLineup = [
+        ...(event?.artistLineup || []).map(i => ({ ...i, role: 'Artist' })),
+        ...(event?.sessionistLineup || []).map(i => ({ ...i, role: 'Sessionist' }))
+      ];
+      renderAdminLineupChips();
+
+      document.getElementById('adminLineupSearchInput').value = '';
+      document.getElementById('adminLineupSearchResults').innerHTML = '';
+      document.getElementById('adminLineupSearchResults').classList.add('hidden');
+      document.getElementById('adminExternalArtistName').value = '';
+
+      document.getElementById('adminEventFormStatus').innerText = '';
+      document.getElementById('adminPosterError')?.classList.add('hidden');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.scrollTop = 0;
+      lucide.createIcons();
+      bindPosterUpload();
+      bindLineupSection();
+    }
+
+    function closeAdminEventModal() {
+      const modal = document.getElementById('adminEventModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      adminEventLineup = [];
+      adminEventTiers  = [];
+    }
+
+    async function loadAdminEvents() {
+      const container = document.getElementById('adminEventsList');
+      if (!container) return;
+      const adminId = localStorage.getItem('userId');
+      if (!adminId) { container.innerHTML = '<p class="text-sm text-white/40 p-4">Admin session not found.</p>'; return; }
+
+      container.innerHTML = '<div class="rounded-2xl border border-white/[0.06] bg-black/20 p-5"><p class="text-sm text-white/40">Loading events...</p></div>';
+
+      try {
+        const res = await fetch(`/api/event/organizer/${adminId}`);
+        if (!res.ok) throw new Error('Failed to load events.');
+        adminEventsData = await res.json() || [];
+
+        if (!adminEventsData.length) {
+          container.innerHTML = '<div class="rounded-2xl border border-white/[0.06] bg-black/20 p-6 text-center"><p class="text-sm text-white/40">No events yet. Click <strong class="text-white">Create Event</strong> to add the first one.</p></div>';
+          return;
+        }
+
+        container.innerHTML = adminEventsData.map(ev => {
+          const statusClass = ev.status === 'Upcoming'
+            ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+            : ev.status === 'Finished'
+              ? 'bg-slate-500/15 border-slate-400/20 text-slate-300'
+              : 'bg-amber-500/15 border-amber-400/20 text-amber-300';
+          const evDate = new Date(ev.time).toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+          const hasPoster = ev.posterUrl && ev.posterUrl.length > 0;
+          const sold = ev.ticketsSold || 0;
+          const total = ev.slots || 0;
+          const pct = total > 0 ? Math.round((sold / total) * 100) : 0;
+          return `
+            <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden flex flex-col sm:flex-row sm:items-stretch gap-0">
+              ${hasPoster ? `
+                <div class="sm:w-40 h-28 sm:h-auto flex-shrink-0 relative overflow-hidden bg-black/40">
+                  <img src="${escapeHtml(ev.posterUrl)}" alt="${escapeHtml(ev.title)}" class="w-full h-full object-cover opacity-80" onerror="this.parentElement.style.display='none'">
+                </div>
+              ` : `
+                <div class="hidden sm:flex sm:w-32 items-center justify-center bg-white/[0.02] border-r border-white/[0.04] flex-shrink-0">
+                  <i data-lucide="image-off" class="w-6 h-6 text-white/10"></i>
+                </div>
+              `}
+              <div class="flex-1 min-w-0 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full border ${statusClass}">${escapeHtml(ev.status || 'Upcoming')}</span>
+                    <span class="text-[10px] text-white/30 uppercase tracking-wider">${escapeHtml(ev.eventType || 'Live Gig')}</span>
+                  </div>
+                  <p class="text-sm font-bold text-white truncate">${escapeHtml(ev.title)}</p>
+                  <p class="text-[11px] text-white/40 mt-0.5">${evDate}</p>
+                  <p class="text-[11px] text-white/30 mt-0.5">${escapeHtml(ev.city ? ev.city + ' — ' : '')}${escapeHtml(ev.location || 'TBA')}</p>
+                  <div class="mt-2 flex items-center gap-2">
+                    <div class="flex-1 max-w-[120px] h-1 rounded-full bg-white/[0.07] overflow-hidden">
+                      <div class="h-full rounded-full bg-emerald-500/60" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-[10px] text-white/35">${sold} / ${total} tickets · ₱${Number(ev.price || 0).toFixed(0)}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap shrink-0">
+                  <button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-analytics px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-colors">Analytics</button>
+                  <button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-edit px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors">Edit</button>
+                  ${ev.status !== 'Finished' ? `<button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-finish px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] font-bold uppercase tracking-wider hover:bg-cyan-500/20 transition-colors">Finish</button>` : ''}
+                  <button data-ev-id="${escapeHtml(ev.id)}" data-ev-title="${escapeHtml(ev.title)}" class="admin-ev-delete px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500/20 transition-colors">Delete</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        bindAdminEventActions();
+        lucide.createIcons();
+      } catch (err) {
+        container.innerHTML = `<div class="rounded-2xl border border-red-500/20 bg-red-500/5 p-5"><p class="text-sm text-red-400">${err.message || 'Failed to load events.'}</p></div>`;
+      }
+    }
+
+    function bindAdminEventActions() {
+      document.querySelectorAll('.admin-ev-analytics').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ev = adminEventsData.find(e => e.id === btn.dataset.evId);
+          if (ev) openEventAnalyticsModal(ev);
+        });
+      });
+
+      document.querySelectorAll('.admin-ev-edit').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const ev = adminEventsData.find(e => e.id === btn.dataset.evId);
+          if (ev) openAdminEventModal(ev);
+        });
+      });
+
+      document.querySelectorAll('.admin-ev-finish').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const evId = btn.dataset.evId;
+          if (!evId) return;
+          const confirmed = await window.systemDialog?.confirm('Mark this event as finished? This will record verified gigs for the lineup.', { title: 'Finish Event', okText: 'Finish' });
+          if (!confirmed) return;
+          btn.disabled = true; btn.innerText = 'Finishing...';
+          try {
+            const res = await fetch(`/api/event/${evId}/finish`, { method: 'POST' });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to finish event.');
+            await loadAdminEvents();
+          } catch (err) {
+            window.alert(err.message || 'Failed to finish event.');
+            btn.disabled = false; btn.innerText = 'Finish';
+          }
+        });
+      });
+
+      document.querySelectorAll('.admin-ev-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const evId = btn.dataset.evId;
+          const evTitle = btn.dataset.evTitle || 'this event';
+          if (!evId) return;
+          const confirmed = await window.systemDialog?.confirm(`Delete "${evTitle}"? This cannot be undone.`, { title: 'Delete Event', okText: 'Delete', danger: true });
+          if (!confirmed) return;
+          btn.disabled = true; btn.innerText = 'Deleting...';
+          try {
+            const res = await fetch(`/api/event/${evId}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to delete event.');
+            await loadAdminEvents();
+          } catch (err) {
+            window.alert(err.message || 'Failed to delete event.');
+            btn.disabled = false; btn.innerText = 'Delete';
+          }
+        });
+      });
+    }
+
+    document.getElementById('adminOpenCreateEventBtn')?.addEventListener('click', () => openAdminEventModal(null));
+    document.getElementById('adminCloseEventModalBtn')?.addEventListener('click', closeAdminEventModal);
+    document.getElementById('adminCancelEventBtn')?.addEventListener('click', closeAdminEventModal);
+
+    document.getElementById('adminEventForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const adminId = localStorage.getItem('userId');
+      if (!adminId) { window.alert('Admin session expired. Please log in again.'); return; }
+
+      const eventId = document.getElementById('adminEventId').value.trim();
+      const isEdit = !!eventId;
+      const statusEl = document.getElementById('adminEventFormStatus');
+      const submitBtn = document.getElementById('adminEventSubmitBtn');
+
+      // ── Sync current DOM values into adminEventTiers before validating ──────
+      // (Input event listeners may not fire if the DOM was rebuilt after typing)
+      document.querySelectorAll('#adminTiersList .tier-row').forEach((row) => {
+        const idx = parseInt(row.dataset.idx);
+        if (isNaN(idx) || idx >= adminEventTiers.length) return;
+        const nameInp  = row.querySelector('.tier-name');
+        const priceInp = row.querySelector('.tier-price');
+        const slotsInp = row.querySelector('.tier-slots');
+        const descInp  = row.querySelector('.tier-desc');
+        if (nameInp)  adminEventTiers[idx].name        = nameInp.value.trim();
+        if (priceInp) adminEventTiers[idx].price        = parseFloat(priceInp.value) || 0;
+        if (slotsInp) adminEventTiers[idx].totalSlots   = parseInt(slotsInp.value) || 0;
+        if (descInp)  adminEventTiers[idx].description  = descInp.value.trim() || '';
+      });
+      updateTierSummary(); // re-compute adminEvSlots / adminEvPrice
+
+      // Tier validation
+      const validTiers = adminEventTiers.filter(t => (t.name||'').trim() && (parseInt(t.totalSlots)||0) > 0);
+      if (!validTiers.length) {
+        statusEl.innerText = 'Add at least one ticket tier with a name and at least 1 slot.';
+        statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+      const unfinished = adminEventTiers.find(t => (t.name||'').trim() && !(parseInt(t.totalSlots)||0));
+      if (unfinished) {
+        statusEl.innerText = `Tier "${unfinished.name}" needs at least 1 slot.`;
+        statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
+
+      // Frontend past-date guard
+      const rawTime = document.getElementById('adminEvTime').value;
+      if (!rawTime) {
+        statusEl.innerText = 'Please select a date and time for the event.';
+        return;
+      }
+      const selectedDate = new Date(rawTime);
+      if (selectedDate <= new Date()) {
+        statusEl.innerText = 'Event date and time must be in the future. Past dates are not allowed.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = isEdit ? 'Saving...' : 'Creating...';
+      statusEl.innerText = '';
+
+      const saleTypeVal = document.getElementById('adminEvSaleType').value;
+      const saleValueRaw = document.getElementById('adminEvSaleValue').value;
+      const saleLimitRaw = document.getElementById('adminEvSaleQtyLimit').value;
+      const saleStartsRaw = document.getElementById('adminEvSaleStarts').value;
+      const saleEndsRaw = document.getElementById('adminEvSaleEnds').value;
+      const posterData = document.getElementById('adminEvPosterData').value.trim() || null;
+
+      // Sync DOM input values → adminEventTiers before building payload
+      // (handles cases where input events were missed, e.g. autofill or rapid typing)
+      document.querySelectorAll('#adminTiersList .tier-row').forEach(row => {
+        const idx = parseInt(row.dataset.idx);
+        if (idx >= 0 && idx < adminEventTiers.length) {
+          const nameEl  = row.querySelector('.tier-name');
+          const priceEl = row.querySelector('.tier-price');
+          const slotsEl = row.querySelector('.tier-slots');
+          const descEl  = row.querySelector('.tier-desc');
+          if (nameEl)  adminEventTiers[idx].name        = nameEl.value.trim();
+          if (priceEl) adminEventTiers[idx].price       = parseFloat(priceEl.value) || 0;
+          if (slotsEl) adminEventTiers[idx].totalSlots  = parseInt(slotsEl.value)   || 0;
+          if (descEl)  adminEventTiers[idx].description = descEl.value;
+        }
+      });
+
+      const payload = {
+        organizerId: adminId,
+        title: document.getElementById('adminEvTitle').value.trim(),
+        description: document.getElementById('adminEvDesc').value.trim(),
+        time: document.getElementById('adminEvTime').value,
+        city: document.getElementById('adminEvCity').value.trim(),
+        location: document.getElementById('adminEvLocation').value.trim(),
+        eventType: document.getElementById('adminEvType').value.trim() || 'Live Gig',
+        genres: document.getElementById('adminEvGenres').value.trim(),
+        price: parseFloat(document.getElementById('adminEvPrice').value) || 0,
+        slots: parseInt(document.getElementById('adminEvSlots').value) || 0,
+        maxTicketsPerCustomer: parseInt(document.getElementById('adminEvMaxTickets').value) || 5,
+        status: document.getElementById('adminEvStatus').value,
+        posterUrl: posterData,
+        saleName: document.getElementById('adminEvSaleName').value.trim() || null,
+        saleType: saleTypeVal || null,
+        saleValue: saleValueRaw ? parseFloat(saleValueRaw) : null,
+        saleQuantityLimit: saleLimitRaw ? parseInt(saleLimitRaw) : null,
+        saleStartsAt: saleStartsRaw || null,
+        saleEndsAt: saleEndsRaw || null,
+        artistLineup: adminEventLineup.filter(i => i.role === 'Artist'),
+        sessionistLineup: adminEventLineup.filter(i => i.role === 'Sessionist'),
+        artists: adminEventLineup.map(i => i.displayName).join(', '),
+        tiers: adminEventTiers.map((t, idx) => ({
+          id: t.id || null,
+          name: (t.name || '').trim(),
+          description: (t.description || '').trim() || null,
+          color: t.color || '#e53e3e',
+          price: parseFloat(t.price) || 0,
+          totalSlots: parseInt(t.totalSlots) || 0,
+          slotsSold: t.slotsSold || 0,
+          sortOrder: idx
+        })).filter(t => t.name)
+      };
+
+      try {
+        const url = isEdit ? `/api/event/${eventId}` : '/api/event/create';
+        const method = isEdit ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to save event.');
+        statusEl.innerText = data.message || 'Event saved.';
+        closeAdminEventModal();
+        await loadAdminEvents();
+      } catch (err) {
+        statusEl.innerText = err.message || 'An error occurred.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = isEdit ? 'Save Changes' : 'Save Event';
+      }
+    });
+
+    // ─── LINEUP MANAGEMENT ────────────────────────────────────────────────
+
+    function renderAdminLineupChips() {
+      const container = document.getElementById('adminLineupList');
+      if (!container) return;
+      if (!adminEventLineup.length) {
+        container.innerHTML = '<p class="text-xs text-white/25 py-1">No lineup added yet.</p>';
+        return;
+      }
+      container.innerHTML = adminEventLineup.map((item, idx) => `
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold
+          ${item.role === 'Sessionist' ? 'bg-purple-500/10 border-purple-500/25 text-purple-200' : 'bg-red-500/10 border-red-500/25 text-red-200'}">
+          ${item.profilePicture ? `<img src="${escapeHtml(item.profilePicture)}" class="w-5 h-5 rounded-full object-cover flex-shrink-0" onerror="this.style.display='none'">` : `<span class="w-5 h-5 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center text-[9px]">${escapeHtml(item.displayName[0] || '?').toUpperCase()}</span>`}
+          <span>${escapeHtml(item.displayName)}</span>
+          <span class="text-white/30 font-normal">${item.id === '00000000-0000-0000-0000-000000000000' ? '· External' : '· ' + item.role}</span>
+          <button type="button" data-lineup-idx="${idx}" class="admin-lineup-remove ml-1 w-4 h-4 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/50 hover:text-white transition-colors flex-shrink-0" aria-label="Remove">
+            <i data-lucide="x" class="w-2.5 h-2.5"></i>
+          </button>
+        </div>`).join('');
+      document.querySelectorAll('.admin-lineup-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.lineupIdx);
+          adminEventLineup.splice(idx, 1);
+          renderAdminLineupChips();
+        });
+      });
+      lucide.createIcons();
+    }
+
+    function lineupAlreadyAdded(id, displayName, role) {
+      if (id && id !== '00000000-0000-0000-0000-000000000000') {
+        return adminEventLineup.some(i => i.id === id);
+      }
+      return adminEventLineup.some(i =>
+        i.id === '00000000-0000-0000-0000-000000000000' &&
+        i.displayName.trim().toLowerCase() === displayName.trim().toLowerCase() &&
+        i.role === role);
+    }
+
+    async function fetchAllArtistsForLineup() {
+      if (adminAllArtists) return adminAllArtists;
+      try {
+        const [aRes, sRes] = await Promise.all([
+          fetch('/api/artist/all'),
+          fetch('/api/sessionist/all')
+        ]);
+        const artists = aRes.ok ? (await aRes.json().catch(() => [])) : [];
+        const sessionists = sRes.ok ? (await sRes.json().catch(() => [])) : [];
+        adminAllArtists = [
+          ...artists.map(u => ({ id: u.id || u.userId, displayName: u.displayName || u.name || u.stageName || u.username || 'Unknown', role: 'Artist', profilePicture: u.profilePicture || u.profilePic || null, genres: u.genres || '' })),
+          ...sessionists.map(u => ({ id: u.id || u.userId, displayName: u.displayName || u.name || u.stageName || u.username || 'Unknown', role: 'Sessionist', profilePicture: u.profilePicture || u.profilePic || null, genres: u.genres || '' }))
+        ].filter(u => u.id && u.displayName);
+      } catch(e) {
+        adminAllArtists = [];
+      }
+      return adminAllArtists;
+    }
+
+    let _lineupSearchDebounce = null;
+    let _lineupFilterRole = '';   // '' | 'Artist' | 'Sessionist'
+    let _lineupFilterGenre = '';  // '' | genre string
+    let _lineupFiltersBuilt = false;
+
+    function getLineupGenres(all) {
+      const set = new Set();
+      all.forEach(u => {
+        if (!u.genres) return;
+        u.genres.split(',').forEach(g => {
+          const t = g.trim();
+          if (t) set.add(t);
+        });
+      });
+      return [...set].sort();
+    }
+
+    function applyLineupFilters(all, q) {
+      return all.filter(u => {
+        if (_lineupFilterRole && u.role !== _lineupFilterRole) return false;
+        if (_lineupFilterGenre) {
+          const uGenres = (u.genres || '').split(',').map(g => g.trim().toLowerCase());
+          if (!uGenres.includes(_lineupFilterGenre.toLowerCase())) return false;
+        }
+        if (q) return u.displayName.toLowerCase().includes(q);
+        return true;
+      });
+    }
+
+    function updateLineupFilterStyles() {
+      document.querySelectorAll('.lineup-role-pill').forEach(btn => {
+        const active = btn.dataset.filterRole === _lineupFilterRole;
+        btn.className = `lineup-role-pill px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+          active ? 'bg-red-500/25 border-red-500/40 text-red-300' : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:text-white hover:bg-white/[0.07]'}`;
+      });
+      document.querySelectorAll('.lineup-genre-pill').forEach(btn => {
+        const active = btn.dataset.filterGenre === _lineupFilterGenre;
+        btn.className = `lineup-genre-pill px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap border ${
+          active ? 'bg-purple-500/25 border-purple-500/35 text-purple-200' : 'bg-white/[0.03] border-white/[0.06] text-white/35 hover:text-white/70 hover:bg-white/[0.06]'}`;
+      });
+    }
+
+    function renderLineupFilterBar(all) {
+      const filtersEl = document.getElementById('adminLineupFilters');
+      if (!filtersEl) return;
+      const genres = getLineupGenres(all);
+
+      const roleActive = (val) => val === _lineupFilterRole
+        ? 'bg-red-500/25 border-red-500/40 text-red-300'
+        : 'bg-white/[0.04] border-white/[0.08] text-white/40 hover:text-white hover:bg-white/[0.07]';
+      const genreActive = (val) => val === _lineupFilterGenre
+        ? 'bg-purple-500/25 border-purple-500/35 text-purple-200'
+        : 'bg-white/[0.03] border-white/[0.06] text-white/35 hover:text-white/70 hover:bg-white/[0.06]';
+
+      filtersEl.innerHTML = `
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button type="button" data-filter-role="" class="lineup-role-pill px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${roleActive('')}">All</button>
+          <button type="button" data-filter-role="Artist" class="lineup-role-pill px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${roleActive('Artist')}">Artist</button>
+          <button type="button" data-filter-role="Sessionist" class="lineup-role-pill px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${roleActive('Sessionist')}">Sessionist</button>
+        </div>
+        ${genres.length ? `
+        <div class="flex items-center gap-1.5 flex-wrap max-h-16 overflow-y-auto">
+          <button type="button" data-filter-genre="" class="lineup-genre-pill px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap border ${genreActive('')}">All Genres</button>
+          ${genres.map(g => `<button type="button" data-filter-genre="${escapeHtml(g)}" class="lineup-genre-pill px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all whitespace-nowrap border ${genreActive(g)}">${escapeHtml(g)}</button>`).join('')}
+        </div>` : ''}`;
+      filtersEl.classList.remove('hidden');
+
+      filtersEl.querySelectorAll('.lineup-role-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _lineupFilterRole = btn.dataset.filterRole;
+          updateLineupFilterStyles();
+          refreshLineupDropdown();
+        });
+      });
+      filtersEl.querySelectorAll('.lineup-genre-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          _lineupFilterGenre = btn.dataset.filterGenre;
+          updateLineupFilterStyles();
+          refreshLineupDropdown();
+        });
+      });
+    }
+
+    function refreshLineupDropdown() {
+      const inp = document.getElementById('adminLineupSearchInput');
+      const resultsEl = document.getElementById('adminLineupSearchResults');
+      if (!inp || !resultsEl || !adminAllArtists) return;
+      const q = inp.value.trim().toLowerCase();
+      const filtered = applyLineupFilters(adminAllArtists, q);
+      renderLineupDropdown(filtered.slice(0, 14), resultsEl);
+    }
+
+    function renderLineupDropdown(matches, resultsEl) {
+      if (!matches.length) {
+        resultsEl.innerHTML = '<p class="text-xs text-white/30 px-3 py-3">No matches found.</p>';
+        resultsEl.classList.remove('hidden');
+        return;
+      }
+      resultsEl.innerHTML = matches.map(u => `
+        <button type="button" data-user-id="${escapeHtml(u.id)}" data-display-name="${escapeHtml(u.displayName)}" data-role="${escapeHtml(u.role)}" data-pic="${escapeHtml(u.profilePicture || '')}"
+          class="admin-lineup-add-btn w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition-colors text-left group">
+          ${u.profilePicture
+            ? `<img src="${escapeHtml(u.profilePicture)}" class="w-8 h-8 rounded-full object-cover flex-shrink-0" onerror="this.style.display='none'">`
+            : `<span class="w-8 h-8 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center text-xs font-bold text-white/50">${escapeHtml(u.displayName[0] || '?').toUpperCase()}</span>`}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-white truncate">${escapeHtml(u.displayName)}</p>
+            <p class="text-[10px] text-white/35 uppercase tracking-wide">${escapeHtml(u.role)}</p>
+          </div>
+          ${lineupAlreadyAdded(u.id, u.displayName, u.role)
+            ? `<span class="text-[9px] text-emerald-400/60 font-bold uppercase tracking-wider">Added</span>`
+            : `<span class="text-[9px] text-white/25 group-hover:text-emerald-400 transition-colors font-bold uppercase tracking-wider">+ Add</span>`}
+        </button>`).join('');
+      resultsEl.classList.remove('hidden');
+
+      resultsEl.querySelectorAll('.admin-lineup-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.userId;
+          const name = btn.dataset.displayName;
+          const role = btn.dataset.role;
+          const pic = btn.dataset.pic || null;
+          if (lineupAlreadyAdded(id, name, role)) return;
+          adminEventLineup.push({ id, displayName: name, role, profilePicture: pic || null });
+          renderAdminLineupChips();
+          refreshLineupDropdown();
+        });
+      });
+    }
+
+    function bindLineupSection() {
+      const searchInput = document.getElementById('adminLineupSearchInput');
+      const resultsEl = document.getElementById('adminLineupSearchResults');
+      const addExternalBtn = document.getElementById('adminAddExternalBtn');
+      if (!searchInput || !resultsEl || !addExternalBtn) return;
+
+      // Reset filter state on each modal open
+      _lineupFilterRole = '';
+      _lineupFilterGenre = '';
+      _lineupFiltersBuilt = false;
+      document.getElementById('adminLineupFilters').classList.add('hidden');
+      document.getElementById('adminLineupFilters').innerHTML = '';
+
+      // Clone nodes to wipe old listeners on each modal open
+      const newSearch = searchInput.cloneNode(true);
+      searchInput.replaceWith(newSearch);
+      const newAddBtn = addExternalBtn.cloneNode(true);
+      addExternalBtn.replaceWith(newAddBtn);
+
+      const inp = document.getElementById('adminLineupSearchInput');
+
+      // Show dropdown + filters immediately on focus / click
+      inp.addEventListener('focus', async () => {
+        const all = await fetchAllArtistsForLineup();
+        if (!_lineupFiltersBuilt) {
+          renderLineupFilterBar(all);
+          _lineupFiltersBuilt = true;
+        } else {
+          document.getElementById('adminLineupFilters')?.classList.remove('hidden');
+        }
+        const filtered = applyLineupFilters(all, inp.value.trim().toLowerCase());
+        renderLineupDropdown(filtered.slice(0, 14), resultsEl);
+      });
+
+      // Filter as user types
+      inp.addEventListener('input', () => {
+        clearTimeout(_lineupSearchDebounce);
+        _lineupSearchDebounce = setTimeout(refreshLineupDropdown, 180);
+      });
+
+      // Click outside the whole search section → close
+      function onOutsideClick(e) {
+        const section = document.getElementById('adminLineupFilters')?.closest('.rounded-2xl');
+        if (section && !section.contains(e.target)) {
+          resultsEl.classList.add('hidden');
+          document.getElementById('adminLineupFilters')?.classList.add('hidden');
+          _lineupFiltersBuilt = false;
+        }
+        if (document.getElementById('adminEventModal')?.classList.contains('hidden')) {
+          document.removeEventListener('click', onOutsideClick);
+        }
+      }
+      document.addEventListener('click', onOutsideClick);
+
+      document.getElementById('adminAddExternalBtn').addEventListener('click', () => {
+        const nameInput = document.getElementById('adminExternalArtistName');
+        const roleSelect = document.getElementById('adminExternalArtistRole');
+        const name = nameInput.value.trim();
+        const role = roleSelect.value;
+        if (!name) { nameInput.focus(); return; }
+        const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+        if (lineupAlreadyAdded(EMPTY_GUID, name, role)) return;
+        adminEventLineup.push({ id: EMPTY_GUID, displayName: name, role, profilePicture: null });
+        renderAdminLineupChips();
+        nameInput.value = '';
+      });
+    }
+
+    // ─── PER-EVENT ANALYTICS MODAL ────────────────────────────────────────
+
+    let _evAnalyticsCharts = [];
+    let _evAnalyticsCurId = null;
+
+    function destroyEvAnalyticsCharts() {
+      _evAnalyticsCharts.forEach(c => { try { c.destroy(); } catch(e) {} });
+      _evAnalyticsCharts = [];
+    }
+
+    function closeEvAnalyticsModal() {
+      destroyEvAnalyticsCharts();
+      document.getElementById('adminEventAnalyticsModal').classList.add('hidden');
+      _evAnalyticsCurId = null;
+    }
+
+    async function openEventAnalyticsModal(ev) {
+      const modal = document.getElementById('adminEventAnalyticsModal');
+      const titleEl = document.getElementById('evAnalyticsTitle');
+      const body = document.getElementById('evAnalyticsBody');
+      if (!modal || !body) return;
+
+      _evAnalyticsCurId = ev.id;
+      destroyEvAnalyticsCharts();
+      titleEl.innerText = ev.title || 'Event';
+
+      // Edit button wiring
+      const editBtn = document.getElementById('evAnalyticsEditBtn');
+      if (editBtn) {
+        editBtn.onclick = () => { closeEvAnalyticsModal(); openAdminEventModal(adminEventsData.find(e => e.id === ev.id)); };
+      }
+
+      // Show loading skeleton
+      body.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-16 gap-4">
+          <div class="w-10 h-10 rounded-full border-2 border-emerald-500/40 border-t-emerald-400 animate-spin"></div>
+          <p class="text-sm text-white/40">Loading analytics…</p>
+        </div>`;
+      modal.classList.remove('hidden');
+      modal.scrollTop = 0;
+      lucide.createIcons();
+
+      const adminId = localStorage.getItem('userId');
+      if (!adminId) { body.innerHTML = '<p class="text-sm text-red-400 p-4">Session expired.</p>'; return; }
+
+      let data;
+      try {
+        const res = await fetch(`/api/event/organizer/${adminId}/analytics/${ev.id}`);
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to load analytics.');
+        data = await res.json();
+      } catch(err) {
+        body.innerHTML = `<p class="text-sm text-red-400 p-4">${escapeHtml(err.message)}</p>`;
+        return;
+      }
+
+      if (_evAnalyticsCurId !== ev.id) return; // modal was closed/changed while loading
+
+      const s = data.summary || {};
+      const timeline = data.salesTimeline || [];
+      const tiers = data.tierBreakdown || [];
+      const txns = data.recentTransactions || [];
+
+      const sold = s.ticketsSold || 0;
+      const total = s.totalSlots || 0;
+      const scanned = s.usedTickets || 0;
+      const unsold = Math.max(0, total - sold);
+      const soldNotScanned = Math.max(0, sold - scanned);
+      const revenue = Number(s.grossRevenue || 0);
+      const aov = Number(s.averageOrderValue || 0);
+      const sellPct = Number(s.sellThroughRate || 0);
+      const attendPct = Number(s.attendanceRate || 0);
+      const statusColor = s.status === 'Upcoming' ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
+        : s.status === 'Finished' ? 'text-slate-300 bg-slate-500/10 border-slate-400/20'
+        : 'text-amber-300 bg-amber-500/10 border-amber-400/20';
+      const evDate = s.eventTime ? new Date(s.eventTime).toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'TBA';
+
+      const allLineup = [...(ev.artistLineup || []), ...(ev.sessionistLineup || [])];
+
+      body.innerHTML = `
+        <!-- Meta bar -->
+        <div class="flex items-center gap-3 flex-wrap -mt-1">
+          <span class="text-[9px] font-bold uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border ${statusColor}">${escapeHtml(s.status || 'Upcoming')}</span>
+          <span class="text-xs text-white/40">${escapeHtml(evDate)}</span>
+          <span class="text-xs text-white/30">${escapeHtml((s.city ? s.city + ' — ' : '') + (s.location || ''))}</span>
+        </div>
+
+        <!-- KPI row -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="rounded-2xl bg-emerald-500/[0.06] border border-emerald-500/15 p-4">
+            <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-400/60 mb-2">Gross Revenue</p>
+            <p class="text-2xl font-extrabold text-emerald-400">₱${revenue.toLocaleString('en-PH', {minimumFractionDigits:0})}</p>
+            <p class="text-[10px] text-white/30 mt-1">${s.transactions || 0} transactions · Avg ₱${aov.toLocaleString('en-PH',{minimumFractionDigits:0})}</p>
+          </div>
+          <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4">
+            <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-white/35 mb-2">Tickets Sold</p>
+            <p class="text-2xl font-extrabold text-white">${sold}</p>
+            <p class="text-[10px] text-white/30 mt-1">of ${total} slots · ${sellPct}% sell-through</p>
+          </div>
+          <div class="rounded-2xl bg-cyan-500/[0.06] border border-cyan-500/15 p-4">
+            <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-400/60 mb-2">Tickets Scanned</p>
+            <p class="text-2xl font-extrabold text-cyan-300">${scanned}</p>
+            <p class="text-[10px] text-white/30 mt-1">${attendPct}% attendance rate</p>
+          </div>
+          <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4">
+            <p class="text-[9px] font-bold uppercase tracking-[0.2em] text-white/35 mb-2">Remaining</p>
+            <p class="text-2xl font-extrabold text-white/60">${unsold}</p>
+            <p class="text-[10px] text-white/30 mt-1">unsold slots left</p>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- Ticket status donut -->
+          <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-4">Ticket Breakdown</p>
+            <div class="flex items-center gap-5">
+              <div class="relative w-36 h-36 flex-shrink-0">
+                <canvas id="evDonutChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span class="text-xl font-extrabold text-white">${total > 0 ? Math.round(sold/total*100) : 0}%</span>
+                  <span class="text-[9px] text-white/35 uppercase tracking-wider">sold</span>
+                </div>
+              </div>
+              <div class="flex-1 space-y-2.5">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-3 h-3 rounded-sm bg-cyan-400 flex-shrink-0"></span>
+                  <span class="text-xs text-white/70 flex-1">Scanned / Attended</span>
+                  <span class="text-xs font-bold text-white">${scanned}</span>
+                </div>
+                <div class="flex items-center gap-2.5">
+                  <span class="w-3 h-3 rounded-sm bg-emerald-400 flex-shrink-0"></span>
+                  <span class="text-xs text-white/70 flex-1">Sold · Not Yet Scanned</span>
+                  <span class="text-xs font-bold text-white">${soldNotScanned}</span>
+                </div>
+                <div class="flex items-center gap-2.5">
+                  <span class="w-3 h-3 rounded-sm bg-white/15 flex-shrink-0"></span>
+                  <span class="text-xs text-white/70 flex-1">Unsold Slots</span>
+                  <span class="text-xs font-bold text-white">${unsold}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sales timeline -->
+          <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-4">Daily Ticket Sales</p>
+            ${timeline.length > 0
+              ? `<div class="h-36"><canvas id="evTimelineChart"></canvas></div>`
+              : `<div class="h-36 flex items-center justify-center"><p class="text-sm text-white/25">No sales data yet.</p></div>`}
+          </div>
+        </div>
+
+        <!-- Tier breakdown -->
+        ${tiers.length > 1 ? `
+        <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-4">Tier Breakdown</p>
+          <div class="h-40"><canvas id="evTiersChart"></canvas></div>
+        </div>` : ''}
+
+        <!-- Recent transactions -->
+        ${txns.length > 0 ? `
+        <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-4">Recent Purchases</p>
+          <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+            ${txns.map(t => {
+              const d = t.purchaseDate ? new Date(t.purchaseDate).toLocaleDateString('en-PH', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+              const scannedLabel = t.isUsed
+                ? `<span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/20 text-cyan-300">Scanned</span>`
+                : `<span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/35">Not Scanned</span>`;
+              return `<div class="flex items-center gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
+                <div class="w-8 h-8 rounded-xl bg-white/[0.05] flex items-center justify-center flex-shrink-0 text-xs font-bold text-white/50">${escapeHtml((t.attendeeName || '?')[0] || '?').toUpperCase()}</div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-semibold text-white truncate">${escapeHtml(t.attendeeName || 'Guest')}</p>
+                  <p class="text-[10px] text-white/35">${escapeHtml(t.tierName)} · ${t.quantity} ticket${t.quantity !== 1 ? 's' : ''} · ${escapeHtml(t.paymentMethod)}</p>
+                </div>
+                <div class="text-right flex-shrink-0 space-y-1">
+                  <p class="text-sm font-bold text-white">₱${Number(t.totalPrice).toLocaleString('en-PH',{minimumFractionDigits:0})}</p>
+                  ${scannedLabel}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        <!-- Lineup -->
+        ${allLineup.length ? `
+        <div class="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-5">
+          <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Artist Lineup (${allLineup.length})</p>
+          <div class="flex flex-wrap gap-2">
+            ${allLineup.map(item => `
+              <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold
+                ${item.role === 'Sessionist' ? 'bg-purple-500/10 border-purple-500/20 text-purple-200' : 'bg-red-500/10 border-red-500/20 text-red-200'}">
+                ${item.profilePicture ? `<img src="${escapeHtml(item.profilePicture)}" class="w-5 h-5 rounded-full object-cover" onerror="this.style.display='none'">` : `<span class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-[9px]">${escapeHtml(item.displayName[0]||'?').toUpperCase()}</span>`}
+                <span>${escapeHtml(item.displayName)}</span>
+                ${item.id === '00000000-0000-0000-0000-000000000000' ? '<span class="text-white/30 font-normal">· External</span>' : ''}
+              </div>`).join('')}
+          </div>
+        </div>` : ''}`;
+
+      lucide.createIcons();
+
+      // ── Donut chart ──────────────────────────────────────────────────────
+      const donutCanvas = document.getElementById('evDonutChart');
+      if (donutCanvas) {
+        const donutChart = new Chart(donutCanvas, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [scanned, soldNotScanned, unsold],
+              backgroundColor: ['rgba(34,211,238,0.85)', 'rgba(52,211,153,0.85)', 'rgba(255,255,255,0.08)'],
+              borderColor: ['rgba(34,211,238,0.3)', 'rgba(52,211,153,0.3)', 'rgba(255,255,255,0.05)'],
+              borderWidth: 2,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            cutout: '72%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: {
+              callbacks: { label: ctx => ` ${ctx.raw} tickets` }
+            }}
+          }
+        });
+        _evAnalyticsCharts.push(donutChart);
+      }
+
+      // ── Timeline chart ───────────────────────────────────────────────────
+      const timelineCanvas = document.getElementById('evTimelineChart');
+      if (timelineCanvas && timeline.length > 0) {
+        const labels = timeline.map(t => new Date(t.day).toLocaleDateString('en-PH', {month:'short', day:'numeric'}));
+        const ticketData = timeline.map(t => t.ticketsSold);
+        const revData = timeline.map(t => Number(t.revenue));
+        const maxRev = Math.max(...revData, 1);
+        const timelineChart = new Chart(timelineCanvas, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Tickets Sold',
+                data: ticketData,
+                backgroundColor: 'rgba(52,211,153,0.6)',
+                borderColor: 'rgba(52,211,153,0.9)',
+                borderWidth: 1,
+                borderRadius: 4,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Revenue (₱)',
+                data: revData,
+                type: 'line',
+                borderColor: 'rgba(251,191,36,0.8)',
+                backgroundColor: 'rgba(251,191,36,0.08)',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: 'rgba(251,191,36,0.9)',
+                tension: 0.35,
+                fill: true,
+                yAxisID: 'y2'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(10,10,10,0.9)',
+                borderColor: 'rgba(255,255,255,0.08)',
+                borderWidth: 1,
+                callbacks: {
+                  label: ctx => ctx.datasetIndex === 0
+                    ? ` ${ctx.raw} tickets`
+                    : ` ₱${Number(ctx.raw).toLocaleString('en-PH',{minimumFractionDigits:0})}`
+                }
+              }
+            },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 } } },
+              y: { position: 'left', grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.35)', font: { size: 10 }, precision: 0 }, beginAtZero: true },
+              y2: { position: 'right', grid: { drawOnChartArea: false }, ticks: { color: 'rgba(251,191,36,0.5)', font: { size: 10 }, callback: v => '₱'+Number(v).toLocaleString('en-PH',{maximumFractionDigits:0}) }, beginAtZero: true, max: maxRev * 1.25 }
+            }
+          }
+        });
+        _evAnalyticsCharts.push(timelineChart);
+      }
+
+      // ── Tiers chart ──────────────────────────────────────────────────────
+      const tiersCanvas = document.getElementById('evTiersChart');
+      if (tiersCanvas && tiers.length > 1) {
+        const tierColors = ['rgba(239,68,68,0.7)','rgba(34,211,238,0.7)','rgba(168,85,247,0.7)','rgba(251,191,36,0.7)','rgba(52,211,153,0.7)'];
+        const tiersChart = new Chart(tiersCanvas, {
+          type: 'bar',
+          data: {
+            labels: tiers.map(t => t.tierName),
+            datasets: [
+              {
+                label: 'Sold',
+                data: tiers.map(t => t.ticketsSold),
+                backgroundColor: tierColors,
+                borderRadius: 6
+              },
+              {
+                label: 'Scanned',
+                data: tiers.map(t => t.usedTickets),
+                backgroundColor: tiers.map((_,i) => tierColors[i % tierColors.length].replace('0.7','0.35')),
+                borderRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.45)', font: { size: 10 }, boxWidth: 12, boxHeight: 12 } },
+              tooltip: { backgroundColor: 'rgba(10,10,10,0.9)', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 }
+            },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 } } },
+              y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, precision: 0 }, beginAtZero: true }
+            }
+          }
+        });
+        _evAnalyticsCharts.push(tiersChart);
+      }
+    }
+
+    document.getElementById('closeEvAnalyticsBtn')?.addEventListener('click', closeEvAnalyticsModal);
+    document.getElementById('adminEventAnalyticsModal')?.addEventListener('click', (e) => {
+      if (e.target === document.getElementById('adminEventAnalyticsModal')) closeEvAnalyticsModal();
+    });
+
+    // ─── PLATFORM TRENDS ──────────────────────────────────────────────────
+
+    let _trendsCharts = {};
+
+    function destroyTrendsCharts() {
+      Object.values(_trendsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
+      _trendsCharts = {};
+    }
+
+    async function loadAdminTrends() {
+      const days = parseInt(document.getElementById('trendsDaysSelect')?.value) || 90;
+      destroyTrendsCharts();
+      try {
+        const res = await fetch(`/api/admin/trends?days=${days}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderTrendsCharts(data);
+      } catch(e) {}
+    }
+
+    function trendsLineChart(canvasId, labels, dataset, color, labelName) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: labelName,
+            data: dataset,
+            borderColor: color,
+            backgroundColor: color.replace('rgb', 'rgba').replace(')', ',0.08)'),
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.35,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(10,10,10,0.9)', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, maxTicksLimit: 6 } },
+            y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 9 }, precision: 0 }, beginAtZero: true }
+          }
+        }
+      });
+      _trendsCharts[canvasId] = chart;
+    }
+
+    function renderTrendsCharts(data) {
+      const fmtDay = d => new Date(d).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+
+      trendsLineChart('trendsSignupsChart',
+        data.signups.map(s => fmtDay(s.day)),
+        data.signups.map(s => s.count),
+        'rgb(167,139,250)', 'Signups');
+
+      trendsLineChart('trendsBookingsChart',
+        data.bookings.map(b => fmtDay(b.day)),
+        data.bookings.map(b => b.count),
+        'rgb(251,191,36)', 'Bookings');
+
+      trendsLineChart('trendsRevenueChart',
+        data.revenue.map(r => fmtDay(r.day)),
+        data.revenue.map(r => Number(r.revenue)),
+        'rgb(52,211,153)', 'Revenue');
+
+      // Roles donut
+      const rolesCanvas = document.getElementById('trendsRolesChart');
+      if (rolesCanvas && data.roles?.length) {
+        const roleColors = ['rgba(239,68,68,0.8)','rgba(34,211,238,0.8)','rgba(168,85,247,0.8)','rgba(251,191,36,0.8)','rgba(52,211,153,0.8)'];
+        const rolesChart = new Chart(rolesCanvas, {
+          type: 'doughnut',
+          data: {
+            labels: data.roles.map(r => r.role),
+            datasets: [{ data: data.roles.map(r => r.count), backgroundColor: roleColors, borderWidth: 2, borderColor: 'rgba(10,10,10,0.8)' }]
+          },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+        });
+        _trendsCharts['trendsRolesChart'] = rolesChart;
+
+        const legend = document.getElementById('trendsRolesLegend');
+        if (legend) {
+          legend.innerHTML = data.roles.map((r, i) => `
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-sm flex-shrink-0" style="background:${roleColors[i % roleColors.length]}"></span>
+              <span class="text-xs text-white/60">${r.role}</span>
+              <span class="text-xs font-bold text-white">${r.count}</span>
+            </div>`).join('');
+        }
+      }
+    }
+
+    document.getElementById('trendsDaysSelect')?.addEventListener('change', loadAdminTrends);
+    document.getElementById('refreshTrendsBtn')?.addEventListener('click', loadAdminTrends);
+
+    // ─── DISPUTES MODULE ──────────────────────────────────────────────────
+
+    async function loadAdminDisputes() {
+      const container = document.getElementById('adminDisputesList');
+      if (!container) return;
+      const statusFilter = document.getElementById('disputeStatusFilter')?.value || '';
+      container.innerHTML = '<p class="text-sm text-white/40">Loading…</p>';
+      try {
+        const url = `/api/dispute/admin/all${statusFilter ? `?status=${statusFilter}` : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to load disputes.');
+        const disputes = await res.json();
+
+        const badge = document.getElementById('openDisputesBadge');
+        const openCount = disputes.filter(d => d.status === 'Open').length;
+        if (badge) { badge.innerText = openCount; badge.classList.toggle('hidden', openCount === 0); }
+
+        if (!disputes.length) {
+          container.innerHTML = '<div class="rounded-2xl border border-white/[0.06] bg-black/20 p-6 text-center"><p class="text-sm text-white/40">No disputes found.</p></div>';
+          return;
+        }
+
+        container.innerHTML = disputes.map(d => {
+          const typeColor = d.status === 'Open' ? 'bg-orange-500/15 border-orange-500/25 text-orange-300'
+            : 'bg-slate-500/10 border-slate-400/15 text-slate-300';
+          return `
+            <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+              <div class="flex items-start gap-4 flex-wrap">
+                <div class="flex-1 min-w-0 space-y-1.5">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full border ${typeColor}">${escapeHtml(d.status)}</span>
+                    <span class="text-[9px] text-white/40 uppercase tracking-wider">${escapeHtml(d.disputeType)}</span>
+                  </div>
+                  <p class="text-sm font-bold text-white">${escapeHtml(d.eventTitle)}</p>
+                  <p class="text-xs text-white/50">${escapeHtml(d.reporterName)} · ${new Date(d.createdAt).toLocaleDateString('en-PH', {month:'short', day:'numeric', year:'numeric'})}</p>
+                  ${d.resolution ? `<p class="text-xs text-emerald-400">Resolution: ${escapeHtml(d.resolution)}</p>` : ''}
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <a href="/pages/bookings/messages.html?bookingId=${escapeHtml(d.bookingId)}" class="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors">View Booking</a>
+                  ${d.status === 'Open' ? `<button onclick="openResolveDisputeModal('${escapeHtml(d.id)}')" class="px-3 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/25 text-[10px] font-bold uppercase tracking-wider text-orange-300 hover:bg-orange-500/25 transition-colors">Resolve</button>` : ''}
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+        lucide.createIcons();
+      } catch(err) {
+        container.innerHTML = `<p class="text-sm text-red-400">${err.message}</p>`;
+      }
+    }
+
+    function openResolveDisputeModal(disputeId) {
+      document.getElementById('resolveDisputeId').value = disputeId;
+      document.getElementById('resolveDisputeNotes').value = '';
+      document.getElementById('resolveDisputeStatus').classList.add('hidden');
+      document.getElementById('resolveDisputeModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    async function submitDisputeResolution() {
+      const disputeId = document.getElementById('resolveDisputeId').value;
+      const resolution = document.getElementById('resolveDisputeResolution').value;
+      const notes = document.getElementById('resolveDisputeNotes').value;
+      const statusEl = document.getElementById('resolveDisputeStatus');
+      try {
+        const res = await fetch(`/api/dispute/${disputeId}/resolve`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resolution, adminNotes: notes })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        document.getElementById('resolveDisputeModal').classList.add('hidden');
+        await loadAdminDisputes();
+      } catch(err) {
+        statusEl.innerText = err.message || 'Failed to resolve.';
+        statusEl.classList.remove('hidden');
+      }
+    }
+
+    document.getElementById('disputeStatusFilter')?.addEventListener('change', loadAdminDisputes);
+
+    // Load disputes when section is activated
+    document.querySelectorAll('.admin-section-btn[data-section="disputes"]').forEach(btn => {
+      btn.addEventListener('click', () => loadAdminDisputes());
+    });
+
+    // ─── PARTNER INQUIRIES MODULE ─────────────────────────────────────────────
+    let _activePartnerId = null;
+
+    async function loadPartnerInquiries() {
+      const container = document.getElementById('partnerInquiriesList');
+      if (!container) return;
+      const status = document.getElementById('partnerStatusFilter')?.value || '';
+      container.innerHTML = '<p class="text-sm text-white/40">Loading…</p>';
+      try {
+        const res = await fetch(`/api/partner/inquiries${status ? '?status=' + encodeURIComponent(status) : ''}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `Server error ${res.status}`);
+        }
+        const list = await res.json();
+        if (!Array.isArray(list)) throw new Error('Unexpected response from server.');
+
+        // Update badge
+        const pendingCount = list.filter(i => i.status === 'Pending').length;
+        const badge = document.getElementById('pendingPartnersBadge');
+        if (badge) {
+          badge.textContent = pendingCount;
+          badge.classList.toggle('hidden', pendingCount === 0);
+        }
+
+        if (!list.length) {
+          container.innerHTML = '<p class="text-sm text-white/40 text-center py-8">No partner inquiries found.</p>';
+          return;
+        }
+
+        const statusColors = { Pending: 'amber', 'In Review': 'blue', Approved: 'emerald', Rejected: 'red' };
+        container.innerHTML = list.map(i => {
+          const color = statusColors[i.status] || 'white';
+          return `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:border-white/[0.10] transition-colors cursor-pointer" onclick="openPartnerDetail('${i.id}')">
+            <div class="flex-1 min-w-0 space-y-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-${color}-500/15 text-${color}-300 border border-${color}-500/20">${i.status}</span>
+                <span class="text-[10px] text-white/40">${new Date(i.createdAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}</span>
+              </div>
+              <p class="text-sm font-bold text-white truncate">${escapeHtml(i.eventName)}</p>
+              <p class="text-[11px] text-white/50 truncate">${escapeHtml(i.organizerName)} · ${escapeHtml(i.email)}</p>
+              ${i.eventType ? `<p class="text-[10px] text-red-400/70 font-semibold uppercase tracking-wider">${escapeHtml(i.eventType)}${i.expectedDate ? ' · ' + escapeHtml(i.expectedDate) : ''}</p>` : ''}
+            </div>
+            <div class="flex-shrink-0">
+              <span class="text-[10px] text-white/30 uppercase tracking-wider">${i.expectedCapacity ? i.expectedCapacity.toLocaleString() + ' cap.' : 'Cap. TBD'}</span>
+            </div>
+          </div>`;
+        }).join('');
+        lucide.createIcons();
+      } catch(err) {
+        container.innerHTML = `<p class="text-sm text-red-400">${err.message}</p>`;
+      }
+    }
+
+    async function openPartnerDetail(id) {
+      _activePartnerId = id;
+      const modal = document.getElementById('partnerDetailModal');
+      const body  = document.getElementById('partnerDetailBody');
+      document.getElementById('partnerAdminNotes').value = '';
+      document.getElementById('partnerUpdateStatus').textContent = '';
+      modal.classList.remove('hidden');
+      body.innerHTML = '<p class="text-white/40 text-sm">Loading…</p>';
+
+      try {
+        const res  = await fetch('/api/partner/inquiries');
+        const list = await res.json();
+        const i    = list.find(x => x.id === id);
+        if (!i) { body.innerHTML = '<p class="text-red-400">Not found.</p>'; return; }
+
+        document.getElementById('partnerAdminNotes').value = i.adminNotes || '';
+        const row = (label, value) => value ? `<div class="flex gap-3"><span class="text-white/40 w-28 flex-shrink-0 text-xs uppercase tracking-wider">${label}</span><span class="text-white font-medium text-sm">${escapeHtml(String(value))}</span></div>` : '';
+        body.innerHTML = `
+          <div class="space-y-3">
+            ${row('Organizer', i.organizerName)}
+            ${row('Email', i.email)}
+            ${row('Phone', i.phone)}
+            ${row('Event', i.eventName)}
+            ${row('Type', i.eventType)}
+            ${row('Date', i.expectedDate)}
+            ${row('Venue', i.expectedVenue)}
+            ${row('Capacity', i.expectedCapacity ? i.expectedCapacity.toLocaleString() : null)}
+            ${row('Referral', i.referralSource)}
+            ${i.description ? `<div class="pt-2 border-t border-white/[0.06]"><p class="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">Description</p><p class="text-sm text-white/80 leading-relaxed">${escapeHtml(i.description)}</p></div>` : ''}
+          </div>`;
+        lucide.createIcons();
+      } catch(err) {
+        body.innerHTML = `<p class="text-red-400">${err.message}</p>`;
+      }
+    }
+
+    async function updatePartnerStatus(newStatus) {
+      if (!_activePartnerId) return;
+      const notes = document.getElementById('partnerAdminNotes').value.trim();
+      const statusEl = document.getElementById('partnerUpdateStatus');
+      statusEl.textContent = 'Saving…';
+      try {
+        const res = await fetch(`/api/partner/inquiries/${_activePartnerId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus, adminNotes: notes || null })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          statusEl.textContent = data.message || 'Saved!';
+          statusEl.className = 'text-[10px] text-emerald-400 self-center ml-auto';
+          loadPartnerInquiries();
+        } else {
+          statusEl.textContent = data.message || 'Error';
+          statusEl.className = 'text-[10px] text-red-400 self-center ml-auto';
+        }
+      } catch {
+        statusEl.textContent = 'Network error';
+        statusEl.className = 'text-[10px] text-red-400 self-center ml-auto';
+      }
+    }
+
+    document.getElementById('partnerStatusFilter')?.addEventListener('change', loadPartnerInquiries);
+    document.querySelectorAll('.admin-section-btn[data-section="partners"]').forEach(btn => {
+      btn.addEventListener('click', () => loadPartnerInquiries());
+    });
+
+    // ─── QR TICKET SCANNER MODULE ──────────────────────────────────────────
+    (function() {
+      let adminHtml5QrCode = null;
+      let adminScannerActive = false;
+      let adminIsScanning = true;
+      let adminScannerInFlight = false;
+      let adminSelectedEventId = null;
+      let adminScanLogEntries = [];
+
+      const qrConfig = {
+        fps: 12,
+        qrbox: (w, h) => { const e = Math.floor(Math.min(w, h) * 0.72); return { width: e, height: e }; },
+        aspectRatio: 1,
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      };
+
+      function canUseCamera() {
+        const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        return !!navigator.mediaDevices?.getUserMedia && (window.isSecureContext || isLocal);
+      }
+
+      function showAdminCameraHelp(msg) {
+        document.getElementById('adminCameraHelpText').textContent = msg;
+        document.getElementById('adminCameraHelpBox').classList.remove('hidden');
+      }
+
+      function hideAdminCameraHelp() {
+        document.getElementById('adminCameraHelpBox').classList.add('hidden');
+      }
+
+      function describeCamError(err) {
+        if (!canUseCamera()) return 'Camera needs HTTPS or localhost. Use the Upload QR Image option instead.';
+        const n = err?.name || '';
+        if (n === 'NotAllowedError' || n === 'PermissionDeniedError') return 'Camera permission was denied. Allow camera access in browser settings, then tap Start Camera again.';
+        if (n === 'NotFoundError') return 'No camera found on this device. Try uploading a QR image instead.';
+        if (n === 'NotReadableError') return 'Camera is busy in another app. Close it and try again.';
+        return 'Camera access failed. Allow camera permission and try again, or upload a QR image.';
+      }
+
+      async function adminResetScanner() {
+        if (adminHtml5QrCode) {
+          try { if (adminScannerActive) await adminHtml5QrCode.stop(); } catch(e) {}
+          try { await adminHtml5QrCode.clear(); } catch(e) {}
+        }
+        adminScannerActive = false;
+        adminHtml5QrCode = new Html5Qrcode('adminQrReader');
+      }
+
+      async function adminStopScanner() {
+        if (!adminHtml5QrCode || !adminScannerActive) return;
+        try { await adminHtml5QrCode.stop(); await adminHtml5QrCode.clear(); } catch(e) {}
+        adminScannerActive = false;
+        document.getElementById('adminStartScannerBtn').classList.remove('hidden');
+        document.getElementById('adminStopScannerBtn').classList.add('hidden');
+        document.getElementById('adminScannerStatus').innerText = 'Camera stopped. Tap Start Camera to scan again.';
+      }
+
+      async function adminStartScanner() {
+        if (!adminSelectedEventId || adminScannerActive || adminScannerInFlight) return;
+        if (!canUseCamera()) {
+          showAdminCameraHelp('Camera needs HTTPS or localhost. Upload a QR image instead.');
+          document.getElementById('adminScannerStatus').innerText = 'Camera needs HTTPS or localhost.';
+          return;
+        }
+        adminScannerInFlight = true;
+        hideAdminCameraHelp();
+        const statusEl = document.getElementById('adminScannerStatus');
+        const startBtn = document.getElementById('adminStartScannerBtn');
+        const stopBtn = document.getElementById('adminStopScannerBtn');
+        try {
+          await adminResetScanner();
+          statusEl.innerText = 'Requesting camera access...';
+          const cameras = await Html5Qrcode.getCameras();
+          if (!cameras?.length) { statusEl.innerText = 'No camera found.'; showAdminCameraHelp('No camera detected. Upload a QR image instead.'); return; }
+          const cam = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[0];
+          await adminHtml5QrCode.start({ deviceId: { exact: cam.id } }, qrConfig, adminOnScanSuccess, () => {});
+          adminScannerActive = true;
+          statusEl.innerText = `Camera active — point at ticket QR code.`;
+          startBtn.classList.add('hidden');
+          stopBtn.classList.remove('hidden');
+        } catch (err) {
+          const msg = describeCamError(err);
+          statusEl.innerText = msg;
+          showAdminCameraHelp(msg);
+          startBtn.innerText = 'Try Camera Again';
+        } finally {
+          adminScannerInFlight = false;
+        }
+      }
+
+      function extractTicketPreview(raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.ticketId) return String(parsed.ticketId).slice(0, 8).toUpperCase();
+        } catch(e) {}
+        if (raw.length <= 36) return raw.slice(0, 8).toUpperCase();
+        return null;
+      }
+
+      async function adminOnScanSuccess(decodedText) {
+        if (!adminIsScanning) return;
+        adminIsScanning = false;
+        await adminStopScanner();
+        const statusEl = document.getElementById('adminScannerStatus');
+        statusEl.innerText = 'QR detected. Verifying ticket…';
+
+        const resultContainer = document.getElementById('adminScanResult');
+        const resultBox = document.getElementById('adminResultBox');
+        const resultIcon = document.getElementById('adminResultIcon');
+        const resultTitle = document.getElementById('adminResultTitle');
+        const resultMsg = document.getElementById('adminResultMsg');
+        const resultDetails = document.getElementById('adminResultDetails');
+
+        resultContainer.classList.remove('hidden');
+        resultBox.className = 'flex flex-col items-center gap-2 text-yellow-400';
+        resultTitle.innerText = 'VERIFYING…';
+        resultMsg.innerText = 'Checking database…';
+        resultDetails.innerText = '';
+        resultIcon.setAttribute('data-lucide', 'loader-2');
+        lucide.createIcons();
+
+        try {
+          const preview = extractTicketPreview(decodedText);
+          resultDetails.innerText = preview ? `Ticket ID: ${preview}` : 'Reading QR payload…';
+
+          const res = await fetch(`/api/ticket/scan?eventId=${encodeURIComponent(adminSelectedEventId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketValue: decodedText })
+          });
+          const data = await res.json();
+
+          const timestamp = new Date().toLocaleTimeString();
+
+          if (res.ok) {
+            resultBox.className = 'flex flex-col items-center gap-4 text-emerald-400';
+            resultIcon.setAttribute('data-lucide', 'check-circle');
+            resultTitle.innerText = 'VALID TICKET';
+            resultMsg.innerText = data.message || 'Ticket validated successfully.';
+
+            // Build event + tier info block
+            const eventLine = data.eventTitle ? data.eventTitle.toUpperCase() : '';
+            const tierLine  = data.tierName   ? data.tierName                  : '';
+            const unitLine  = data.totalQuantity > 1
+              ? `Ticket ${data.unitNumber} of ${data.totalQuantity} · ${data.remainingQuantity} remaining`
+              : '';
+            const idLine    = data.ticketId ? `ID: ${String(data.ticketId).slice(0,8).toUpperCase()} · ${timestamp}` : timestamp;
+
+            resultDetails.innerHTML = [
+              eventLine ? `<span class="block text-sm font-extrabold tracking-widest text-white">${escapeHtml(eventLine)}</span>` : '',
+              tierLine  ? `<span class="block text-xs font-semibold text-emerald-300">${escapeHtml(tierLine)}</span>` : '',
+              unitLine  ? `<span class="block text-xs text-amber-300">${escapeHtml(unitLine)}</span>` : '',
+              `<span class="block text-[10px] text-white/40">${escapeHtml(idLine)}</span>`
+            ].filter(Boolean).join('');
+
+            const logLabel = data.eventTitle
+              ? `${data.message} — ${data.tierName} · ${data.eventTitle}`
+              : (data.message || 'Ticket validated.');
+            addAdminScanLog('valid', logLabel, timestamp);
+          } else {
+            // Style each error type distinctly so the door staff can react correctly
+            const errCode = (data.message || '').toUpperCase();
+            let boxCls, iconName, titleText;
+
+            if (errCode.includes('WRONG EVENT')) {
+              boxCls   = 'flex flex-col items-center gap-3 text-amber-400';
+              iconName = 'shield-x';
+              titleText = '⛔ WRONG EVENT';
+            } else if (errCode.includes('ALREADY SCANNED')) {
+              boxCls   = 'flex flex-col items-center gap-3 text-orange-400';
+              iconName = 'scan-line';
+              titleText = '🔁 ALREADY SCANNED';
+            } else if (errCode.includes('EXPIRED')) {
+              boxCls   = 'flex flex-col items-center gap-3 text-neutral-400';
+              iconName = 'clock-x';
+              titleText = '⏰ EXPIRED TICKET';
+            } else if (errCode.includes('REFUND')) {
+              boxCls   = 'flex flex-col items-center gap-3 text-sky-400';
+              iconName = 'receipt';
+              titleText = '↩ REFUNDED';
+            } else {
+              boxCls   = 'flex flex-col items-center gap-3 text-red-400';
+              iconName = 'x-circle';
+              titleText = data.message || 'INVALID';
+            }
+
+            resultBox.className = boxCls;
+            resultIcon.setAttribute('data-lucide', iconName);
+            resultTitle.innerText = titleText;
+            resultMsg.innerText = data.details || data.message || 'Ticket validation failed.';
+            resultDetails.innerHTML = `<span class="text-[10px] text-white/40">${timestamp}</span>`;
+            addAdminScanLog('invalid', `${titleText} — ${data.details || data.message || ''}`, timestamp);
+          }
+          lucide.createIcons();
+          statusEl.innerText = 'Tap "Scan Next Ticket" to continue.';
+        } catch(err) {
+          resultBox.className = 'flex flex-col items-center gap-2 text-red-400';
+          resultIcon.setAttribute('data-lucide', 'alert-triangle');
+          resultTitle.innerText = 'ERROR';
+          resultMsg.innerText = 'Could not connect to server.';
+          lucide.createIcons();
+        }
+      }
+
+      function addAdminScanLog(type, message, timestamp) {
+        adminScanLogEntries.unshift({ type, message, timestamp });
+        renderAdminScanLog();
+      }
+
+      function renderAdminScanLog() {
+        const log = document.getElementById('adminScanLog');
+        if (!adminScanLogEntries.length) { log.innerHTML = '<p class="text-xs text-white/30 text-center py-4">No scans yet.</p>'; return; }
+        log.innerHTML = adminScanLogEntries.map(e => `
+          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl ${e.type === 'valid' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}">
+            <i data-lucide="${e.type === 'valid' ? 'check-circle' : 'x-circle'}" class="w-4 h-4 flex-shrink-0 ${e.type === 'valid' ? 'text-emerald-400' : 'text-red-400'}"></i>
+            <span class="flex-1 text-xs ${e.type === 'valid' ? 'text-white/80' : 'text-red-300/80'} truncate">${e.message}</span>
+            <span class="text-[10px] text-white/30 flex-shrink-0 whitespace-nowrap">${e.timestamp}</span>
+          </div>`).join('');
+        lucide.createIcons();
+      }
+
+      window.adminResumeScanning = function() {
+        document.getElementById('adminScanResult').classList.add('hidden');
+        adminIsScanning = true;
+        document.getElementById('adminScannerStatus').innerText = 'Tap Start Camera to scan the next ticket.';
+      };
+
+      window.adminClearScanLog = function() {
+        adminScanLogEntries = [];
+        renderAdminScanLog();
+      };
+
+      function initAdminScanner() {
+        const select = document.getElementById('scannerEventSelect');
+        const module = document.getElementById('adminScannerModule');
+        const info = document.getElementById('scannerEventInfo');
+
+        select.addEventListener('change', async () => {
+          adminSelectedEventId = select.value || null;
+          await adminStopScanner();
+          document.getElementById('adminScanResult').classList.add('hidden');
+          adminIsScanning = true;
+          document.getElementById('adminScannerStatus').innerText = 'Tap Start Camera to begin scanning.';
+          document.getElementById('adminStartScannerBtn').innerText = 'Start Camera';
+          hideAdminCameraHelp();
+
+          if (adminSelectedEventId) {
+            module.classList.remove('hidden');
+            const opt = select.options[select.selectedIndex];
+            info.innerText = `Scanning for: ${opt.text}`;
+            info.classList.remove('hidden');
+            adminHtml5QrCode = new Html5Qrcode('adminQrReader');
+          } else {
+            module.classList.add('hidden');
+            info.classList.add('hidden');
+          }
+        });
+
+        document.getElementById('adminStartScannerBtn').addEventListener('click', adminStartScanner);
+        document.getElementById('adminStopScannerBtn').addEventListener('click', adminStopScanner);
+        document.getElementById('adminQrImageInput').addEventListener('change', async (ev) => {
+          const file = ev.target.files?.[0];
+          if (!file || !adminHtml5QrCode) return;
+          try {
+            document.getElementById('adminScannerStatus').innerText = 'Scanning uploaded image…';
+            const decoded = await adminHtml5QrCode.scanFile(file, true);
+            await adminOnScanSuccess(decoded);
+          } catch(err) {
+            document.getElementById('adminScannerStatus').innerText = 'No QR code detected in the uploaded image.';
+          } finally { ev.target.value = ''; }
+        });
+      }
+
+      async function populateScannerEventSelect() {
+        const select = document.getElementById('scannerEventSelect');
+        const adminId = localStorage.getItem('userId');
+        if (!adminId) return;
+        try {
+          const res = await fetch(`/api/event/organizer/${adminId}`);
+          if (!res.ok) return;
+          const events = await res.json() || [];
+          const upcoming = events.filter(ev => ev.status !== 'Finished' && ev.status !== 'Cancelled');
+          if (!upcoming.length) {
+            const opt = document.createElement('option');
+            opt.disabled = true;
+            opt.value = '';
+            opt.text = 'No active events found';
+            select.appendChild(opt);
+            return;
+          }
+          upcoming.forEach(ev => {
+            const opt = document.createElement('option');
+            opt.value = ev.id;
+            const evDate = ev.time ? new Date(ev.time).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '';
+            opt.text = `${ev.title}${evDate ? ` — ${evDate}` : ''}`;
+            select.appendChild(opt);
+          });
+        } catch(e) {}
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        initAdminScanner();
+        document.querySelectorAll('.admin-section-btn[data-section="scanner"]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const select = document.getElementById('scannerEventSelect');
+            if (select && select.options.length <= 1) populateScannerEventSelect();
+          });
+        });
+      });
+    })();
+    // ───────────────────────────────────────────────────────────────────────
   </script>
 </body>
 </html>

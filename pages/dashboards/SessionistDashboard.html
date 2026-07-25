@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Sessionist Dashboard</title>
+  <title>Tugs! - Sessionist Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
@@ -34,7 +35,7 @@
     <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-8 w-28 sm:w-32 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
         </div>
       </a>
 
@@ -42,7 +43,6 @@
         <a href="/" class="hover:text-white/90 transition-colors">Home</a>
         <a href="/pages/browse/Events.html" class="hover:text-white/90 transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="hover:text-white/90 transition-colors">Artists</a>
-        <a href="/pages/browse/Sessionists.html" class="hover:text-white/90 transition-colors">Sessionists</a>
         <a href="/pages/browse/Community.html" class="hover:text-white/90 transition-colors">Community</a>
       </div>
 
@@ -112,6 +112,10 @@
       <button onclick="openSessionistSchedulesView()" id="tabBtn-schedules" class="w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
         <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="calendar-range" class="w-3.5 h-3.5"></i></span>
         <span>Schedules</span>
+      </button>
+      <button onclick="switchTab('my-tickets')" id="tabBtn-my-tickets" class="w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+        <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="ticket" class="w-3.5 h-3.5"></i></span>
+        <span>My Tickets</span>
       </button>
     </nav>
 
@@ -354,6 +358,21 @@
 
               <div id="sessionist-profile-details" class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-6 backdrop-blur-md shadow-2xl">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">2. Sessionist Details</h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="space-y-3">
+                    <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">First Name</label>
+                    <input type="text" id="firstNameInput" placeholder="First name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                  </div>
+                  <div class="space-y-3">
+                    <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Last Name</label>
+                    <input type="text" id="lastNameInput" placeholder="Last name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                  </div>
+                  <div class="space-y-3">
+                    <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Stage Name</label>
+                    <input type="text" id="stageNameInput" placeholder="Public sessionist name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                  </div>
+                </div>
                 
                 <div class="space-y-3">
                   <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Instruments & Genres (Comma Separated)</label>
@@ -444,7 +463,7 @@
                   <div class="space-y-3 text-xs text-white/65">
                     <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                       <input id="sessionistVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
-                      <span>I confirm this Philippine ID belongs to me and I allow IMAJINATION admins to review the document for account verification.</span>
+                      <span>I confirm this Philippine ID belongs to me and I allow Tugs! Admins to review the document for account verification.</span>
                     </label>
                     <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                       <input id="sessionistFaceVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
@@ -463,7 +482,20 @@
               </div>
 
               <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
-                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Password Recovery</h3>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Security</h3>
+                <div class="rounded-2xl border border-white/10 bg-black/40 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white">Change Password</p>
+                    <p class="text-sm text-white/65 mt-2">Verify with your current password and a one-time code sent to your sessionist email.</p>
+                  </div>
+                  <button id="openChangePasswordModalBtn" type="button" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i> Change Password
+                  </button>
+                </div>
+              </div>
+
+              <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">5. Password Recovery</h3>
                 <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
@@ -580,8 +612,84 @@
         </div>
       </div>
 
+      <!-- MY TICKETS VIEW -->
+      <div id="view-my-tickets" class="tab-panel hidden space-y-6">
+        <div>
+          <h2 class="text-xl font-extrabold text-white tracking-tight mb-1">My Tickets</h2>
+          <p class="text-xs text-white/50">Tickets you've purchased for events on the platform.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-ticket-filter="all"      class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-[10px] font-bold uppercase tracking-wider">All</button>
+          <button type="button" data-ticket-filter="upcoming" class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Upcoming</button>
+          <button type="button" data-ticket-filter="used"     class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Scanned</button>
+          <button type="button" data-ticket-filter="expired"  class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Expired</button>
+        </div>
+        <div id="talentTicketsList" class="space-y-4">
+          <p class="text-sm text-white/40 text-center py-8">Loading tickets…</p>
+        </div>
+      </div>
+
     </div>
   </main>
+
+  <!-- Ticket Receipt Modal (Sessionist) -->
+  <div id="talentTicketModal" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm animate-pop-in relative">
+      <div class="receipt-paper p-8 text-sm overflow-y-auto max-h-[90vh]">
+        <button id="closeTalentTicketModal" aria-label="Close receipt" class="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+        <!-- Header -->
+        <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">TUGS!</h2>
+          <p class="text-xs text-gray-500">Official E-Ticket</p>
+        </div>
+        <!-- QR Code -->
+        <div class="flex justify-center mb-6 relative">
+          <img id="talentTicketQrImg" src="" alt="QR Code" class="w-40 h-40 border-4 border-white shadow-sm rounded-lg bg-white">
+          <div id="talentQrUsedOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden rounded-lg">
+            <span class="font-extrabold text-2xl rotate-12 tracking-widest text-red-600 border-4 border-red-600 px-3 py-1 rounded">USED</span>
+          </div>
+        </div>
+        <!-- Unit navigator (for multi-ticket) -->
+        <div id="talentTicketUnitNav" class="hidden mb-6">
+          <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+            <button id="talentTicketPrevUnit" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Prev</button>
+            <p id="talentTicketUnitLabel" class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ticket 1 of 1</p>
+            <button id="talentTicketNextUnit" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Next</button>
+          </div>
+        </div>
+        <!-- Event Info -->
+        <div class="space-y-3 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div><p class="text-[10px] text-gray-500 uppercase tracking-widest">Event</p><p id="talentRTitle" class="font-bold text-base leading-tight mt-0.5">Event Name</p></div>
+          <div><p class="text-[10px] text-gray-500 uppercase tracking-widest">Location &amp; Time</p><p id="talentRLocTime" class="font-bold whitespace-pre-line mt-0.5">Location</p></div>
+        </div>
+        <!-- Ticket Details -->
+        <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed text-sm">
+          <div class="flex justify-between"><span class="text-gray-600">Tier:</span><span id="talentRTier" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Qty:</span><span id="talentRQty" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Phase:</span><span id="talentRPhase" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Subtotal:</span><span id="talentRSubtotal" class="font-bold">₱0.00</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Service Fee:</span><span id="talentRFee" class="font-bold">₱0.00</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Payment:</span><span id="talentRMethod" class="font-bold uppercase">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Date Bought:</span><span id="talentRDate" class="font-bold text-[10px]">—</span></div>
+        </div>
+        <!-- Total -->
+        <div class="flex justify-between items-center text-lg font-bold mb-4">
+          <span>TOTAL:</span>
+          <span id="talentRTotal">₱0.00</span>
+        </div>
+        <!-- Footer -->
+        <div class="text-center text-xs text-gray-500 space-y-1">
+          <p>Ticket ID: <span id="talentRId" class="font-mono font-bold">—</span></p>
+          <p class="font-bold mt-2" id="talentQrInstruction">Present this QR code at the entrance.</p>
+        </div>
+        <div id="talentUsedWarning" class="hidden mt-4 p-3 bg-red-100 text-center rounded-lg border border-red-200">
+          <p class="text-xs font-extrabold text-red-600 tracking-wider">THIS TICKET HAS BEEN SCANNED.</p>
+        </div>
+      </div>
+    </div>
+  </div>
   </div>
 
   <script>
@@ -597,6 +705,8 @@
     let sessionistProfileImageDirty = false;
     let sessionistVerificationApproved = false;
     let sessionistCalendarBlocks = [];
+    let sessionistCalendarBlocksLoaded = false;
+    let sessionistCalendarBlocksLoading = false;
     let sessionistPostsLoaded = false;
     const sessionistVerificationUploads = {
       sessionistVerificationIdFront: null,
@@ -737,7 +847,7 @@
     }
 
     function renderSessionistProfilePreview() {
-      const displayName = document.getElementById('sidebarName')?.innerText?.trim() || localStorage.getItem('userFirstName') || 'Sessionist';
+      const displayName = getSessionistDraftDisplayName();
       const avatarSrc = document.getElementById('avatarPreview')?.src || localStorage.getItem('userProfilePicture') || '';
       const genres = document.getElementById('genresInput')?.value?.trim() || 'Instruments and genres will appear here after you update your profile.';
       const bio = document.getElementById('bioInput')?.value?.trim() || 'Add experience, setup details, and style notes so organizers can assess the fit quickly.';
@@ -754,6 +864,9 @@
         if (element) element.innerText = value;
       };
 
+      setText('sidebarName', displayName);
+      setText('userNameDisplay', displayName);
+      setText('dropdownName', displayName);
       setText('sessionistPublicDisplayName', displayName);
       setText('sessionistPublicGenres', genres);
       setText('sessionistPublicBio', bio);
@@ -783,6 +896,13 @@
           portfolioEmpty.classList.remove('hidden');
         }
       }
+    }
+
+    function getSessionistDraftDisplayName() {
+      const stageName = document.getElementById('stageNameInput')?.value?.trim() || '';
+      const firstName = document.getElementById('firstNameInput')?.value?.trim() || '';
+      const lastName = document.getElementById('lastNameInput')?.value?.trim() || '';
+      return stageName || `${firstName} ${lastName}`.trim() || localStorage.getItem('userDisplayName') || localStorage.getItem('userFirstName') || 'Sessionist';
     }
 
     async function compressImageFile(file, maxDimension = 1400, maxLength = 4_000_000) {
@@ -1045,7 +1165,23 @@
         panel.classList.toggle('bg-emerald-500/15', sessionistVerificationApproved);
       }
 
-      if (!sessionistVerificationApproved) return;
+      if (!sessionistVerificationApproved) {
+        if (statusText) {
+          const level = profile.verificationLevel ? ` | ${profile.verificationLevel}` : '';
+          statusText.innerText = `${profile.verificationStatus || 'Not Submitted'}${level}`;
+        }
+        if (helperText) {
+          helperText.innerText = String(profile.verificationStatus || '').toLowerCase() === 'pending'
+            ? 'Your verification request is waiting for admin review.'
+            : 'Submit your Philippine ID and selfie so admins can verify this account.';
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Submit Verification';
+          submitBtn.className = 'w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_18px_45px_rgba(16,185,129,0.28)] transition hover:brightness-110';
+        }
+        return;
+      }
 
       if (statusText) statusText.innerText = 'Approved - Identity Verified';
       if (helperText) helperText.innerText = 'Your Philippine ID and selfie were approved by admin. This verification record is now locked for protection.';
@@ -1066,36 +1202,39 @@
         await loadSessionistPostsManager();
       }
 
-      if (tabName === 'schedules' && !sessionistCalendarBlocks.length) {
+      if (tabName === 'schedules' && !sessionistCalendarBlocksLoaded && !sessionistCalendarBlocksLoading) {
         await loadSessionistCalendarBlocks();
       }
     }
 
     // View Switching Logic
     async function switchTab(tabName) {
-      const dbView = document.getElementById('view-dashboard');
-      const profilePageView = document.getElementById('view-profile-page');
-      const editProfileView = document.getElementById('view-edit-profile');
-      const cmView = document.getElementById('view-community');
-      const schedulesView = document.getElementById('view-schedules');
-      const dbBtn = document.getElementById('tabBtn-dashboard');
+      const dbView         = document.getElementById('view-dashboard');
+      const profilePageView= document.getElementById('view-profile-page');
+      const editProfileView= document.getElementById('view-edit-profile');
+      const cmView         = document.getElementById('view-community');
+      const schedulesView  = document.getElementById('view-schedules');
+      const myTicketsView  = document.getElementById('view-my-tickets');
+      const dbBtn          = document.getElementById('tabBtn-dashboard');
       const profilePageBtn = document.getElementById('tabBtn-profile-page');
       const editProfileBtn = document.getElementById('tabBtn-edit-profile');
-      const cmBtn = document.getElementById('tabBtn-community');
-      const schedulesBtn = document.getElementById('tabBtn-schedules');
+      const cmBtn          = document.getElementById('tabBtn-community');
+      const schedulesBtn   = document.getElementById('tabBtn-schedules');
+      const myTicketsBtn   = document.getElementById('tabBtn-my-tickets');
 
       dbView.classList.toggle('hidden', tabName !== 'dashboard');
       profilePageView.classList.toggle('hidden', tabName !== 'profile-page');
       editProfileView.classList.toggle('hidden', tabName !== 'edit-profile');
       cmView.classList.toggle('hidden', tabName !== 'community');
       schedulesView.classList.toggle('hidden', tabName !== 'schedules');
+      if (myTicketsView) myTicketsView.classList.toggle('hidden', tabName !== 'my-tickets');
+
+      if (tabName === 'my-tickets') loadTalentTickets();
 
       const activeView = {
-        dashboard: dbView,
-        'profile-page': profilePageView,
-        'edit-profile': editProfileView,
-        community: cmView,
-        schedules: schedulesView
+        dashboard: dbView, 'profile-page': profilePageView,
+        'edit-profile': editProfileView, community: cmView,
+        schedules: schedulesView, 'my-tickets': myTicketsView
       }[tabName];
       activateTabPanel(activeView);
 
@@ -1104,7 +1243,8 @@
         [profilePageBtn, tabName === 'profile-page'],
         [editProfileBtn, tabName === 'edit-profile'],
         [cmBtn, tabName === 'community'],
-        [schedulesBtn, tabName === 'schedules']
+        [schedulesBtn, tabName === 'schedules'],
+        [myTicketsBtn, tabName === 'my-tickets']
       ].forEach(([button, isActive]) => {
         if (!button) return;
         button.className = isActive
@@ -1147,6 +1287,9 @@
       if (artist.firstName) {
         localStorage.setItem('userFirstName', artist.firstName);
       }
+      document.getElementById('firstNameInput').value = artist.firstName || '';
+      document.getElementById('lastNameInput').value = artist.lastName || '';
+      document.getElementById('stageNameInput').value = artist.stageName || '';
       const bioValue = typeof artist.bio === 'string' ? artist.bio : '';
       const genresValue = typeof artist.genres === 'string' ? artist.genres : '';
       document.getElementById('sidebarName').innerText = displayName;
@@ -1170,6 +1313,12 @@
       document.getElementById('spotifyInput').value = artist.spotifyLink || '';
       document.getElementById('bioInput').value = bioValue.includes("hasn't written") ? '' : bioValue;
       document.getElementById('basePriceInput').value = artist.basePrice || 0;
+      const verificationRequest = artist.verificationRequest || {};
+      document.getElementById('sessionistIdType').value = verificationRequest.idType || 'PhilSys National ID';
+      document.getElementById('sessionistIdLast4').value = verificationRequest.idLast4 || '';
+      document.getElementById('sessionistVerificationSummary').value = verificationRequest.evidenceSummary || '';
+      document.getElementById('sessionistVerificationLinks').value = verificationRequest.supportingLinks || '';
+      document.getElementById('sessionistVerificationReference').value = verificationRequest.referenceContact || verificationRequest.referenceName || '';
       document.getElementById('sessionistProfileStatusLabel').innerText = artist.isVerified ? 'Identity Verified ✓' : (artist.verificationStatus === 'Approved' ? 'Identity Verified ✓' : artist.verificationStatus === 'Pending' ? 'Verification Pending — awaiting admin review' : 'Not Verified — submit your government ID to get verified');
       document.getElementById('sessionistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
       const verificationStatusText = document.getElementById('sessionistVerificationStatusText');
@@ -1191,8 +1340,11 @@
       const role = localStorage.getItem('userRole');
       const userId = localStorage.getItem('userId');
 
-      if (!role || role !== 'Sessionist') return window.location.href = '/pages/auth/login.html';
-      
+      if (!role || (role !== 'Sessionist' && role !== 'Artist')) return window.location.href = '/pages/auth/login.html';
+
+      // Mark this device as preferring Sessionist dashboard — used by navbar routing
+      localStorage.setItem('sessionistDashboard', '1');
+
       const displayName = localStorage.getItem('userDisplayName') || localStorage.getItem('userFirstName') || "Sessionist";
       document.getElementById('sidebarName').innerText = displayName;
       document.getElementById('userNameDisplay').innerText = displayName;
@@ -1203,11 +1355,20 @@
       const params = new URLSearchParams(window.location.search);
       const requestedTab = params.get('tab');
       const savedTab = sessionStorage.getItem('sessionistActiveTab');
-      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules'];
-      const initialTab = allowedTabs.includes(requestedTab || '')
-        ? requestedTab
-        : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
+      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules', 'my-tickets'];
+
+      const ticketPaid = params.get('ticketPaid');
+      const ticketId   = params.get('ticketId');
+      const initialTab = ticketPaid === '1'
+        ? 'my-tickets'
+        : allowedTabs.includes(requestedTab || '')
+          ? requestedTab
+          : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
+
+      if (ticketPaid === '1' && ticketId) {
+        confirmTalentTicketPayment(ticketId);
+      }
       window.initDashboardMfaSettings?.({ containerId: 'sessionistMfaSettings', title: 'Sessionist MFA' });
       const sessionistForgotPasswordLink = document.getElementById('sessionistForgotPasswordLink');
       if (sessionistForgotPasswordLink) {
@@ -1220,7 +1381,8 @@
       await Promise.allSettled([
         loadSessionistProfile(userId),
         loadSessionistBookings(userId),
-        loadSessionistNotifications(userId)
+        loadSessionistNotifications(userId),
+        loadSessionistCalendarBlocks()
       ]);
       sessionistNotificationInterval = window.setInterval(() => loadSessionistNotifications(userId), 30000);
     });
@@ -1256,6 +1418,273 @@
       localStorage.clear();
       window.location.href = '/pages/auth/login.html';
     }
+
+    // ── MY TICKETS (reuse same logic as ArtistDashboard) ─────────────────────
+    async function confirmTalentTicketPayment(ticketId) {
+      const delays = [1000, 2000, 2000, 3000, 3000, 4000, 4000, 5000];
+      try {
+        let confirmed = false;
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+            confirmed = true;
+            window.systemDialog?.alert('Your ticket payment has been confirmed! Your ticket is ready.', { title: 'Payment Confirmed', kicker: 'Tickets' });
+            loadTalentTickets();
+            break;
+          }
+          if (attempt < delays.length - 1) await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+        if (!confirmed) {
+          window.systemDialog?.alert('Payment is processing — your ticket will appear shortly. Refresh if needed.', { title: 'Payment Processing', kicker: 'Tickets' });
+        }
+      } catch {
+        window.systemDialog?.alert('Could not verify ticket payment right now. Please refresh.', { title: 'Verification Error', kicker: 'Tickets' });
+      } finally {
+        window.history.replaceState({}, document.title, `${window.location.origin}${window.location.pathname}`);
+      }
+    }
+
+    let talentAllTickets = [];
+    let talentTicketFilter = 'all';
+    let talentActiveQrIndex = 0;
+    let talentActiveQrTicket = null;
+
+    async function loadTalentTickets(forceRefresh = false) {
+      const uid = localStorage.getItem('userId');
+      if (!uid) return;
+      const container = document.getElementById('talentTicketsList');
+      if (!container) return;
+      if (talentAllTickets.length > 0 && !forceRefresh) { renderTalentTickets(); return; }
+      container.innerHTML = '<p class="text-sm text-white/40 text-center py-8">Loading tickets…</p>';
+      try {
+        const res = await fetch(`/api/ticket/customer/${uid}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Server error ${res.status}`);
+        }
+        talentAllTickets = (await res.json()) || [];
+        renderTalentTickets();
+        const awaiting = talentAllTickets.filter(t =>
+          String(t.paymentMethod || '').toLowerCase() === 'awaitingpayment');
+        if (awaiting.length > 0) autoConfirmPendingTickets(awaiting);
+      } catch (err) {
+        console.error('[SessionistDashboard] loadTalentTickets failed:', err);
+        container.innerHTML = `<p class="text-sm text-red-400 text-center py-8">Failed to load tickets: ${escapeHtml(err.message || 'Unknown error')}</p>`;
+      }
+    }
+
+    async function autoConfirmPendingTickets(awaitingTickets) {
+      let anyConfirmed = false;
+      for (const t of awaitingTickets) {
+        try {
+          const res = await fetch(`/api/ticket/${t.ticketId}/payment/confirm`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+            anyConfirmed = true;
+          }
+        } catch { /* ignore per-ticket failures */ }
+      }
+      if (anyConfirmed) {
+        // Refresh the list to show confirmed tickets with QR codes
+        talentAllTickets = [];
+        await loadTalentTickets(true);
+      }
+    }
+
+    async function retryTalentTicketConfirm(ticketId) {
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+          window.systemDialog?.alert('Payment confirmed! Your ticket is ready.', { title: 'Confirmed', kicker: 'Tickets' });
+          talentAllTickets = [];
+          loadTalentTickets(true);
+        } else {
+          window.systemDialog?.alert('Payment not found yet. If you completed payment, please wait a moment and try again.', { title: 'Still Pending', kicker: 'Tickets' });
+        }
+      } catch {
+        window.systemDialog?.alert('Could not reach the server. Please try again.', { title: 'Error', kicker: 'Tickets' });
+      }
+    }
+
+    async function cancelPendingTicket(ticketId) {
+      const ok = await window.systemDialog?.confirm('Remove this pending ticket? Only do this if you did not complete payment.', { title: 'Cancel Ticket', okText: 'Remove' });
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/cancel-pending`, { method: 'DELETE', headers: { 'X-Session-Token': localStorage.getItem('sessionToken') || '' } });
+        if (res.ok) {
+          talentAllTickets = talentAllTickets.filter(t => t.ticketId !== ticketId);
+          renderTalentTickets();
+        } else {
+          const d = await res.json().catch(() => ({}));
+          window.systemDialog?.alert(d.message || 'Could not remove ticket.', { title: 'Error', kicker: 'Tickets' });
+        }
+      } catch {
+        window.systemDialog?.alert('Could not reach the server.', { title: 'Error', kicker: 'Tickets' });
+      }
+    }
+
+    function renderTalentTickets() {
+      const container = document.getElementById('talentTicketsList');
+      if (!container) return;
+      const now = Date.now();
+      let tickets = talentAllTickets.map(t => {
+        const qty=Number(t.quantity||0), used=Math.max(0,Number(t.usedQuantity||0)), remaining=Math.max(0,qty-used);
+        const passed=new Date(t.eventTime).getTime()<now-86400000, isFullyUsed=qty>0&&used>=qty;
+        const isExpired=remaining>0&&(t.eventStatus==='Finished'||passed), isAwaiting=String(t.paymentMethod||'').toLowerCase()==='awaitingpayment';
+        return {...t,qty,used,remaining,isFullyUsed,isExpired,isAwaiting,isUpcoming:remaining>0&&!isExpired&&!isAwaiting};
+      });
+      if (talentTicketFilter==='upcoming') tickets=tickets.filter(t=>t.isUpcoming);
+      else if (talentTicketFilter==='used') tickets=tickets.filter(t=>t.used>0);
+      else if (talentTicketFilter==='expired') tickets=tickets.filter(t=>t.isExpired);
+      if (!tickets.length) {
+        container.innerHTML=`<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center"><i data-lucide="ticket" class="w-8 h-8 text-white/15 mx-auto mb-3"></i><p class="text-white/40 text-sm">${talentTicketFilter==='all'?'No tickets yet. Browse events!':'No tickets in this category.'}</p>${talentTicketFilter==='all'?'<a href="/pages/browse/Events.html" class="mt-4 inline-flex px-4 py-2 rounded-xl bg-red-600/80 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Browse Events</a>':''}</div>`;
+        lucide.createIcons(); return;
+      }
+      container.innerHTML = tickets.map((t,i) => {
+        const evDate=new Date(t.eventTime).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const ref=String(t.ticketId||'').slice(0,8).toUpperCase(), canQr=!t.isAwaiting&&String(t.refundStatus||'')!=='Refunded';
+        let badge='',opacity='';
+        if(t.isAwaiting){badge='<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">Awaiting Payment</span>';opacity='opacity-50';}
+        else if(String(t.refundStatus||'')==='Refunded'){badge='<span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold uppercase">Refunded</span>';opacity='opacity-60 grayscale';}
+        else if(t.isFullyUsed){badge='<span class="px-2 py-0.5 rounded bg-neutral-600/30 text-neutral-400 text-[9px] font-bold uppercase">Scanned</span>';opacity='opacity-50 grayscale';}
+        else if(t.used>0){badge=`<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">${t.used}/${t.qty} Scanned</span>`;}
+        else if(t.isExpired){badge='<span class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-bold uppercase">Expired</span>';opacity='opacity-50 grayscale';}
+        else{badge='<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase">Valid</span>';}
+        return `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-white/[0.10] transition-colors ${opacity}">
+          <div class="flex-1 min-w-0 space-y-2">
+            <div class="flex items-center gap-2 flex-wrap">${badge}<span class="text-[10px] text-red-400 font-bold uppercase">${escapeHtml(t.tierName||'General')} · ${t.qty} ticket${t.qty!==1?'s':''}</span></div>
+            <p class="font-bold text-white text-sm truncate">${escapeHtml(t.eventTitle||'Event')}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/40">
+              <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>${evDate}</span>
+              <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHtml(t.location||'TBA')}</span>
+              <span class="flex items-center gap-1"><i data-lucide="hash" class="w-3 h-3"></i>${ref}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap flex-shrink-0">
+            <span class="text-base font-bold text-white">₱${Number(t.totalPrice||0).toFixed(2)}</span>
+            ${t.isAwaiting?`<button type="button" onclick="retryTalentTicketConfirm('${t.ticketId}')" class="px-3.5 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase tracking-wider hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Retry</button>`:''}
+            ${t.isAwaiting?`<button type="button" onclick="cancelPendingTicket('${t.ticketId}')" class="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/40 hover:text-red-400 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"><i data-lucide="x" class="w-3.5 h-3.5"></i>Cancel</button>`:''}
+            ${canQr?`<button type="button" onclick="openTalentTicketQr(${i})" class="px-3.5 py-2 rounded-xl bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>View QR</button>`:''}
+            ${canQr?`<a href="/api/ticket/${t.ticketId}/download" target="_blank" class="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i>PDF</a>`:''}
+            <a href="/pages/details/EventDetailPage.html?id=${escapeHtml(t.eventId||'')}" class="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors">Event</a>
+          </div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function openTalentTicketQr(idx) {
+      const now = Date.now();
+      let t2 = talentAllTickets.map(t => {
+        const qty=Number(t.quantity||0), used=Math.max(0,Number(t.usedQuantity||0)), remaining=Math.max(0,qty-used);
+        const passed=new Date(t.eventTime).getTime()<now-86400000, isFullyUsed=qty>0&&used>=qty;
+        const isExpired=remaining>0&&(t.eventStatus==='Finished'||passed), isAwaiting=String(t.paymentMethod||'').toLowerCase()==='awaitingpayment';
+        return {...t,qty,used,remaining,isFullyUsed,isExpired,isAwaiting};
+      });
+      if (talentTicketFilter==='upcoming') t2=t2.filter(t=>t.isUpcoming);
+      else if (talentTicketFilter==='used') t2=t2.filter(t=>t.used>0);
+      else if (talentTicketFilter==='expired') t2=t2.filter(t=>t.isExpired);
+      talentActiveQrTicket = t2[idx];
+      talentActiveQrIndex = 1;
+      populateTalentReceipt();
+      document.getElementById('talentTicketModal').classList.remove('hidden');
+      document.getElementById('talentTicketModal').classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function populateTalentReceipt() {
+      const t = talentActiveQrTicket;
+      if (!t) return;
+      const qty = Math.max(1, Number(t.quantity || 1));
+      const usedUnits = Array.isArray(t.usedTicketUnits) ? t.usedTicketUnits : [];
+      const unitUsed = usedUnits.includes(talentActiveQrIndex);
+
+      // QR code — pipe format matches ParseTicketScan, shorter = easier to scan
+      const qrData = encodeURIComponent(`${t.ticketId}|${talentActiveQrIndex}`);
+      document.getElementById('talentTicketQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${qrData}`;
+
+      // Used overlay
+      const overlay = document.getElementById('talentQrUsedOverlay');
+      const warning = document.getElementById('talentUsedWarning');
+      const instruction = document.getElementById('talentQrInstruction');
+      if (t.isFullyUsed || unitUsed) {
+        overlay.classList.remove('hidden');
+        warning.classList.remove('hidden');
+        instruction.innerText = 'This ticket has already been scanned.';
+      } else {
+        overlay.classList.add('hidden');
+        warning.classList.add('hidden');
+        instruction.innerText = qty > 1
+          ? `Present ticket ${talentActiveQrIndex} of ${qty} at the entrance.`
+          : 'Present this QR code at the entrance.';
+      }
+
+      // Unit navigator
+      const nav = document.getElementById('talentTicketUnitNav');
+      const label = document.getElementById('talentTicketUnitLabel');
+      const prevBtn = document.getElementById('talentTicketPrevUnit');
+      const nextBtn = document.getElementById('talentTicketNextUnit');
+      if (qty > 1) {
+        nav.classList.remove('hidden');
+        label.innerText = `Ticket ${talentActiveQrIndex} of ${qty}`;
+        prevBtn.disabled = talentActiveQrIndex <= 1;
+        nextBtn.disabled = talentActiveQrIndex >= qty;
+      } else {
+        nav.classList.add('hidden');
+      }
+
+      // Event info
+      const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      document.getElementById('talentRTitle').innerText = t.eventTitle || 'Event';
+      document.getElementById('talentRLocTime').innerText = `${t.location || 'TBA'}\n${evDate}`;
+
+      // Ticket details
+      const phase = t.pricingPhase || 'Pre-Sale';
+      const phaseLabel = Number(t.pricingPhasePercentage || 0) > 0 ? `${phase} (+${t.pricingPhasePercentage}%)` : phase;
+      document.getElementById('talentRTier').innerText = t.tierName || 'General Admission';
+      document.getElementById('talentRQty').innerText = qty;
+      document.getElementById('talentRPhase').innerText = phaseLabel;
+      document.getElementById('talentRSubtotal').innerText = `₱${Number(t.subtotal || t.totalPrice || 0).toFixed(2)}`;
+      document.getElementById('talentRFee').innerText = `₱${Number(t.serviceFee || 0).toFixed(2)}`;
+      document.getElementById('talentRMethod').innerText = formatTalentPaymentMethod(t.paymentMethod || '');
+      document.getElementById('talentRDate').innerText = t.purchaseDate
+        ? new Date(t.purchaseDate).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—';
+      document.getElementById('talentRTotal').innerText = `₱${Number(t.totalPrice || 0).toFixed(2)}`;
+      document.getElementById('talentRId').innerText = String(t.ticketId || '').slice(0, 8).toUpperCase();
+    }
+
+    function formatTalentPaymentMethod(method) {
+      const m = String(method || '').toLowerCase();
+      if (m === 'gcash') return 'GCash';
+      if (m === 'paymaya' || m === 'maya') return 'Maya';
+      if (m === 'card') return 'Card';
+      if (m === 'paymongo') return 'PayMongo';
+      if (m === 'awaitingpayment') return 'Pending';
+      return method || '—';
+    }
+
+    function updateTalentQrModal() { populateTalentReceipt(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const closeTalentModal = () => {
+        document.getElementById('talentTicketModal').classList.add('hidden');
+        document.getElementById('talentTicketModal').classList.remove('flex');
+      };
+      document.getElementById('closeTalentTicketModal')?.addEventListener('click', closeTalentModal);
+      document.getElementById('talentTicketModal')?.addEventListener('click', e => { if (e.target === document.getElementById('talentTicketModal')) closeTalentModal(); });
+      document.getElementById('talentTicketPrevUnit')?.addEventListener('click', () => { if (talentActiveQrIndex > 1) { talentActiveQrIndex--; populateTalentReceipt(); } });
+      document.getElementById('talentTicketNextUnit')?.addEventListener('click', () => { const qty=Math.max(1,Number(talentActiveQrTicket?.quantity||1)); if(talentActiveQrIndex<qty){talentActiveQrIndex++;populateTalentReceipt();} });
+      document.querySelectorAll('.talent-ticket-filter-btn').forEach(btn=>{
+        btn.addEventListener('click',()=>{
+          talentTicketFilter=btn.dataset.ticketFilter;
+          document.querySelectorAll('.talent-ticket-filter-btn').forEach(b=>{const a=b===btn;b.className=`talent-ticket-filter-btn px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors ${a?'bg-red-500/15 border border-red-500/25 text-red-300':'bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white'}`;});
+          renderTalentTickets();
+        });
+      });
+    });
 
     function formatNotificationTime(value) {
       if (!value) return 'Just now';
@@ -1557,16 +1986,23 @@
     async function loadSessionistCalendarBlocks() {
       const userId = localStorage.getItem('userId');
       if (!userId) return;
+      if (sessionistCalendarBlocksLoading) return;
+
+      sessionistCalendarBlocksLoading = true;
 
       try {
         const res = await fetch(`/api/calendar/Sessionist/${userId}`);
         if (!res.ok) throw new Error('Failed to load calendar blocks.');
         const data = await res.json();
         sessionistCalendarBlocks = Array.isArray(data.blocks) ? data.blocks : [];
+        sessionistCalendarBlocksLoaded = true;
         renderSessionistCalendarBlocks();
       } catch (error) {
+        sessionistCalendarBlocksLoaded = false;
         const container = document.getElementById('sessionistCalendarBlockList');
         if (container) container.innerHTML = `<p class="text-sm text-red-400">Failed to load blocked dates.</p>`;
+      } finally {
+        sessionistCalendarBlocksLoading = false;
       }
     }
 
@@ -1883,6 +2319,9 @@
       btn.innerText = "SAVING..."; btn.disabled = true;
 
       const payload = {
+        firstName: document.getElementById('firstNameInput').value,
+        lastName: document.getElementById('lastNameInput').value,
+        stageName: document.getElementById('stageNameInput').value,
         bio: document.getElementById('bioInput').value,
         genres: document.getElementById('genresInput').value,
         spotifyLink: document.getElementById('spotifyInput').value,
@@ -1918,6 +2357,22 @@
         }
 
         if (res.ok) {
+          if (data.displayName) {
+            localStorage.setItem('userDisplayName', data.displayName);
+            document.getElementById('sidebarName').innerText = data.displayName;
+            document.getElementById('userNameDisplay').innerText = data.displayName;
+            document.getElementById('dropdownName').innerText = data.displayName;
+          }
+          if (typeof data.firstName === 'string') {
+            localStorage.setItem('userFirstName', data.firstName);
+            document.getElementById('firstNameInput').value = data.firstName;
+          }
+          if (typeof data.lastName === 'string') {
+            document.getElementById('lastNameInput').value = data.lastName;
+          }
+          if (typeof data.stageName === 'string') {
+            document.getElementById('stageNameInput').value = data.stageName;
+          }
           if (payload.profilePicture) {
             localStorage.setItem('userProfilePicture', base64Image || '');
             sessionistProfileImageDirty = false;
@@ -1940,6 +2395,86 @@
         alert(err.message || "Server error.");
       } finally {
         btn.innerText = "SAVE PROFILE CHANGES"; btn.disabled = false;
+      }
+    });
+
+    function openChangePasswordModal() {
+      const modal = document.getElementById('changePasswordModal');
+      if (!modal) return;
+      document.getElementById('modalCurrentPasswordInput').value = '';
+      document.getElementById('modalNewPasswordInput').value = '';
+      document.getElementById('modalOtpInput').value = '';
+      document.getElementById('changePasswordStatus').innerText = 'New passwords must be at least 8 characters and include uppercase, lowercase, number, and special character.';
+      document.getElementById('passwordOtpEmailInput').value = (localStorage.getItem('userEmail') || '').trim();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeChangePasswordModal() {
+      const modal = document.getElementById('changePasswordModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.getElementById('openChangePasswordModalBtn')?.addEventListener('click', openChangePasswordModal);
+    document.getElementById('closeChangePasswordModalBtn')?.addEventListener('click', closeChangePasswordModal);
+
+    document.getElementById('sendPasswordOtpBtn')?.addEventListener('click', async () => {
+      const email = (document.getElementById('passwordOtpEmailInput').value || '').trim();
+      const status = document.getElementById('changePasswordStatus');
+      const button = document.getElementById('sendPasswordOtpBtn');
+      if (!email) {
+        status.innerText = 'An email address is required before requesting an OTP.';
+        return;
+      }
+
+      button.disabled = true;
+      button.innerText = 'Sending...';
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to send OTP.');
+        status.innerText = data.message || 'OTP sent successfully.';
+      } catch (error) {
+        status.innerText = error.message || 'Failed to send OTP.';
+      } finally {
+        button.disabled = false;
+        button.innerText = 'Send OTP';
+      }
+    });
+
+    document.getElementById('changePasswordForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const status = document.getElementById('changePasswordStatus');
+      const button = document.getElementById('submitChangePasswordBtn');
+      button.disabled = true;
+      button.innerText = 'Changing...';
+
+      try {
+        const res = await fetch(`/api/sessionist/${localStorage.getItem('userId')}/change-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: document.getElementById('modalCurrentPasswordInput').value,
+            newPassword: document.getElementById('modalNewPasswordInput').value,
+            otp: document.getElementById('modalOtpInput').value
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to change password.');
+        status.innerText = data.message || 'Password changed successfully.';
+        alert(data.message || 'Password changed successfully.');
+        closeChangePasswordModal();
+      } catch (error) {
+        status.innerText = error.message || 'Failed to change password.';
+      } finally {
+        button.disabled = false;
+        button.innerText = 'Change Password';
       }
     });
 
@@ -2016,7 +2551,7 @@
       }
     });
 
-    ['genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
+    ['firstNameInput', 'lastNameInput', 'stageNameInput', 'genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
       document.getElementById(inputId)?.addEventListener('input', renderSessionistProfilePreview);
     });
     ['sessionistVerificationIdFront', 'sessionistVerificationIdBack', 'sessionistVerificationSelfie'].forEach((inputId) => {
@@ -2067,6 +2602,47 @@
     });
   </script>
 
+  <div id="changePasswordModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
+    <div class="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#171212] shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div>
+          <h2 class="text-xl font-bold text-white">Change Password</h2>
+          <p class="text-xs text-white/50 mt-1">Verify with your current password and a one-time code sent to your email.</p>
+        </div>
+        <button id="closeChangePasswordModalBtn" type="button" class="text-white/50 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="changePasswordForm" class="p-6 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2 md:col-span-2">
+            <label for="passwordOtpEmailInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Email Address</label>
+            <input id="passwordOtpEmailInput" type="email" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500" readonly>
+          </div>
+          <div class="space-y-2">
+            <label for="modalCurrentPasswordInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Current Password</label>
+            <input id="modalCurrentPasswordInput" type="password" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label for="modalNewPasswordInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">New Password</label>
+            <input id="modalNewPasswordInput" type="password" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <label for="modalOtpInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">OTP Code</label>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input id="modalOtpInput" type="text" inputmode="numeric" maxlength="6" required class="flex-1 px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500" placeholder="Enter 6-digit code">
+              <button id="sendPasswordOtpBtn" type="button" class="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-white/10 transition-colors whitespace-nowrap">Send OTP</button>
+            </div>
+          </div>
+        </div>
+        <p id="changePasswordStatus" class="text-xs text-white/45">New passwords must be at least 8 characters and include uppercase, lowercase, number, and special character.</p>
+        <button id="submitChangePasswordBtn" type="submit" class="w-full py-3.5 rounded-xl bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors">
+          Change Password
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div id="sessionistEscrowReceiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
     <div class="w-full max-w-sm animate-pop-in relative mt-6">
       <div class="receipt-paper p-8 text-sm">
@@ -2093,10 +2669,9 @@
           <p class="font-bold">NET PAYOUT:</p>
           <p id="serNetPayout" class="font-bold">₱0.00</p>
         </div>
-        <p class="text-center text-[10px] text-gray-400 mt-6 border-t border-dashed border-gray-300 pt-4">Escrow released upon mutual booking completion.<br>Thank you for performing on IMAJINATION.</p>
+        <p class="text-center text-[10px] text-gray-400 mt-6 border-t border-dashed border-gray-300 pt-4">Escrow released upon mutual booking completion.<br>Thank you for performing on Tugs!.</p>
       </div>
     </div>
   </div>
 </body>
 </html>
-

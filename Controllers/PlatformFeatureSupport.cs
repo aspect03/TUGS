@@ -39,11 +39,6 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE user_calendar_blocks
                     ADD COLUMN IF NOT EXISTS block_date date;
 
-                UPDATE user_calendar_blocks
-                SET blocked_date = COALESCE(blocked_date, block_date),
-                    block_date = COALESCE(block_date, blocked_date)
-                WHERE blocked_date IS NULL OR block_date IS NULL;
-
                 CREATE INDEX IF NOT EXISTS idx_user_calendar_blocks_user_date
                     ON user_calendar_blocks(user_id, blocked_date);
 
@@ -83,16 +78,6 @@ namespace ImajinationAPI.Controllers
 
                 ALTER TABLE entity_reports
                     ADD COLUMN IF NOT EXISTS target_type varchar(30);
-
-                UPDATE entity_reports
-                SET target_entity_id = COALESCE(target_entity_id, target_id),
-                    target_id = COALESCE(target_id, target_entity_id),
-                    target_entity_type = COALESCE(target_entity_type, target_type),
-                    target_type = COALESCE(target_type, target_entity_type)
-                WHERE target_entity_id IS NULL
-                   OR target_id IS NULL
-                   OR target_entity_type IS NULL
-                   OR target_type IS NULL;
 
                 ALTER TABLE entity_reports
                     ADD COLUMN IF NOT EXISTS admin_note text NULL;
@@ -174,15 +159,6 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE booking_contracts
                     ADD COLUMN IF NOT EXISTS updated_at timestamptz NULL;
 
-                UPDATE booking_contracts
-                SET contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
-                    title = COALESCE(title, 'Performance Contract'),
-                    terms = COALESCE(terms, ''),
-                    revision_number = COALESCE(revision_number, 1),
-                    last_action = COALESCE(NULLIF(last_action, ''), 'DraftSaved'),
-                    created_at = COALESCE(created_at, NOW()),
-                    updated_at = COALESCE(updated_at, NOW());
-
                 CREATE TABLE IF NOT EXISTS booking_contract_history (
                     id uuid PRIMARY KEY,
                     booking_id uuid NOT NULL,
@@ -227,14 +203,6 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE booking_contract_history
                     ADD COLUMN IF NOT EXISTS created_at timestamptz NULL;
 
-                UPDATE booking_contract_history
-                SET revision_number = COALESCE(revision_number, 1),
-                    action = COALESCE(NULLIF(action, ''), 'DraftSaved'),
-                    title = COALESCE(title, 'Performance Contract'),
-                    terms = COALESCE(terms, ''),
-                    contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
-                    created_at = COALESCE(created_at, NOW());
-
                 CREATE INDEX IF NOT EXISTS idx_booking_contract_history_booking
                     ON booking_contract_history(booking_id, revision_number DESC);
 
@@ -254,8 +222,46 @@ namespace ImajinationAPI.Controllers
                     reviewed_at timestamptz NULL
                 );";
 
-            await using var cmd = new NpgsqlCommand(sql, connection);
-            await cmd.ExecuteNonQueryAsync();
+            const string dmlSql = @"
+                UPDATE user_calendar_blocks
+                SET blocked_date = COALESCE(blocked_date, block_date),
+                    block_date = COALESCE(block_date, blocked_date)
+                WHERE blocked_date IS NULL OR block_date IS NULL;
+
+                UPDATE entity_reports
+                SET target_entity_id = COALESCE(target_entity_id, target_id),
+                    target_id = COALESCE(target_id, target_entity_id),
+                    target_entity_type = COALESCE(target_entity_type, target_type),
+                    target_type = COALESCE(target_type, target_entity_type)
+                WHERE target_entity_id IS NULL
+                   OR target_id IS NULL
+                   OR target_entity_type IS NULL
+                   OR target_type IS NULL;
+
+                UPDATE booking_contracts
+                SET contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
+                    title = COALESCE(title, 'Performance Contract'),
+                    terms = COALESCE(terms, ''),
+                    revision_number = COALESCE(revision_number, 1),
+                    last_action = COALESCE(NULLIF(last_action, ''), 'DraftSaved'),
+                    created_at = COALESCE(created_at, NOW()),
+                    updated_at = COALESCE(updated_at, NOW());
+
+                UPDATE booking_contract_history
+                SET revision_number = COALESCE(revision_number, 1),
+                    action = COALESCE(NULLIF(action, ''), 'DraftSaved'),
+                    title = COALESCE(title, 'Performance Contract'),
+                    terms = COALESCE(terms, ''),
+                    contract_status = COALESCE(NULLIF(contract_status, ''), 'Draft'),
+                    created_at = COALESCE(created_at, NOW());";
+
+            await using (var ddlCmd = new NpgsqlCommand(sql, connection))
+            {
+                await ddlCmd.ExecuteNonQueryAsync();
+            }
+
+            await using var dmlCmd = new NpgsqlCommand(dmlSql, connection);
+            await dmlCmd.ExecuteNonQueryAsync();
         }
 
         public static DateTime? NormalizeToUtc(DateTime? value)

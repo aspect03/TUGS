@@ -1,0 +1,1217 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Messages</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased h-screen overflow-hidden flex flex-col" style="font-family: 'Montserrat', sans-serif;">
+  <div class="bg-dashboard-backdrop"></div>
+
+  <nav class="relative z-10 w-full h-16 flex items-center px-6 border-b border-white/10 bg-black/30 backdrop-blur-md shrink-0">
+    <div class="flex items-center gap-3">
+      <a href="/" class="h-8 w-28 sm:w-32 flex items-center">
+        <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+      </a>
+      <span class="hidden sm:inline text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Messages</span>
+    </div>
+    <div class="ml-auto flex items-center gap-4">
+      <a id="backLink" href="javascript:history.back()" class="text-xs font-semibold text-white/70 uppercase tracking-[0.14em] hover:text-white transition-colors flex items-center gap-2">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+      </a>
+    </div>
+  </nav>
+
+  <main class="flex-1 min-h-0 flex overflow-hidden relative z-10">
+    <aside class="w-full md:w-80 lg:w-96 min-h-0 border-r border-white/10 bg-white/[0.02] flex flex-col backdrop-blur-sm">
+      <div class="p-6 border-b border-white/10">
+        <h2 class="text-xl font-bold tracking-tight text-white mb-4">Inbox</h2>
+        <div class="relative">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/50"></i>
+          <input id="conversationSearch" type="text" placeholder="Search messages..." class="w-full pl-9 pr-4 py-2 bg-black/40 border border-white/10 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 text-white">
+        </div>
+      </div>
+      <div id="conversationList" class="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2">
+        <p class="text-sm text-white/50 p-4">Loading conversations...</p>
+      </div>
+    </aside>
+
+    <section class="flex-1 min-h-0 flex flex-col relative bg-black/20">
+      <header class="h-16 px-6 border-b border-white/10 bg-black/40 flex items-center justify-between backdrop-blur-md z-10 shrink-0">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+            <i data-lucide="message-square" class="w-5 h-5 text-white/60"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 id="chatName" class="font-semibold text-white tracking-tight truncate">Select a conversation</h3>
+            <p id="chatSubtitle" class="text-[10px] uppercase tracking-widest text-white/40">Booking thread</p>
+          </div>
+        </div>
+        <span id="chatStatus" class="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300">Waiting</span>
+      </header>
+
+      <div id="emptyState" class="flex-1 flex items-center justify-center p-6">
+        <div class="max-w-md text-center space-y-3">
+          <div class="w-14 h-14 mx-auto rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <i data-lucide="messages-square" class="w-7 h-7 text-white/50"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white">Open a booking conversation</h2>
+          <p class="text-sm text-white/50">Use the inbox on the left or open this page from a paid booking request to start talking before confirming.</p>
+        </div>
+      </div>
+
+      <div id="chatArea" class="hidden flex-1 flex flex-col min-h-0">
+        <div class="p-6 border-b border-white/10 bg-black/20 shrink-0">
+          <div class="w-full max-w-3xl bg-black/60 border border-red-500/20 rounded-2xl p-5 shadow-[0_10px_30px_-20px_rgba(239,68,68,0.4)]">
+            <div class="flex items-center justify-between gap-3 mb-4 border-b border-white/10 pb-4">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-red-600/20 flex items-center justify-center">
+                  <i data-lucide="file-signature" class="w-5 h-5 text-red-500"></i>
+                </div>
+                <div>
+                  <h4 class="text-base font-bold text-white tracking-tight">Booking Summary</h4>
+                  <p class="text-xs text-white/60">Talk through the details here before confirming.</p>
+                </div>
+              </div>
+              <button id="openContractPanelBtn" type="button" class="hidden inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                Contract
+              </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-white/80">
+              <div>
+                <p class="text-white/50 text-[10px] uppercase tracking-widest mb-1">Event</p>
+                <p id="bookingEventTitle" class="font-medium text-white">Untitled event</p>
+              </div>
+              <div>
+                <p class="text-white/50 text-[10px] uppercase tracking-widest mb-1">Status</p>
+                <p id="bookingStatus" class="font-medium text-amber-300">Pending</p>
+              </div>
+              <div>
+                <p class="text-white/50 text-[10px] uppercase tracking-widest mb-1">Date</p>
+                <p id="bookingEventDate" class="font-medium text-white">Schedule to be confirmed</p>
+              </div>
+              <div>
+                <p class="text-white/50 text-[10px] uppercase tracking-widest mb-1">Budget</p>
+                <p id="bookingBudget" class="font-medium text-white">To be discussed</p>
+              </div>
+              <div class="sm:col-span-2">
+                <p class="text-white/50 text-[10px] uppercase tracking-widest mb-1">Location</p>
+                <p id="bookingLocation" class="font-medium text-white">Location to be confirmed</p>
+              </div>
+            </div>
+            <div id="paymentActionRow" class="hidden mt-5 pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p id="paymentStatusText" class="text-[10px] uppercase tracking-widest text-white/50">Payment: Unpaid</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button id="completeBookingBtn" type="button" class="hidden px-4 py-2.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors">
+                  Confirm Completion
+                </button>
+                <button id="refundBookingBtn" type="button" class="hidden px-4 py-2.5 bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-sky-500/20 transition-colors">
+                  Report No-Show
+                </button>
+                <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
+                  Pay Now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="messageList" class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+          <p class="text-sm text-white/50">Loading messages...</p>
+        </div>
+
+        <footer class="p-4 bg-black/40 border-t border-white/10 shrink-0 backdrop-blur-md">
+          <form id="messageForm" class="flex items-end gap-3 max-w-5xl mx-auto">
+            <textarea id="messageInput" rows="1" placeholder="Type your message..." class="flex-1 max-h-32 min-h-[44px] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none text-white"></textarea>
+            <button id="sendMessageBtn" type="submit" class="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+              <i data-lucide="send" class="w-5 h-5"></i>
+            </button>
+          </form>
+        </footer>
+      </div>
+
+      <div id="contractPanel" class="hidden fixed inset-0 z-40">
+        <button id="contractPanelBackdrop" type="button" class="absolute inset-0 bg-black/75 backdrop-blur-sm" aria-label="Close contract panel"></button>
+        <div class="absolute inset-x-4 top-1/2 mx-auto flex w-full max-w-2xl -translate-y-1/2 flex-col overflow-hidden rounded-[28px] border border-white/10 bg-[#120f0f] shadow-2xl">
+          <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 shrink-0">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-4 h-4 text-white/60"></i>
+              </div>
+              <div>
+                <p class="text-sm font-bold text-white">Contract Draft</p>
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Tentative agreement</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span id="contractStatusBadge" class="text-[10px] font-semibold uppercase tracking-widest text-white/60 bg-white/5 border border-white/10 px-3 py-1 rounded-full">Draft</span>
+              <button id="closeContractPanelBtn" type="button" class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="max-h-[70vh] overflow-y-auto p-5">
+            <div id="contractEmptyState" class="hidden text-sm text-white/60 border border-white/10 rounded-xl p-4 mb-4">
+              No contract draft yet for this booking.
+            </div>
+
+            <div id="contractForm" class="space-y-4">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Title</label>
+                  <input id="contractTitleInput" type="text" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Agreed Fee (PHP)</label>
+                  <input id="contractFeeInput" type="number" min="0" step="0.01" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Terms</label>
+                <textarea id="contractTermsInput" rows="8" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none"></textarea>
+              </div>
+              <div id="contractEditRow" class="flex flex-wrap gap-3 items-center">
+                <select id="contractStatusSelect" class="px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold uppercase tracking-widest text-white/70">
+                  <option value="Draft">Draft</option>
+                  <option value="PendingAcceptance">PendingAcceptance</option>
+                </select>
+                <button id="saveContractBtn" type="button" class="px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">
+                  Save Draft
+                </button>
+                <button id="sendContractBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
+                  Submit Proposal
+                </button>
+                <button id="createContractBtn" type="button" class="hidden px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">
+                  Create Draft
+                </button>
+              </div>
+              <div id="contractResponseRow" class="hidden flex flex-wrap gap-3">
+                <button id="acceptContractBtn" type="button" class="px-4 py-2.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/30 transition-colors">
+                  Accept
+                </button>
+                <button id="rejectContractBtn" type="button" class="px-4 py-2.5 bg-red-500/20 border border-red-500/40 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500/30 transition-colors">
+                  Request Changes
+                </button>
+              </div>
+              <p id="contractStatusText" class="text-xs text-white/50"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const query = new URLSearchParams(window.location.search);
+    const requestedBookingId = query.get('bookingId');
+    const bookingFeePaid = query.get('bookingFeePaid');
+    const talentFeePaid = query.get('talentFeePaid');
+    const platformFeePaid = query.get('platformFeePaid');
+    const openContractRequested = query.get('openContract') === '1';
+
+    let conversations = [];
+    let activeBookingId = null;
+    let activeBooking = null;
+    let activeContract = null;
+    let activeMessages = [];
+    let activeConversationRequest = 0;
+    let isSendingMessage = false;
+    let liveMessageStream = null;
+    let liveMessagePollHandle = null;
+
+    async function showSystemAlert(message, title = 'Notice') {
+      if (window.systemDialog?.alert) {
+        await window.systemDialog.alert(message, { title, kicker: 'System Message' });
+        return;
+      }
+      window.alert(message);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!userId) {
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      setBackLink();
+      document.getElementById('conversationSearch').addEventListener('input', renderConversationList);
+      document.getElementById('messageForm').addEventListener('submit', sendMessage);
+      document.getElementById('payBookingBtn').addEventListener('click', startBookingPayment);
+      document.getElementById('completeBookingBtn').addEventListener('click', markBookingCompleted);
+      document.getElementById('refundBookingBtn').addEventListener('click', requestBookingRefund);
+      document.getElementById('saveContractBtn').addEventListener('click', saveContractDraft);
+      document.getElementById('sendContractBtn').addEventListener('click', sendContractForApproval);
+      document.getElementById('createContractBtn').addEventListener('click', createContractDraft);
+      document.getElementById('acceptContractBtn').addEventListener('click', () => updateContractStatus('Accepted'));
+      document.getElementById('rejectContractBtn').addEventListener('click', () => updateContractStatus('Rejected'));
+      document.getElementById('openContractPanelBtn').addEventListener('click', openContractPanel);
+      document.getElementById('closeContractPanelBtn').addEventListener('click', closeContractPanel);
+      document.getElementById('contractPanelBackdrop').addEventListener('click', closeContractPanel);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeContractPanel();
+      });
+      window.addEventListener('beforeunload', stopLiveConversationUpdates);
+
+      await handleBookingFeeReturn();
+      await loadConversations();
+
+      if (requestedBookingId) {
+        await openConversation(requestedBookingId);
+        if (openContractRequested) {
+          openContractPanel();
+        }
+      }
+    });
+
+    function setBackLink() {
+      const backLink = document.getElementById('backLink');
+      if (userRole === 'Artist') backLink.href = '/pages/dashboards/ArtistDashboard.html';
+      else if (userRole === 'Sessionist') backLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if (userRole === 'Organizer') backLink.href = '/pages/dashboards/OrganizerDashboard.html';
+      else if (userRole === 'Customer') backLink.href = '/pages/dashboards/CustomerDashboard.html';
+    }
+
+    function openContractPanel() {
+      document.getElementById('contractPanel').classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      lucide.createIcons();
+    }
+
+    function closeContractPanel() {
+      document.getElementById('contractPanel').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function formatDateTime(value) {
+      if (!value) return 'Schedule to be confirmed';
+      return new Date(value).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+    }
+
+    function formatPeso(value) {
+      if (!value) return 'To be discussed';
+      return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        maximumFractionDigits: 0
+      }).format(value);
+    }
+
+    function escapeHtml(value) {
+      return (value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
+    }
+
+    function getBookingStatusClasses(status) {
+      if ((status || '').startsWith('Cancelled')) return 'text-red-400';
+      if (status === 'Completed') return 'text-blue-300';
+      if ((status || '').startsWith('Completion Pending')) return 'text-amber-300';
+      if (status === 'Confirmed') return 'text-emerald-400';
+      return 'text-amber-300';
+    }
+
+    function getPaymentStatusClasses(status) {
+      if (status === 'Paid') return 'text-emerald-400';
+      if (status === 'Released') return 'text-emerald-400';
+      if (status === 'HeldInEscrow' || status === 'ReadyForRelease' || status === 'TalentFeeHeldInEscrow' || status === 'TalentReleasePendingPlatformFee') return 'text-sky-300';
+      if (status === 'ServiceFeePaid') return 'text-blue-300';
+      if (status === 'Refunded') return 'text-sky-300';
+      if (status === 'Refund Failed') return 'text-red-300';
+      if (status === 'AwaitingPayment' || status === 'AwaitingTalentFeePayment' || status === 'Refund Pending') return 'text-amber-300';
+      return 'text-white/50';
+    }
+
+    function normalizeServiceFeeStatus(serviceFeeStatus, paymentStatus) {
+      const rawServiceStatus = (serviceFeeStatus || '').trim();
+      const rawPaymentStatus = (paymentStatus || '').trim();
+
+      if (!rawServiceStatus) {
+        if (rawPaymentStatus === 'ServiceFeePaid') return 'Paid';
+        return rawPaymentStatus || 'Unpaid';
+      }
+
+      if (rawServiceStatus === 'ServiceFeePaid') return 'Paid';
+      return rawServiceStatus;
+    }
+
+    function normalizeTalentFeeStatus(talentFeeStatus) {
+      const rawStatus = (talentFeeStatus || '').trim();
+      if (rawStatus === 'AwaitingTalentFeePayment') return 'AwaitingPayment';
+      if (rawStatus === 'TalentFeePaid') return 'HeldInEscrow';
+      return rawStatus || 'Unpaid';
+    }
+
+    function isCompletionPendingStatus(status) {
+      return String(status || '').startsWith('Completion Pending');
+    }
+
+    function getBookingStatusLabel(status) {
+      const normalized = String(status || '').trim();
+      if (normalized === 'Confirmed') return 'Ongoing';
+      if (normalized === 'Completed') return 'Completed';
+      return normalized || 'Pending';
+    }
+
+    function getCancelledConversationState(booking) {
+      const normalizedStatus = String(booking?.status || '').trim();
+      if (!normalizedStatus.startsWith('Cancelled')) {
+        return { isCancelled: false, isClosed: false, expiresAt: null };
+      }
+
+      const updatedAt = booking?.updatedAt ? new Date(booking.updatedAt) : null;
+      if (!updatedAt || Number.isNaN(updatedAt.getTime())) {
+        return { isCancelled: true, isClosed: true, expiresAt: null };
+      }
+
+      const expiresAt = new Date(updatedAt.getTime() + (24 * 60 * 60 * 1000));
+      return {
+        isCancelled: true,
+        isClosed: expiresAt.getTime() <= Date.now(),
+        expiresAt
+      };
+    }
+
+    function applyMessageComposerState(booking) {
+      const input = document.getElementById('messageInput');
+      const button = document.getElementById('sendMessageBtn');
+      if (!input || !button) return;
+
+      const cancelledState = getCancelledConversationState(booking);
+      if (cancelledState.isClosed) {
+        input.disabled = true;
+        button.disabled = true;
+        input.placeholder = 'This cancelled booking thread is now closed.';
+        button.classList.add('opacity-60', 'cursor-not-allowed');
+        return;
+      }
+
+      input.disabled = false;
+      button.disabled = false;
+      input.placeholder = cancelledState.isCancelled && cancelledState.expiresAt
+        ? `Cancelled booking thread stays open until ${formatDateTime(cancelledState.expiresAt)}.`
+        : 'Type your message...';
+      button.classList.remove('opacity-60', 'cursor-not-allowed');
+    }
+
+    function canMarkBookingCompleted(booking) {
+      const completionValue = booking?.eventEndTime || booking?.eventDate;
+      if (!booking || (!['Confirmed'].includes(booking.status) && !isCompletionPendingStatus(booking.status)) || !completionValue) {
+        return false;
+      }
+
+      const completionDate = new Date(completionValue);
+      if (Number.isNaN(completionDate.getTime())) {
+        return false;
+      }
+
+      const isCustomerSide = String(booking.customerId || '') === String(userId || '');
+      if (isCustomerSide && booking.customerCompletedAt) {
+        return false;
+      }
+
+      if (!isCustomerSide && booking.targetCompletedAt) {
+        return false;
+      }
+
+      return completionDate.getTime() <= Date.now();
+    }
+
+    async function handleBookingFeeReturn() {
+      const paymentType = talentFeePaid === '1'
+        ? 'talent'
+        : platformFeePaid === '1'
+          ? 'platform'
+          : bookingFeePaid === '1'
+            ? 'service'
+            : '';
+      if (!paymentType || !requestedBookingId) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/booking/${requestedBookingId}/payment/confirm?paymentType=${paymentType}`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            await showSystemAlert(data.message || 'Could not confirm booking payment yet.', 'Payment Pending');
+          }
+        } catch (error) {
+        await showSystemAlert('Could not verify booking payment right now.', 'Verification Error');
+      } finally {
+        const cleanUrl = `${window.location.origin}${window.location.pathname}?bookingId=${requestedBookingId}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+
+    async function loadConversations() {
+      const list = document.getElementById('conversationList');
+      try {
+        const res = await fetch(`/api/message/conversations/${userId}`);
+        if (!res.ok) throw new Error();
+
+        conversations = await res.json();
+        renderConversationList();
+
+        if (!requestedBookingId && conversations.length > 0) {
+          await openConversation(conversations[0].bookingId);
+        }
+      } catch (error) {
+        list.innerHTML = '<p class="text-sm text-red-400 p-4">Failed to load conversations.</p>';
+      }
+    }
+
+    function renderConversationList() {
+      const list = document.getElementById('conversationList');
+      const term = document.getElementById('conversationSearch').value.trim().toLowerCase();
+      const dedupedConversations = Array.from(conversations.reduce((map, conversation) => {
+        const key = [
+          conversation.counterpartId || '',
+          (conversation.counterpartRole || '').toLowerCase(),
+          (conversation.eventTitle || '').trim().toLowerCase()
+        ].join('|');
+        const existing = map.get(key);
+        const existingTime = existing?.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
+        const nextTime = conversation?.lastActivity ? new Date(conversation.lastActivity).getTime() : 0;
+
+        if (!existing || nextTime >= existingTime) {
+          map.set(key, conversation);
+        }
+        return map;
+      }, new Map()).values());
+
+      const filtered = dedupedConversations.filter(conversation =>
+        !term ||
+        (conversation.counterpartName || '').toLowerCase().includes(term) ||
+        (conversation.eventTitle || '').toLowerCase().includes(term) ||
+        (conversation.lastMessage || '').toLowerCase().includes(term)
+      );
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<p class="text-sm text-white/50 p-4">No matching conversations found.</p>';
+        return;
+      }
+
+      list.innerHTML = filtered.map(conversation => `
+        <button type="button" onclick="openConversation('${conversation.bookingId}')" class="w-full text-left p-4 rounded-xl border transition-colors ${String(conversation.bookingId) === String(activeBookingId) ? 'bg-red-600/10 border-red-500/20' : 'hover:bg-white/5 border-transparent'}">
+          <div class="flex justify-between items-start gap-3 mb-1">
+            <p class="font-semibold text-sm text-white">${escapeHtml(conversation.counterpartName || 'Conversation')}</p>
+            <span class="text-[10px] ${String(conversation.bookingId) === String(activeBookingId) ? 'text-red-400' : (conversation.hasMessages ? 'text-white/50' : 'text-amber-300')} font-medium whitespace-nowrap">${String(conversation.bookingId) === String(activeBookingId) ? 'Active' : (conversation.hasMessages ? 'Open' : 'New')}</span>
+          </div>
+          <p class="text-[10px] uppercase tracking-widest text-white/40 mb-2">${escapeHtml(conversation.eventTitle || 'Booking inquiry')}</p>
+          <p class="text-xs text-white/60 truncate">${escapeHtml(conversation.lastMessage || 'No messages yet. Open this thread to start the conversation.')}</p>
+        </button>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function mergeMessages(messages) {
+      const seenMessages = new Set();
+      const merged = [];
+
+      for (const message of Array.isArray(messages) ? messages : []) {
+        const dedupeKey = message?.id
+          ? `id:${message.id}`
+          : `${message?.senderId || ''}|${message?.createdAt || ''}|${message?.message || ''}`;
+
+        if (seenMessages.has(dedupeKey)) {
+          continue;
+        }
+
+        seenMessages.add(dedupeKey);
+        merged.push(message);
+      }
+
+      merged.sort((left, right) => new Date(left?.createdAt || 0).getTime() - new Date(right?.createdAt || 0).getTime());
+      return merged;
+    }
+
+    function syncConversationPreview(message) {
+      if (!activeBookingId || !message) {
+        return;
+      }
+
+      const existingConversation = conversations.find(conversation => String(conversation.bookingId) === String(activeBookingId));
+      const nextLastActivity = message.createdAt || new Date().toISOString();
+
+      if (existingConversation) {
+        existingConversation.lastMessage = message.message || existingConversation.lastMessage || '';
+        existingConversation.lastActivity = nextLastActivity;
+        existingConversation.hasMessages = true;
+      } else if (activeBooking) {
+        const counterpartName = String(activeBooking.customerId) === String(userId) ? activeBooking.targetName : activeBooking.customerName;
+        const counterpartId = String(activeBooking.customerId) === String(userId) ? activeBooking.targetUserId : activeBooking.customerId;
+        const counterpartRole = String(activeBooking.customerId) === String(userId) ? activeBooking.targetRole : 'Customer';
+        conversations.unshift({
+          bookingId: activeBookingId,
+          counterpartName: counterpartName || 'Conversation',
+          counterpartId,
+          counterpartRole,
+          eventTitle: activeBooking.eventTitle || '',
+          lastMessage: message.message || '',
+          lastActivity: nextLastActivity,
+          hasMessages: true
+        });
+      }
+
+      conversations.sort((left, right) => new Date(right?.lastActivity || 0).getTime() - new Date(left?.lastActivity || 0).getTime());
+      renderConversationList();
+    }
+
+    function updateLiveChatStatus(text, tone = 'amber') {
+      const status = document.getElementById('chatStatus');
+      const bookingLabel = getBookingStatusLabel(activeBooking?.status || 'Pending');
+      const toneClasses = tone === 'green'
+        ? 'text-emerald-300'
+        : tone === 'red'
+          ? 'text-red-300'
+          : 'text-amber-300';
+      status.className = `text-[10px] font-semibold uppercase tracking-[0.18em] ${toneClasses}`;
+      status.innerText = text ? `${bookingLabel} • ${text}` : bookingLabel;
+    }
+
+    function stopLiveConversationUpdates() {
+      if (liveMessageStream) {
+        liveMessageStream.close();
+        liveMessageStream = null;
+      }
+
+      if (liveMessagePollHandle) {
+        window.clearInterval(liveMessagePollHandle);
+        liveMessagePollHandle = null;
+      }
+    }
+
+    async function refreshConversationMessagesSilently() {
+      if (!activeBookingId) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/message/booking/${activeBookingId}`, { cache: 'no-store' });
+        if (!res.ok) {
+          return;
+        }
+
+        const messages = await res.json().catch(() => []);
+        activeMessages = mergeMessages(messages);
+        renderMessages(activeMessages);
+      } catch (_) {
+      }
+    }
+
+    function startLiveConversationUpdates(bookingId) {
+      stopLiveConversationUpdates();
+
+      if (typeof window.EventSource !== 'function') {
+        liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+        updateLiveChatStatus('Live Polling', 'amber');
+        return;
+      }
+
+      const stream = new EventSource(`/api/message/booking/${bookingId}/stream`);
+      liveMessageStream = stream;
+
+      stream.addEventListener('connected', () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+        if (liveMessagePollHandle) {
+          window.clearInterval(liveMessagePollHandle);
+          liveMessagePollHandle = null;
+        }
+        updateLiveChatStatus(activeBooking?.status || 'Live', 'green');
+      });
+
+      stream.addEventListener('booking-message', (event) => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        const payload = JSON.parse(event.data || '{}');
+        if (payload?.type !== 'message_created' || !payload?.message) {
+          return;
+        }
+
+        activeMessages = mergeMessages([...activeMessages, payload.message]);
+        renderMessages(activeMessages);
+        syncConversationPreview(payload.message);
+      });
+
+      stream.onerror = () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        updateLiveChatStatus('Reconnecting', 'amber');
+        if (!liveMessagePollHandle) {
+          liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+        }
+      };
+
+      stream.onopen = null;
+      const reconnectOnClose = () => {
+        if (String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+        if (stream.readyState === EventSource.CLOSED) {
+          updateLiveChatStatus('Reconnecting', 'amber');
+          if (!liveMessagePollHandle) {
+            liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 3000);
+          }
+          window.setTimeout(() => {
+            if (String(bookingId) === String(activeBookingId)) {
+              startLiveConversationUpdates(bookingId);
+            }
+          }, 5000);
+        }
+      };
+      stream.addEventListener('error', reconnectOnClose);
+    }
+
+    async function openConversation(bookingId) {
+      const requestId = ++activeConversationRequest;
+      activeBookingId = bookingId;
+      closeContractPanel();
+      stopLiveConversationUpdates();
+      renderConversationList();
+
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('chatArea').classList.remove('hidden');
+      document.getElementById('messageList').innerHTML = '<p class="text-sm text-white/50">Loading messages...</p>';
+
+      try {
+        const [bookingRes, messageRes] = await Promise.all([
+          fetch(`/api/booking/${bookingId}`),
+          fetch(`/api/message/booking/${bookingId}`)
+        ]);
+
+        if (!bookingRes.ok) {
+          throw new Error('Failed to load booking details.');
+        }
+
+        if (!messageRes.ok) {
+          const data = await messageRes.json().catch(() => ({}));
+          throw new Error(data.message || 'Failed to load messages.');
+        }
+
+        const booking = await bookingRes.json();
+        const messages = await messageRes.json();
+
+        if (requestId !== activeConversationRequest || String(bookingId) !== String(activeBookingId)) {
+          return;
+        }
+
+        activeBooking = booking;
+        activeMessages = mergeMessages(messages);
+        applyBookingHeader(activeBooking);
+        await loadBookingContract(bookingId);
+        renderMessages(activeMessages);
+        startLiveConversationUpdates(bookingId);
+      } catch (error) {
+        if (requestId !== activeConversationRequest) {
+          return;
+        }
+        document.getElementById('messageList').innerHTML = `<div class="w-full max-w-2xl mx-auto mt-8 p-5 rounded-2xl bg-black/60 border border-red-500/20 text-center"><p class="text-sm text-red-300 font-semibold">${escapeHtml(error.message || 'Failed to load this conversation.')}</p></div>`;
+      }
+    }
+
+    function applyBookingHeader(booking) {
+      const counterpartName = String(booking.customerId) === String(userId) ? booking.targetName : booking.customerName;
+      document.getElementById('chatName').innerText = counterpartName || 'Conversation';
+      document.getElementById('chatSubtitle').innerText = `${booking.targetRole || 'Booking'} Thread`;
+      document.getElementById('chatStatus').innerText = getBookingStatusLabel(booking.status);
+      document.getElementById('chatStatus').className = `text-[10px] font-semibold uppercase tracking-[0.18em] ${getBookingStatusClasses(booking.status)}`;
+      document.getElementById('bookingEventTitle').innerText = booking.eventTitle || 'Untitled event';
+      document.getElementById('bookingStatus').innerText = getBookingStatusLabel(booking.status);
+      document.getElementById('bookingStatus').className = `font-medium ${getBookingStatusClasses(booking.status)}`;
+      const bookingWindow = booking.eventEndTime
+        ? `${formatDateTime(booking.eventDate)} to ${formatDateTime(booking.eventEndTime)}`
+        : formatDateTime(booking.eventDate);
+      document.getElementById('bookingEventDate').innerText = bookingWindow;
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Offer ${formatPeso(booking.budget)}` : ''}`;
+      document.getElementById('bookingLocation').innerText = booking.location || 'Location to be confirmed';
+      document.getElementById('bookingBudget').innerText = `${formatPeso(booking.bookingFee || 15)} service fee${booking.budget ? ` • Talent fee ${formatPeso(booking.budget)}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee ${formatPeso(booking.talentPlatformFee)}` : ''}`;
+
+      const paymentRow = document.getElementById('paymentActionRow');
+      const paymentStatusText = document.getElementById('paymentStatusText');
+      const payButton = document.getElementById('payBookingBtn');
+      const completeButton = document.getElementById('completeBookingBtn');
+      const refundButton = document.getElementById('refundBookingBtn');
+      const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
+      const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
+      const platformFeeStatus = normalizeTalentFeeStatus(booking.talentPlatformFeeStatus);
+      const canPayServiceFee = userRole === 'Customer' && serviceFeeStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled');
+      const isBookableSettlementState = booking.status === 'Confirmed' || isCompletionPendingStatus(booking.status);
+      const canPayTalentFee = userRole === 'Customer'
+        && serviceFeeStatus === 'Paid'
+        && booking.status === 'Confirmed'
+        && Number(booking.budget || 0) > 0
+        && !['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Released'].includes(talentFeeStatus)
+        && !(booking.status || '').startsWith('Cancelled');
+      const canPayPlatformFee = (userRole === 'Artist' || userRole === 'Sessionist')
+        && isBookableSettlementState
+        && Number(booking.talentPlatformFee || 0) > 0
+        && ['HeldInEscrow', 'ReadyForRelease'].includes(talentFeeStatus)
+        && platformFeeStatus !== 'Paid'
+        && !(booking.status || '').startsWith('Cancelled');
+      const bookingEnded = (booking.eventEndTime || booking.eventDate) ? new Date(booking.eventEndTime || booking.eventDate).getTime() <= Date.now() : false;
+      const canRequestCustomerRefund = (userRole === 'Customer' || userRole === 'Organizer')
+        && bookingEnded
+        && isBookableSettlementState
+        && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
+      const canRequestTalentRefund = (userRole === 'Artist' || userRole === 'Sessionist')
+        && bookingEnded
+        && isBookableSettlementState
+        && (platformFeeStatus === 'Paid' || platformFeeStatus === 'Refund Failed');
+
+      paymentStatusText.innerText = `Service fee: ${serviceFeeStatus}${booking.budget ? ` • Talent fee: ${talentFeeStatus}` : ''}${Number(booking.talentPlatformFee || 0) > 0 ? ` • Platform fee: ${platformFeeStatus}` : ''}`;
+      paymentStatusText.className = `text-[10px] uppercase tracking-widest ${getPaymentStatusClasses(canPayTalentFee ? talentFeeStatus : canPayPlatformFee ? platformFeeStatus : serviceFeeStatus)}`;
+      completeButton.classList.toggle('hidden', !canMarkBookingCompleted(booking));
+      refundButton.classList.toggle('hidden', !(canRequestCustomerRefund || canRequestTalentRefund));
+      refundButton.dataset.reasonCode = canRequestTalentRefund ? 'CustomerNoShow' : 'TalentNoShow';
+      refundButton.innerText = canRequestTalentRefund ? 'Report Customer No-Show' : 'Report Talent No-Show';
+      applyMessageComposerState(booking);
+
+      if (canPayServiceFee) {
+        payButton.dataset.paymentType = 'service';
+        payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 15)} Fee`;
+        paymentRow.classList.remove('hidden');
+      } else if (canPayTalentFee) {
+        payButton.dataset.paymentType = 'talent';
+        payButton.innerText = talentFeeStatus === 'AwaitingPayment' ? 'Continue Escrow Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee to Escrow`;
+        paymentRow.classList.remove('hidden');
+      } else if (canPayPlatformFee) {
+        payButton.dataset.paymentType = 'platform';
+        payButton.innerText = platformFeeStatus === 'AwaitingPayment' ? 'Continue Platform Fee Payment' : `Pay ${formatPeso(booking.talentPlatformFee || 0)} Platform Fee`;
+        paymentRow.classList.remove('hidden');
+      } else {
+        payButton.dataset.paymentType = 'service';
+        payButton.classList.add('hidden');
+        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden') && refundButton.classList.contains('hidden'));
+        return;
+      }
+
+      payButton.classList.remove('hidden');
+      paymentRow.classList.remove('hidden');
+    }
+
+    function getContractAccess() {
+      const canEdit = ['Organizer', 'Customer', 'Artist', 'Sessionist'].includes(userRole);
+      const canRespond = ['Organizer', 'Customer', 'Artist', 'Sessionist'].includes(userRole);
+      return { canEdit, canRespond };
+    }
+
+    async function loadBookingContract(bookingId) {
+      const panel = document.getElementById('contractPanel');
+      const trigger = document.getElementById('openContractPanelBtn');
+      if (!panel || !trigger || !bookingId) return;
+      trigger.classList.remove('hidden');
+
+      try {
+        let res = await fetch(`/api/booking/${bookingId}/contract`, {
+          cache: 'no-store',
+          skipApiFallbackOn404: true
+        });
+        if (res.status === 404) {
+          const createRes = await fetch(`/api/booking/${bookingId}/contract`, {
+            method: 'POST',
+            cache: 'no-store'
+          });
+          const createData = await createRes.json().catch(() => ({}));
+          if (!createRes.ok) {
+            throw new Error(createData.message || 'Failed to create contract draft.');
+          }
+          activeContract = createData;
+          renderContractUI(activeContract);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to load contract draft.');
+        }
+
+        activeContract = data;
+        renderContractUI(activeContract);
+      } catch (error) {
+        activeContract = null;
+        renderContractUI(null, error?.message || 'Failed to load contract draft.');
+      }
+    }
+
+    function renderContractUI(contract, errorMessage = '') {
+      const emptyState = document.getElementById('contractEmptyState');
+      const form = document.getElementById('contractForm');
+      const statusBadge = document.getElementById('contractStatusBadge');
+      const statusText = document.getElementById('contractStatusText');
+      const titleInput = document.getElementById('contractTitleInput');
+      const termsInput = document.getElementById('contractTermsInput');
+      const feeInput = document.getElementById('contractFeeInput');
+      const statusSelect = document.getElementById('contractStatusSelect');
+      const editRow = document.getElementById('contractEditRow');
+      const responseRow = document.getElementById('contractResponseRow');
+      const createBtn = document.getElementById('createContractBtn');
+      const trigger = document.getElementById('openContractPanelBtn');
+
+      const { canEdit, canRespond } = getContractAccess();
+      const shouldExposeContract = canEdit || canRespond;
+      trigger.classList.toggle('hidden', !shouldExposeContract);
+
+      if (!contract) {
+        statusBadge.innerText = 'Draft';
+        statusText.innerText = errorMessage || 'Create a tentative contract for this booking.';
+        emptyState.classList.remove('hidden');
+        form.classList.add('opacity-75');
+        titleInput.value = '';
+        termsInput.value = '';
+        feeInput.value = '';
+        statusSelect.value = 'Draft';
+        titleInput.disabled = true;
+        termsInput.disabled = true;
+        feeInput.disabled = true;
+        statusSelect.disabled = true;
+        editRow.classList.toggle('hidden', !canEdit);
+        responseRow.classList.add('hidden');
+        createBtn.classList.toggle('hidden', !canEdit);
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      form.classList.remove('opacity-75');
+      statusBadge.innerText = contract.contractStatus || 'Draft';
+      const proposedByRole = contract.proposedByRole || 'Participant';
+      const revisionText = contract.revisionNumber ? `Revision ${contract.revisionNumber}` : 'Draft';
+      statusText.innerText = contract.contractStatus === 'PendingAcceptance'
+        ? `${revisionText} submitted by ${proposedByRole}. Review the proposed budget and terms before accepting.`
+        : contract.contractStatus === 'NeedsRevision'
+          ? `${revisionText} needs changes. Either side can edit and submit a new proposal.`
+          : contract.contractStatus === 'Accepted'
+            ? `${revisionText} accepted. This is now the active booking contract.`
+            : `${revisionText} saved. Both sides can keep refining the draft.`;
+      titleInput.value = contract.title || '';
+      termsInput.value = contract.terms || '';
+      feeInput.value = contract.agreedFee || '';
+      statusSelect.value = ['Draft', 'PendingAcceptance'].includes(contract.contractStatus) ? contract.contractStatus : 'Draft';
+
+      const isLocked = contract.contractStatus === 'Accepted';
+      titleInput.disabled = !canEdit || isLocked;
+      termsInput.disabled = !canEdit || isLocked;
+      feeInput.disabled = !canEdit || isLocked;
+      statusSelect.disabled = !canEdit || isLocked;
+
+      editRow.classList.toggle('hidden', !canEdit || isLocked);
+      createBtn.classList.add('hidden');
+
+      const responseAllowed = canRespond
+        && (contract.contractStatus || 'Draft') === 'PendingAcceptance'
+        && String(contract.proposedByRole || '').toLowerCase() !== String(userRole || '').toLowerCase();
+      responseRow.classList.toggle('hidden', !responseAllowed);
+    }
+
+    async function createContractDraft() {
+      if (!activeBookingId) return;
+      const statusText = document.getElementById('contractStatusText');
+      statusText.innerText = 'Creating contract draft...';
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/contract`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to create contract draft.');
+        activeContract = data;
+        renderContractUI(activeContract);
+      } catch (error) {
+        statusText.innerText = error.message || 'Failed to create contract draft.';
+      }
+    }
+
+    async function saveContractDraft() {
+      if (!activeBookingId) return;
+      const statusText = document.getElementById('contractStatusText');
+      const title = document.getElementById('contractTitleInput').value;
+      const terms = document.getElementById('contractTermsInput').value;
+      const fee = parseFloat(document.getElementById('contractFeeInput').value);
+      const contractStatus = document.getElementById('contractStatusSelect').value || 'Draft';
+
+      statusText.innerText = 'Saving contract...';
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/contract`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            terms,
+            agreedFee: Number.isFinite(fee) ? fee : null,
+            contractStatus
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to update contract.');
+        statusText.innerText = data.message || 'Contract updated.';
+        await loadBookingContract(activeBookingId);
+        await refreshActiveBooking();
+      } catch (error) {
+        statusText.innerText = error.message || 'Failed to update contract.';
+      }
+    }
+
+    async function sendContractForApproval() {
+      document.getElementById('contractStatusSelect').value = 'PendingAcceptance';
+      await saveContractDraft();
+    }
+
+    async function updateContractStatus(status) {
+      if (!activeBookingId) return;
+      const statusText = document.getElementById('contractStatusText');
+      statusText.innerText = 'Updating contract status...';
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/contract`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contractStatus: status })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to update contract.');
+        statusText.innerText = data.message || 'Contract updated.';
+        await loadBookingContract(activeBookingId);
+        await refreshActiveBooking();
+      } catch (error) {
+        statusText.innerText = error.message || 'Failed to update contract.';
+      }
+    }
+
+    async function startBookingPayment() {
+      if (!activeBookingId) return;
+
+      const paymentType = document.getElementById('payBookingBtn').dataset.paymentType || 'service';
+      const successFlag = paymentType === 'talent'
+        ? 'talentFeePaid=1'
+        : paymentType === 'platform'
+          ? 'platformFeePaid=1'
+          : 'bookingFeePaid=1';
+      const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}&${successFlag}`;
+      const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`;
+      const payButton = document.getElementById('payBookingBtn');
+
+      payButton.disabled = true;
+      payButton.classList.add('opacity-60', 'cursor-not-allowed');
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ successUrl, cancelUrl, paymentType })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.checkoutUrl) {
+          throw new Error(data.message || 'Failed to start booking payment.');
+        }
+
+        window.location.href = data.checkoutUrl;
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to start booking payment.', 'Payment Error');
+      } finally {
+        payButton.disabled = false;
+        payButton.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function markBookingCompleted() {
+      if (!activeBookingId) return;
+
+      const confirmed = await window.systemDialog.confirm(
+        'Confirm that this booking has been completed? This will release escrow funds to the talent once both sides confirm.',
+        { title: 'Confirm Completion', kicker: 'Booking Completion', okText: 'Yes, Confirm Completion', cancelText: 'Not Yet' }
+      );
+      if (!confirmed) return;
+
+      const button = document.getElementById('completeBookingBtn');
+      button.disabled = true;
+      button.classList.add('opacity-60', 'cursor-not-allowed');
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to mark booking as completed.');
+        }
+
+        await showSystemAlert(data.message || 'Completion confirmation recorded.', 'Booking Completion');
+        await loadConversations();
+        await openConversation(activeBookingId);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to mark booking as completed.', 'Completion Error');
+      } finally {
+        button.disabled = false;
+        button.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function refreshActiveBooking() {
+      if (!activeBookingId) return;
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}`);
+        if (!res.ok) return;
+        activeBooking = await res.json();
+        applyBookingHeader(activeBooking);
+      } catch (_) {
+      }
+    }
+
+    async function requestBookingRefund() {
+      if (!activeBookingId) return;
+
+      const reasonCode = document.getElementById('refundBookingBtn').dataset.reasonCode || 'TalentNoShow';
+      const notes = await window.systemDialog.prompt('Add a short note for this refund request (optional):', {
+        title: 'Refund Request',
+        kicker: 'Booking Support',
+        placeholder: 'Add optional details for the review team',
+        okText: 'Submit',
+        multiline: true
+      });
+      if (notes === null) return;
+
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/refunds/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reasonCode, notes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message || 'Failed to submit refund request.');
+        }
+
+        await showSystemAlert(data.message || 'Refund request submitted.', 'Refund Request');
+        await loadConversations();
+        await openConversation(activeBookingId);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to submit refund request.', 'Refund Error');
+      }
+    }
+
+    function renderMessages(messages) {
+      const list = document.getElementById('messageList');
+      const uniqueMessages = [];
+      const seenMessages = new Set();
+
+      for (const message of Array.isArray(messages) ? messages : []) {
+        const dedupeKey = message?.id
+          ? `id:${message.id}`
+          : `${message?.senderId || ''}|${message?.createdAt || ''}|${message?.message || ''}`;
+
+        if (seenMessages.has(dedupeKey)) {
+          continue;
+        }
+
+        seenMessages.add(dedupeKey);
+        uniqueMessages.push(message);
+      }
+
+      if (!uniqueMessages.length) {
+        list.innerHTML = `
+          <div class="flex flex-col items-center my-8">
+            <p class="text-[10px] font-semibold text-white/40 uppercase tracking-widest mb-4">Booking Note</p>
+            <div class="w-full max-w-2xl bg-black/60 border border-white/10 rounded-2xl p-5">
+              <p class="text-sm text-white/80 leading-relaxed">${escapeHtml(activeBooking?.message || 'No opening note was included in this booking request.')}</p>
+            </div>
+            <p class="text-xs text-white/50 mt-4">Send the first message here before confirming the request.</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = uniqueMessages.map(message => {
+        const ownMessage = String(message.senderId) === String(userId);
+        return `
+          <div class="flex flex-col gap-1 ${ownMessage ? 'items-end' : 'items-start'}">
+            <div class="${ownMessage ? 'bg-red-600/90 border-red-500/30 rounded-tr-sm' : 'bg-white/10 border-white/5 rounded-tl-sm'} border rounded-2xl px-5 py-3 max-w-[85%] md:max-w-xl">
+              <p class="text-sm ${ownMessage ? 'text-white' : 'text-white/90'} leading-relaxed">${escapeHtml(message.message)}</p>
+            </div>
+            <span class="text-[10px] text-white/40 ${ownMessage ? 'mr-1' : 'ml-1'}">${formatDateTime(message.createdAt)}</span>
+          </div>
+        `;
+      }).join('');
+
+      list.scrollTop = list.scrollHeight;
+    }
+
+    async function sendMessage(event) {
+      event.preventDefault();
+      if (isSendingMessage) {
+        return;
+      }
+
+      const input = document.getElementById('messageInput');
+      const button = document.getElementById('sendMessageBtn');
+      const text = input.value.trim();
+
+      if (!activeBookingId || !text) {
+        return;
+      }
+
+      isSendingMessage = true;
+      button.disabled = true;
+      button.classList.add('opacity-60', 'cursor-not-allowed');
+
+      try {
+        const res = await fetch(`/api/message/booking/${activeBookingId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            senderId: userId,
+            message: text
+          })
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'Failed to send message.');
+        }
+
+        const data = await res.json().catch(() => ({}));
+        input.value = '';
+        if (data?.sentMessage) {
+          activeMessages = mergeMessages([...activeMessages, data.sentMessage]);
+          renderMessages(activeMessages);
+          syncConversationPreview(data.sentMessage);
+        }
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to send message.', 'Message Error');
+      } finally {
+        isSendingMessage = false;
+        button.disabled = false;
+        button.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+  </script>
+</body>
+</html>

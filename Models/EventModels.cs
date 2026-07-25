@@ -3,6 +3,18 @@ using System.Collections.Generic;
 
 namespace ImajinationAPI.Models
 {
+    public class TicketTierDto
+    {
+        public Guid? id { get; set; }
+        public string name { get; set; } = string.Empty;
+        public string? description { get; set; }
+        public string? color { get; set; }   // hex accent e.g. "#e53e3e"
+        public decimal price { get; set; }
+        public int totalSlots { get; set; }
+        public int slotsSold { get; set; }
+        public int sortOrder { get; set; }
+    }
+
     public class TalentLineupItemDto
     {
         public Guid id { get; set; }
@@ -41,9 +53,11 @@ namespace ImajinationAPI.Models
         public decimal? saleValue { get; set; }
         public DateTime? saleStartsAt { get; set; }
         public DateTime? saleEndsAt { get; set; }
+        public int? saleQuantityLimit { get; set; }
         public string? status { get; set; }
         public List<TalentLineupItemDto>? artistLineup { get; set; }
         public List<TalentLineupItemDto>? sessionistLineup { get; set; }
+        public List<TicketTierDto>? tiers { get; set; }
     }
 
     public class EventDto
@@ -62,7 +76,6 @@ namespace ImajinationAPI.Models
         public int attendedTickets { get; set; }
         public string status { get; set; } = string.Empty;
         public string? posterUrl { get; set; }
-
         public string? eventType { get; set; }
         public string? genres { get; set; }
         public string? saleName { get; set; }
@@ -72,5 +85,9 @@ namespace ImajinationAPI.Models
         public DateTime? saleEndsAt { get; set; }
         public List<TalentLineupItemDto> artistLineup { get; set; } = new();
         public List<TalentLineupItemDto> sessionistLineup { get; set; } = new();
+        public List<TicketTierDto> tiers { get; set; } = new();
+        public string? description { get; set; }
+        public int? saleQuantityLimit { get; set; }
+        public int? saleQuantityUsed { get; set; }
     }
 }

@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Explore Events</title>
+  <title>Tugs! - Explore Events</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/performance-helpers.js"></script>
@@ -42,7 +43,7 @@
       
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-8 w-28 sm:w-32 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
         </div>
       </a>
 
@@ -50,7 +51,6 @@
         <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
         <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
-        <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
         <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
       </div>
       
@@ -175,9 +175,8 @@
 
       const dashLink = document.getElementById('dashboardLink');
       if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-      else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
       else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
       else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
 
       const endpoint = role === 'Artist'
@@ -399,36 +398,100 @@
           const actionMarkup = canBuy
             ? `<a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex items-center justify-center px-4 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors cursor-pointer">Buy Ticket</a>`
             : `<span class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/35 text-xs font-semibold uppercase tracking-[0.14em] cursor-not-allowed">Your Event</span>`;
-          
+
+          const now = new Date();
+          const cardSaleActive = (() => {
+            if (!ev.saleValue || Number(ev.saleValue) <= 0) return false;
+            if (ev.saleExhausted) return false;           // all promo tickets sold out
+            if (ev.saleStartsAt && new Date(ev.saleStartsAt) > now) return false;
+            if (ev.saleEndsAt && new Date(ev.saleEndsAt) < now) return false;
+            return true;
+          })();
+          const saleDisplayPrice = (() => {
+            if (!cardSaleActive) return ev.price;
+            const val = Number(ev.saleValue);
+            const type = String(ev.saleType || '').toLowerCase().trim();
+            if (type === 'percent') return Math.max(0, ev.price - (ev.price * (val / 100)));
+            if (type === 'amount') return Math.max(0, ev.price - val);
+            return ev.price;
+          })();
+
+          const priceBadgeMarkup = cardSaleActive
+            ? `<div class="absolute top-4 right-4 flex flex-col items-end gap-1">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-black/60 backdrop-blur-md border border-white/15 text-white/40 line-through">PHP ${Number(ev.price).toFixed(2)}</span>
+                <span class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-lg">PHP ${Number(saleDisplayPrice).toFixed(2)}</span>
+              </div>`
+            : `<div class="absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-[#cc292b] text-white shadow-lg">PHP ${ev.price}</div>`;
+
+          const countdownMarkup = (cardSaleActive && ev.saleEndsAt)
+            ? `<div class="absolute bottom-4 right-4 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 backdrop-blur-md border border-emerald-500/30 text-[10px] text-emerald-300 font-mono font-bold" data-sale-ends="${ev.saleEndsAt}"><span class="sale-card-timer">--:--:--</span></div>`
+            : '';
+
           grid.innerHTML += `
             <article class="group relative flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors cursor-pointer" data-event-id="${ev.id}" onclick="window.location.href='${eventUrl}'">
               <div class="relative aspect-[4/3] overflow-hidden bg-white/5">
               <img src="${ev.posterUrl}" loading="lazy" decoding="async" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=1200'" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500">
               <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20"></div>
-              <div class="absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-[#cc292b] text-white shadow-lg">PHP ${ev.price}</div>
+              ${priceBadgeMarkup}
               <div class="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-black/60 backdrop-blur-md border border-white/15 text-white">${eType}</div>
               <div class="absolute bottom-4 left-4 text-[10px] font-bold uppercase tracking-wider text-white/70 drop-shadow-md">${primaryGenre}</div>
+              ${countdownMarkup}
             </div>
-            <div class="p-6 flex flex-col flex-1">
-              <div class="flex items-center gap-2 text-white/70 mb-3 text-xs font-medium uppercase tracking-[0.14em]">
-                <i data-lucide="calendar" class="w-4 h-4"></i> ${formattedDate}
+            <div class="p-5 flex flex-col flex-1">
+              <div class="flex items-center gap-2 text-white/50 mb-2 text-xs font-medium uppercase tracking-[0.14em]">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${formattedDate}
               </div>
-              <h3 class="text-2xl font-semibold tracking-tight text-white mb-2">${ev.title}</h3>
-              <div class="flex items-center gap-2 text-white/50 text-xs mb-2 uppercase tracking-[0.14em]">
-                <i data-lucide="badge-info" class="w-3.5 h-3.5"></i> ${ev.organizerName || 'Unknown Organizer'}
+              <h3 class="text-xl font-bold tracking-tight text-white mb-1">${ev.title}</h3>
+              <div class="flex items-center gap-2 text-white/40 text-xs mb-4 uppercase tracking-[0.14em]">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${displayLoc}
               </div>
-              <div class="flex items-center gap-2 text-white/60 text-sm mb-6">
-                <i data-lucide="map-pin" class="w-4 h-4"></i> ${displayLoc}
+              ${(() => {
+                const lineup = Array.isArray(ev.artistLineup) ? ev.artistLineup.filter(a => a && a.displayName) : [];
+                if (!lineup.length) return '';
+                const avatars = lineup.slice(0, 5).map(a => {
+                  const pic = a.profilePicture || '';
+                  const initial = (a.displayName || '?').charAt(0).toUpperCase();
+                  return pic
+                    ? `<img src="${pic}" alt="${a.displayName}" title="${a.displayName}" class="w-8 h-8 rounded-full object-cover border-2 border-neutral-900 -ml-2 first:ml-0" onerror="this.style.display='none'">`
+                    : `<span class="w-8 h-8 rounded-full bg-red-600/20 border-2 border-neutral-900 -ml-2 first:ml-0 flex items-center justify-center text-[10px] font-bold text-red-300 shrink-0" title="${a.displayName}">${initial}</span>`;
+                }).join('');
+                const extra = lineup.length > 5 ? `<span class="w-8 h-8 rounded-full bg-white/10 border-2 border-neutral-900 -ml-2 flex items-center justify-center text-[9px] font-bold text-white/50">+${lineup.length - 5}</span>` : '';
+                const names = lineup.slice(0, 3).map(a => a.displayName).join(', ') + (lineup.length > 3 ? ` +${lineup.length - 3}` : '');
+                return `<div class="flex items-center gap-3 mb-4">
+                  <div class="flex items-center">${avatars}${extra}</div>
+                  <span class="text-[11px] text-white/45 truncate">${names}</span>
+                </div>`;
+              })()}
+              <div class="mt-auto flex gap-3">
+                <a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex flex-1 items-center justify-center py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 hover:border-white/20 transition-colors cursor-pointer">Details</a>
+                ${actionMarkup}
               </div>
-                <div class="mt-auto flex gap-3">
-                  <a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex flex-1 items-center justify-center py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 hover:border-white/20 transition-colors cursor-pointer">Details</a>
-                  ${actionMarkup}
-                </div>
-              </div>
+            </div>
             </article>
           `;
         });
       lucide.createIcons();
+      startCardCountdowns();
+    }
+
+    let _cardCountdownInterval = null;
+    function startCardCountdowns() {
+      if (_cardCountdownInterval) clearInterval(_cardCountdownInterval);
+      const tick = () => {
+        document.querySelectorAll('[data-sale-ends]').forEach(el => {
+          const endsAt = new Date(el.getAttribute('data-sale-ends'));
+          const msLeft = endsAt - new Date();
+          const timerEl = el.querySelector('.sale-card-timer');
+          if (!timerEl) return;
+          if (msLeft <= 0) { timerEl.innerText = 'Ended'; return; }
+          const h = Math.floor(msLeft / 3600000);
+          const m = Math.floor((msLeft % 3600000) / 60000);
+          const s = Math.floor((msLeft % 60000) / 1000);
+          timerEl.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        });
+      };
+      tick();
+      _cardCountdownInterval = setInterval(tick, 1000);
     }
 
     document.getElementById('applyFiltersBtn').addEventListener('click', () => {

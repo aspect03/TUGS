@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Organizer Details</title>
+  <title>Tugs! - Organizer Details</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,7 +41,7 @@
       <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
@@ -48,7 +49,6 @@
           <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
           <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
           <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
-          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
           <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
         </div>
 
@@ -322,9 +322,8 @@
 
         const dashLink = document.getElementById('dashboardLink');
         if (role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-        else if (role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
         else if (role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
       }
 
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();

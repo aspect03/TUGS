@@ -1,0 +1,1172 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Event Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.15),rgba(0,0,0,0)_60%)]"></div>
+  </div>
+
+  <main class="relative w-full z-10">
+    <nav class="fixed top-0 w-full z-50">
+      <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+      <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+          <div class="h-8 w-28 sm:w-32 flex items-center">
+            <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          </div>
+        </a>
+
+        <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+          <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+          <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+        </div>
+
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+            <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+            <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">Get started</a>
+          </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+              <span id="profileInitial">A</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+            </button>
+            <div id="profileDropdown" class="absolute top-full right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+                <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+              </div>
+              <div class="p-2 flex flex-col gap-1">
+                <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+                </a>
+                <a id="profilePageLink" href="#" class="hidden items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="user-round" class="w-3.5 h-3.5"></i> Profile Page
+                </a>
+              </div>
+              <div class="p-2 border-t border-white/10">
+                <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                  <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </nav>
+
+    <main class="relative z-10 w-full pb-24 mt-24">
+      <section class="max-w-6xl mx-auto px-6 pt-8">
+        
+        <div id="loadingState" class="text-center py-20 text-white/50">
+          <i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-4 text-red-500"></i>
+          Loading event details...
+        </div>
+        
+        <div id="errorState" class="hidden text-center py-20">
+          <p class="text-red-500 text-xl font-bold mb-2">Unable to load event details right now.</p>
+          <a href="/pages/browse/Events.html" class="px-6 py-2 bg-white/10 rounded-lg hover:bg-white/20 text-sm font-bold uppercase">Back to Events</a>
+        </div>
+
+        <div id="eventContent" class="hidden">
+          <div class="mb-8">
+            <a href="/pages/browse/Events.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-6">
+              <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Events
+            </a>
+          </div>
+
+          <div class="w-full aspect-[21/9] md:aspect-[24/7] rounded-3xl overflow-hidden relative mb-8 border border-white/10 bg-black/40">
+            <img id="detailHeroImg" src="" loading="eager" decoding="async" onerror="this.src='https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600'" class="w-full h-full object-cover opacity-60">
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+            <h1 id="detailTitle" class="absolute bottom-6 left-8 text-4xl md:text-5xl font-extrabold text-white tracking-tight drop-shadow-lg">Title</h1>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+              
+              <div class="flex items-center justify-between mb-4">
+                 <div class="flex flex-wrap gap-2" id="detailTags"></div>
+                 <div id="topPhaseBadge" class="hidden px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider">
+                    Loading Phase...
+                 </div>
+              </div>
+              
+              <div class="space-y-4 text-white/80 bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                <div class="flex items-start gap-4">
+                  <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0">
+                    <i data-lucide="map-pin" class="w-5 h-5 text-red-500"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white">Location</p>
+                    <p id="detailLocation" class="text-sm mt-1 text-white/70">Location Details</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-4 pt-4 border-t border-white/10">
+                  <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0">
+                    <i data-lucide="calendar" class="w-5 h-5 text-red-500"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white">Date and Time</p>
+                    <p id="detailTime" class="text-sm mt-1 text-white/70">Date Details</p>
+                  </div>
+                </div>
+                <div class="flex items-start gap-4 pt-4 border-t border-white/10">
+                  <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0">
+                    <i data-lucide="mic" class="w-5 h-5 text-red-500"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white">Artists</p>
+                    <div id="detailLineup" class="mt-2 flex flex-wrap gap-2"></div>
+                  </div>
+                </div>
+                <div class="flex items-start gap-4 pt-4 border-t border-white/10">
+                  <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0 overflow-hidden">
+                    <img id="detailOrganizerImg" src="" class="w-full h-full object-cover hidden">
+                    <i id="detailOrganizerIcon" data-lucide="user-round" class="w-5 h-5 text-red-500"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white">Organizer</p>
+                    <a id="detailOrganizerName" href="#" class="text-sm mt-1 text-white/70 hover:text-white transition-colors inline-flex">Loading organizer...</a>
+                    <p id="detailOrganizerMeta" class="text-xs mt-2 text-white/45">This event is tied to the organizer who created it.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-2">
+                <h4 class="text-lg font-semibold tracking-tight text-white mb-3 flex items-center gap-2">
+                  <i data-lucide="info" class="w-5 h-5 text-white/50"></i> About this Event
+                </h4>
+                <p id="detailDesc" class="text-sm text-white/60 leading-relaxed whitespace-pre-line bg-black/30 p-5 rounded-2xl border border-white/5">Description</p>
+              </div>
+            </div>
+
+            <aside class="h-fit">
+              <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 text-center shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] flex flex-col relative">
+                <button id="reportEventBtn" type="button" class="absolute top-4 right-4 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Event">
+                  <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                </button>
+                
+                <div id="pricingPhaseBadgeDetail" class="inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider mx-auto mb-2">
+                  Calculating Phase...
+                </div>
+
+                <div id="detailSaleBanner" class="hidden mb-4 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mx-auto w-full">
+                  <div class="flex items-center justify-between flex-wrap gap-1.5">
+                    <div class="flex items-center gap-1.5">
+                      <i data-lucide="tag" class="w-3 h-3 text-emerald-400 shrink-0"></i>
+                      <span id="detailSaleBannerLabel" class="text-emerald-300 text-[10px] font-bold uppercase tracking-wider"></span>
+                    </div>
+                    <div id="detailSaleCountdown" class="hidden items-center gap-1 text-[10px] text-white/50">
+                      <i data-lucide="clock" class="w-3 h-3 shrink-0"></i>
+                      <span>Ends in</span>
+                      <span id="detailSaleCountdownTimer" class="font-mono font-bold text-emerald-300 tabular-nums"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Tickets From</p>
+                <p id="detailPriceOriginal" class="text-sm font-medium text-white/35 line-through hidden"></p>
+                <p id="detailPrice" class="mt-0.5 text-4xl font-extrabold text-white tracking-tight">PHP 0</p>
+                
+                <div class="mt-6 mb-4 p-4 rounded-xl bg-black/40 border border-white/5 text-left">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3 border-b border-white/10 pb-2">Available Tiers</p>
+                  <div id="availableTiersList" class="space-y-2"></div>
+                </div>
+
+                <div class="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Overall Capacity Remaining</p>
+                  <p id="detailAvailable" class="text-xl font-semibold text-white mt-1">0 / 0</p>
+                  <p id="urgencyText" class="text-xs text-red-500/80 mt-1 font-medium hidden animate-pulse">Almost sold out!</p>
+                </div>
+
+                <button id="bookBtn" class="w-full py-3.5 bg-red-600 text-white text-xs font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-red-500 transition-colors shadow-[0_10px_20px_-10px_rgba(239,68,68,0.6)]">
+                  Book Ticket
+                </button>
+              </div>
+            </aside>
+          </div>
+
+          <div class="mt-8 grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <div id="eventReviewPanel" class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md hidden">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white">Rate This Event</h3>
+                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Available only after the organizer scans your ticket at the event</p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">
+                  <i data-lucide="star" class="w-3.5 h-3.5 text-yellow-400"></i> Event Reviews
+                </div>
+              </div>
+              <form id="eventReviewForm" class="space-y-4">
+                <div class="space-y-2">
+                  <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Your Rating</label>
+                  <select id="eventReviewRating" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+                    <option value="5">5 - Outstanding</option>
+                    <option value="4">4 - Great</option>
+                    <option value="3">3 - Good</option>
+                    <option value="2">2 - Fair</option>
+                    <option value="1">1 - Needs Work</option>
+                  </select>
+                </div>
+                <div class="space-y-2">
+                  <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Feedback</label>
+                  <textarea id="eventReviewFeedback" rows="5" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none" placeholder="Share your event experience, crowd energy, venue feel, and what stood out."></textarea>
+                </div>
+                <p id="eventReviewStatus" class="text-xs text-white/45">Sign in as a Customer to leave a review after the event.</p>
+                <button id="submitEventReviewBtn" type="submit" class="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/10 transition-colors">
+                  Submit Event Review
+                </button>
+              </form>
+            </div>
+
+            <div id="eventReviewLockedPanel" class="xl:col-span-2 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+              <div class="flex items-center justify-between mb-5">
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white">Event Reviews</h3>
+                  <p class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Unlocked only after the organizer scans your ticket</p>
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/60">
+                  <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-300"></i> Review Access
+                </div>
+              </div>
+              <p id="eventReviewLockedStatus" class="text-sm text-white/60 leading-relaxed">
+                Sign in as a Customer and attend the event before reviews become available.
+              </p>
+            </div>
+
+            <div class="xl:col-span-3 bg-[#1a1515] border border-white/5 rounded-[24px] p-6 shadow-2xl backdrop-blur-md">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p class="text-[10px] uppercase tracking-widest text-white/40">Average Rating</p>
+                  <p id="eventRatingAverage" class="text-2xl font-bold text-white mt-2">0.0</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p class="text-[10px] uppercase tracking-widest text-white/40">Review Count</p>
+                  <p id="eventReviewCount" class="text-2xl font-bold text-white mt-2">0</p>
+                </div>
+              </div>
+              <div id="eventReviewsList" class="space-y-4">
+                <p class="text-sm text-white/50">Loading event reviews...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    let currentEventId = null;
+    let currentEventTitle = 'Event';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        document.getElementById('dropdownName').innerText = displayName;
+        document.getElementById('dropdownRole').innerText = role;
+
+        if (storedProfilePicture) {
+          const picEl = document.getElementById('navProfilePic');
+          if (picEl) {
+            picEl.src = storedProfilePicture;
+            picEl.classList.remove('hidden');
+            document.getElementById('profileInitial').classList.add('hidden');
+          }
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        const profilePageLink = document.getElementById('profilePageLink');
+        if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+        else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        if (role === 'Customer' && profilePageLink) {
+          profilePageLink.href = '/pages/dashboards/CustomerDashboard.html?view=settings';
+          profilePageLink.classList.remove('hidden');
+          profilePageLink.classList.add('flex');
+        }
+      }
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+      loadEventDetails();
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) profileDropdown.classList.remove('show');
+      });
+    }
+
+    function handleLogout() { localStorage.clear(); window.location.reload(); }
+
+    const eventDetailCachePrefix = 'eventDetailCacheV1:';
+    const eventDetailCacheTtlMs = 2 * 60 * 1000;
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function readCachedEvent(eventId) {
+      try {
+        const raw = sessionStorage.getItem(`${eventDetailCachePrefix}${eventId}`);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.savedAt !== 'number' || !parsed.item) return null;
+        if (Date.now() - parsed.savedAt > eventDetailCacheTtlMs) return null;
+
+        return parsed.item;
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedEvent(eventId, eventData) {
+      try {
+        sessionStorage.setItem(`${eventDetailCachePrefix}${eventId}`, JSON.stringify({
+          savedAt: Date.now(),
+          item: eventData
+        }));
+      } catch {
+        // Ignore cache errors and keep the page usable.
+      }
+    }
+
+    function buildEventPreview(item) {
+      if (!item) return null;
+
+      return {
+        id: item.id,
+        title: item.title || 'Untitled Event',
+        artists: item.artists || 'Lineup details are loading...',
+        description: item.description || 'Full event details are still loading.',
+        time: item.time,
+        city: item.city || '',
+        location: item.location || 'TBA',
+        posterUrl: item.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600',
+        price: item.price || 0,
+        totalSlots: item.totalSlots || 0,
+        ticketsSold: item.ticketsSold || 0,
+        status: item.status || 'Upcoming',
+        eventType: item.eventType || 'Live Gig',
+        genres: item.genres || '',
+        tierName: item.tierName || null,
+        tierPrice: item.tierPrice || null,
+        tierSlots: item.tierSlots || null,
+        bundles: item.bundles || null,
+        artistLineup: Array.isArray(item.artistLineup) ? item.artistLineup : [],
+        sessionistLineup: Array.isArray(item.sessionistLineup) ? item.sessionistLineup : [],
+        organizerName: item.organizerName || 'Unknown Organizer',
+        organizerProfilePicture: item.organizerProfilePicture || '',
+        organizerBio: item.organizerBio || '',
+        organizerVerified: !!item.organizerVerified
+      };
+    }
+
+    function readCachedEventFromCollections(eventId) {
+      try {
+        const raw = sessionStorage.getItem('eventsPageCacheV1');
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items)) return null;
+
+        const match = parsed.items.find(item => item && item.id === eventId);
+        return buildEventPreview(match);
+      } catch {
+        return null;
+      }
+    }
+
+    function renderEventLineup(ev) {
+      const lineupContainer = document.getElementById('detailLineup');
+      const artistLineup = Array.isArray(ev.artistLineup) ? ev.artistLineup : [];
+      if (!artistLineup.length) {
+        lineupContainer.innerHTML = `<p class="text-sm mt-1 font-medium text-white/90">${ev.artists || 'TBA'}</p>`;
+        return;
+      }
+
+      lineupContainer.innerHTML = artistLineup.map(item => {
+        const artistId = String(item?.id || '').trim();
+        const hasInternalProfile = artistId && artistId !== '00000000-0000-0000-0000-000000000000';
+        const chipContent = `
+          <span class="text-xs font-semibold text-white">${item.displayName}</span>
+          <span class="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-red-500/15 border-red-500/30 text-red-300">Artist</span>
+        `;
+
+        if (!hasInternalProfile) {
+          return `
+            <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 opacity-95 cursor-default">
+              ${chipContent}
+            </span>
+          `;
+        }
+
+        const targetPage = `/pages/details/ArtistDetails.html?id=${artistId}`;
+        return `
+          <a href="${targetPage}" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors">
+            ${chipContent}
+          </a>
+        `;
+      }).join('');
+    }
+
+    function parseArtistNames(value) {
+      return String(value || '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean);
+    }
+
+    function renderEventTags(ev) {
+      const tagsContainer = document.getElementById('detailTags');
+      if (!tagsContainer) return;
+
+      let markup = `<span class="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-white">${ev.eventType || 'Live Gig'}</span>`;
+      if (ev.genres) {
+        ev.genres.split(',').forEach((genre) => {
+          if (genre.trim()) {
+            markup += `<span class="px-3 py-1 bg-[#cc292b]/20 border border-[#cc292b]/50 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-red-400">${genre.trim()}</span>`;
+          }
+        });
+      }
+
+      const artistNames = Array.isArray(ev.artistLineup) && ev.artistLineup.length
+        ? ev.artistLineup.map((item) => item.displayName).filter(Boolean)
+        : parseArtistNames(ev.artists);
+      artistNames.slice(0, 4).forEach((name) => {
+        markup += `<span class="px-3 py-1 bg-amber-500/12 border border-amber-400/25 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">Artist: ${name}</span>`;
+      });
+
+      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0) {
+        const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
+        markup += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
+      }
+
+      tagsContainer.innerHTML = markup;
+    }
+
+    const eventReportReasons = [
+      'Drugs involved',
+      'Minors present',
+      'Harassment or misconduct',
+      'Illegal activity',
+      'Other'
+    ];
+
+    async function promptForStructuredEventReport() {
+      const selection = await window.systemDialog.prompt(
+        `Choose the main reason for this report:\n1. Drugs involved\n2. Minors present\n3. Harassment or misconduct\n4. Illegal activity\n5. Other`,
+        {
+          title: 'Report Event',
+          kicker: 'Safety Report',
+          placeholder: 'Type 1 to 5',
+          okText: 'Next',
+          required: true
+        }
+      );
+
+      if (!selection) return null;
+
+      const normalized = selection.trim().toLowerCase();
+      const optionIndex = Number.parseInt(normalized, 10) - 1;
+      const reason = eventReportReasons[optionIndex]
+        || eventReportReasons.find((item) => item.toLowerCase() === normalized);
+
+      if (!reason) {
+        await window.systemDialog.alert('Choose one of the listed event report reasons from 1 to 5.', {
+          title: 'Reason Needed',
+          kicker: 'Safety Report'
+        });
+        return promptForStructuredEventReport();
+      }
+
+      const details = await window.systemDialog.prompt(
+        reason === 'Other'
+          ? 'Tell us what happened so the team can review this event report.'
+          : `Add more details about "${reason}" if needed.`,
+        {
+          title: reason === 'Other' ? 'Describe The Issue' : 'Additional Details',
+          kicker: 'Safety Report',
+          placeholder: reason === 'Other' ? 'Explain what happened' : 'Optional extra details',
+          okText: 'Submit',
+          multiline: true,
+          required: reason === 'Other'
+        }
+      );
+
+      if (details === null) return null;
+      return {
+        reason,
+        details: details || ''
+      };
+    }
+
+    function renderEventDetails(ev, eventId) {
+      currentEventId = eventId;
+      currentEventTitle = ev.title || 'Event';
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.add('hidden');
+      document.getElementById('eventContent').classList.remove('hidden');
+
+      document.getElementById('detailTitle').innerText = ev.title;
+      document.getElementById('detailHeroImg').src = ev.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30';
+      document.getElementById('detailLocation').innerText = ev.city ? `${ev.city} - ${ev.location}` : ev.location;
+      document.getElementById('detailDesc').innerText = ev.description;
+      document.getElementById('detailOrganizerName').innerText = ev.organizerName || 'Unknown Organizer';
+      document.getElementById('detailOrganizerName').href = ev.organizerId ? `/pages/details/OrganizerDetails.html?id=${ev.organizerId}` : '#';
+      document.getElementById('detailOrganizerMeta').innerText = ev.organizerEmail
+        ? `Organizer email: ${ev.organizerEmail}`
+        : (ev.organizerVerified
+          ? 'Verified organizer profile'
+          : (ev.organizerBio || 'Organizer profile details are still being completed.'));
+      const organizerImg = document.getElementById('detailOrganizerImg');
+      const organizerIcon = document.getElementById('detailOrganizerIcon');
+      if (ev.organizerProfilePicture) {
+        organizerImg.src = ev.organizerProfilePicture;
+        organizerImg.classList.remove('hidden');
+        organizerIcon.classList.add('hidden');
+      } else {
+        organizerImg.classList.add('hidden');
+        organizerIcon.classList.remove('hidden');
+      }
+      if (ev.organizerId) {
+        fetch(`/api/organizer/${ev.organizerId}`)
+          .then(response => response.ok ? response.json() : null)
+          .then(organizer => {
+            if (!organizer) return;
+            const ratingBits = [];
+            if (organizer.averageRating) ratingBits.push(`${Number(organizer.averageRating).toFixed(1)} average rating`);
+            if (organizer.reviewCount) ratingBits.push(`${organizer.reviewCount} review${organizer.reviewCount === 1 ? '' : 's'}`);
+            if (Array.isArray(organizer.recentGigs) && organizer.recentGigs.length) ratingBits.push(`${organizer.recentGigs.length} recent gig${organizer.recentGigs.length === 1 ? '' : 's'}`);
+            if (organizer.email) ratingBits.unshift(organizer.email);
+            if (ratingBits.length) {
+              document.getElementById('detailOrganizerMeta').innerText = ratingBits.join(' | ');
+            }
+          })
+          .catch(() => {});
+      }
+      renderEventLineup(ev);
+
+      const tagsContainer = document.getElementById('detailTags');
+      tagsContainer.innerHTML = `<span class="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-white">${ev.eventType || 'Live Gig'}</span>`;
+      if(ev.genres) {
+        ev.genres.split(',').forEach(g => {
+           if(g.trim()) tagsContainer.innerHTML += `<span class="px-3 py-1 bg-[#cc292b]/20 border border-[#cc292b]/50 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-red-400">${g.trim()}</span>`;
+        });
+      }
+      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0) {
+        const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
+        tagsContainer.innerHTML += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
+      }
+
+      renderEventTags(ev);
+
+      const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      document.getElementById('detailTime').innerText = fTime;
+
+      const now = new Date();
+      const evDate = new Date(ev.time);
+      const msDiff = evDate.getTime() - now.getTime();
+      const hoursUntilEvent = msDiff / (1000 * 60 * 60);
+
+      let multiplier = 1.0;
+      let phaseText = "Pre-Sale Phase";
+      let badgeClasses = "bg-blue-500/10 text-blue-400 border-blue-500/50";
+
+      if (hoursUntilEvent <= 0) {
+          multiplier = 1.20; phaseText = "Walk-In Phase (+20%)"; badgeClasses = "bg-red-500/10 text-red-400 border-red-500/50";
+      } else if (hoursUntilEvent <= 2) {
+          multiplier = 1.10; phaseText = "Early Bird Phase (+10%)"; badgeClasses = "bg-yellow-500/10 text-yellow-400 border-yellow-500/50";
+      }
+
+      const bottomBadge = document.getElementById('pricingPhaseBadgeDetail');
+      bottomBadge.innerText = phaseText;
+      bottomBadge.className = `inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider mx-auto mb-4 ${badgeClasses}`;
+
+      const topBadge = document.getElementById('topPhaseBadge');
+      topBadge.innerText = phaseText;
+      topBadge.classList.remove('hidden');
+      topBadge.className = `inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider ${badgeClasses}`;
+
+      const now2 = new Date();
+      const saleActive = (() => {
+        if (!ev.saleValue || Number(ev.saleValue) <= 0) return false;
+        if (ev.saleStartsAt && new Date(ev.saleStartsAt) > now2) return false;
+        if (ev.saleEndsAt && new Date(ev.saleEndsAt) < now2) return false;
+        return true;
+      })();
+      if (saleActive) {
+        const saleSuffix = String(ev.saleType || '').toLowerCase() === 'percent'
+          ? `${Number(ev.saleValue).toFixed(0)}% OFF`
+          : `PHP ${Number(ev.saleValue).toFixed(0)} OFF`;
+        document.getElementById('detailSaleBannerLabel').innerText = `${ev.saleName || 'Sale'} • ${saleSuffix}`;
+        document.getElementById('detailSaleBanner').classList.remove('hidden');
+        if (ev.saleEndsAt) {
+          const endsAt = new Date(ev.saleEndsAt);
+          const countdownWrap = document.getElementById('detailSaleCountdown');
+          const timerEl = document.getElementById('detailSaleCountdownTimer');
+          countdownWrap.classList.remove('hidden');
+          countdownWrap.classList.add('flex');
+          const tick = () => {
+            const msLeft = endsAt - new Date();
+            if (msLeft <= 0) { timerEl.innerText = 'Ended'; clearInterval(saleDetailTimer); return; }
+            const h = Math.floor(msLeft / 3600000);
+            const m = Math.floor((msLeft % 3600000) / 60000);
+            const s = Math.floor((msLeft % 60000) / 1000);
+            timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          };
+          tick();
+          const saleDetailTimer = setInterval(tick, 1000);
+        }
+      }
+
+      const applySale = (price) => {
+        if (!saleActive) return price;
+        const val = Number(ev.saleValue);
+        const type = String(ev.saleType || '').trim().toLowerCase();
+        if (type === 'percent') return Math.max(0, price - (price * (val / 100)));
+        if (type === 'amount') return Math.max(0, price - val);
+        return price;
+      };
+      const tierPriceCell = (displayPrice, origPrice) => {
+        if (saleActive && Math.abs(parseFloat(origPrice) - parseFloat(displayPrice)) > 0.001) {
+          return `<div class="text-right leading-tight">
+            <span class="text-white/35 text-xs line-through block">PHP ${origPrice}</span>
+            <span class="font-bold text-emerald-400">PHP ${displayPrice}</span>
+          </div>`;
+        }
+        return `<span class="font-bold text-emerald-400">PHP ${displayPrice}</span>`;
+      };
+
+      let totalSlots = parseInt(ev.totalSlots);
+      if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = 100;
+
+      let extraSlotsTotal = 0;
+      const tiersContainer = document.getElementById('availableTiersList');
+      tiersContainer.innerHTML = '';
+      let additionalTiersHTML = '';
+
+      if (ev.tierName && ev.tierPrice) {
+         const finalTierPrice = (applySale(ev.tierPrice) * multiplier).toFixed(2);
+         const originalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
+         const tSlots = parseInt(ev.tierSlots) || 0;
+         extraSlotsTotal += tSlots;
+         additionalTiersHTML += `
+          <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
+            <span class="text-yellow-500/90 font-medium">${ev.tierName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
+            ${tierPriceCell(finalTierPrice, originalTierPrice)}
+          </div>
+        `;
+      }
+
+      if (ev.bundles) {
+          const parts = ev.bundles.split('|');
+          parts.forEach(part => {
+              const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
+              if (match) {
+                  const parsedName = match[1].trim();
+                  const parsedPrice = parseFloat(match[2]);
+                  const tSlots = parseInt(match[3]);
+                  extraSlotsTotal += tSlots;
+                  const finalParsedPrice = (applySale(parsedPrice) * multiplier).toFixed(2);
+                  const originalParsedPrice = (parsedPrice * multiplier).toFixed(2);
+
+                  additionalTiersHTML += `
+                    <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
+                      <span class="text-purple-400/90 font-medium">${parsedName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
+                      ${tierPriceCell(finalParsedPrice, originalParsedPrice)}
+                    </div>
+                  `;
+              }
+          });
+      }
+
+      let genAdSlots = totalSlots - extraSlotsTotal;
+      if (genAdSlots < 0) genAdSlots = 0;
+
+      const finalBasePrice = (applySale(ev.price) * multiplier).toFixed(2);
+      const originalBasePrice = (ev.price * multiplier).toFixed(2);
+
+      document.getElementById('detailPrice').innerText = "PHP " + finalBasePrice;
+      const origPriceEl = document.getElementById('detailPriceOriginal');
+      if (saleActive && Math.abs(parseFloat(originalBasePrice) - parseFloat(finalBasePrice)) > 0.001) {
+        origPriceEl.innerText = "PHP " + originalBasePrice;
+        origPriceEl.classList.remove('hidden');
+      } else {
+        origPriceEl.classList.add('hidden');
+      }
+
+      tiersContainer.innerHTML = `
+        <div class="flex justify-between items-center text-sm py-1.5">
+          <span class="text-white/80">General Admission <span class="text-[10px] text-white/40 ml-1 font-normal">(${genAdSlots} allocated)</span></span>
+          ${tierPriceCell(finalBasePrice, originalBasePrice)}
+        </div>
+      ` + additionalTiersHTML;
+
+      const soldTickets = parseInt(ev.ticketsSold) || 0;
+      const remaining = totalSlots - soldTickets;
+      document.getElementById('detailAvailable').innerText = `${remaining} / ${totalSlots} left`;
+
+      const urgencyText = document.getElementById('urgencyText');
+      urgencyText.classList.add('hidden');
+
+      const bookBtn = document.getElementById('bookBtn');
+      bookBtn.disabled = false;
+      bookBtn.innerText = "Book Ticket";
+      bookBtn.classList.remove('bg-neutral-600');
+      bookBtn.classList.add('bg-red-600');
+
+      if (ev.status === 'Finished' || hoursUntilEvent < -24) { 
+        document.getElementById('detailAvailable').innerText = "Event Ended";
+        bookBtn.innerText = "Event Finished";
+        bookBtn.disabled = true;
+        bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
+      } else if (remaining <= 0) {
+        document.getElementById('detailAvailable').innerText = "SOLD OUT";
+        bookBtn.innerText = "Sold Out";
+        bookBtn.disabled = true;
+        bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
+      } else if (remaining <= 10) {
+         urgencyText.classList.remove('hidden');
+      }
+
+      const signedInRole = localStorage.getItem('userRole');
+      const signedInUserId = localStorage.getItem('userId');
+      if (signedInRole === 'Artist' || signedInRole === 'Sessionist' || signedInRole === 'Organizer') {
+        bookBtn.innerText = signedInRole === 'Organizer' ? 'Organizers Cannot Buy Tickets' : 'Not Available for Your Account';
+        bookBtn.disabled = true;
+        bookBtn.classList.remove('bg-red-600');
+        bookBtn.classList.add('bg-neutral-600');
+      }
+
+      bookBtn.onclick = () => {
+        if (!localStorage.getItem('userFirstName')) {
+          alert("Please sign in or create an account to book tickets!");
+          window.location.href = '/pages/auth/login.html';
+        } else {
+          window.location.href = `/pages/bookings/Checkout.html?id=${eventId}`;
+        }
+      };
+
+      loadEventReviewSummary(eventId);
+      lucide.createIcons();
+    }
+
+    async function loadEventDetails() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const eventId = urlParams.get('id');
+      const cachedEvent = eventId ? (readCachedEvent(eventId) || readCachedEventFromCollections(eventId)) : null;
+
+      if(!eventId) {
+        document.getElementById('loadingState').classList.add('hidden');
+        return document.getElementById('errorState').classList.remove('hidden');
+      }
+
+      if (cachedEvent) {
+        renderEventDetails(cachedEvent, eventId);
+      }
+
+      try {
+        const res = await fetchWithTimeout(`/api/event/${eventId}`);
+        if(!res.ok) throw new Error("Not found");
+        const ev = await res.json();
+        writeCachedEvent(eventId, ev);
+        renderEventDetails(ev, eventId);
+        return;
+        
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('eventContent').classList.remove('hidden');
+
+        document.getElementById('detailTitle').innerText = ev.title;
+        document.getElementById('detailHeroImg').src = ev.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30';
+        document.getElementById('detailLocation').innerText = ev.city ? `${ev.city} - ${ev.location}` : ev.location;
+        document.getElementById('detailDesc').innerText = ev.description;
+        renderEventLineup(ev);
+
+        const tagsContainer = document.getElementById('detailTags');
+        tagsContainer.innerHTML = `<span class="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-white">${ev.eventType || 'Live Gig'}</span>`;
+        if(ev.genres) {
+          ev.genres.split(',').forEach(g => {
+             if(g.trim()) tagsContainer.innerHTML += `<span class="px-3 py-1 bg-[#cc292b]/20 border border-[#cc292b]/50 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-red-400">${g.trim()}</span>`;
+          });
+        }
+
+        renderEventTags(ev);
+
+      const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        document.getElementById('detailTime').innerText = fTime;
+
+        // ==============================================================
+        // HOURS-BASED TIMING
+        // ==============================================================
+        const now = new Date();
+        const evDate = new Date(ev.time);
+        
+        const msDiff = evDate.getTime() - now.getTime();
+        const hoursUntilEvent = msDiff / (1000 * 60 * 60);
+
+        let multiplier = 1.0;
+        let phaseText = "Pre-Sale Phase";
+        let badgeClasses = "bg-blue-500/10 text-blue-400 border-blue-500/50";
+
+        if (hoursUntilEvent <= 0) {
+            multiplier = 1.20; phaseText = "Walk-In Phase (+20%)"; badgeClasses = "bg-red-500/10 text-red-400 border-red-500/50";
+        } else if (hoursUntilEvent <= 2) {
+            multiplier = 1.10; phaseText = "Early Bird Phase (+10%)"; badgeClasses = "bg-yellow-500/10 text-yellow-400 border-yellow-500/50";
+        }
+
+        const bottomBadge = document.getElementById('pricingPhaseBadgeDetail');
+        bottomBadge.innerText = phaseText;
+        bottomBadge.className = `inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider mx-auto mb-4 ${badgeClasses}`;
+
+        const topBadge = document.getElementById('topPhaseBadge');
+        topBadge.innerText = phaseText;
+        topBadge.classList.remove('hidden');
+        topBadge.className = `inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider ${badgeClasses}`;
+
+        // ==============================================================
+        // CAPACITY & TIER MATH FIX
+        // ==============================================================
+        let totalSlots = parseInt(ev.totalSlots);
+        if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = 100; // Fallback
+
+        let extraSlotsTotal = 0;
+        const tiersContainer = document.getElementById('availableTiersList');
+        tiersContainer.innerHTML = '';
+        
+        let additionalTiersHTML = '';
+
+        if (ev.tierName && ev.tierPrice) {
+           const finalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
+           const tSlots = parseInt(ev.tierSlots) || 0;
+           extraSlotsTotal += tSlots;
+           additionalTiersHTML += `
+            <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
+              <span class="text-yellow-500/90 font-medium">${ev.tierName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
+              <span class="font-bold text-emerald-400">PHP ${finalTierPrice}</span>
+            </div>
+          `;
+        }
+
+        if (ev.bundles) {
+            const parts = ev.bundles.split('|');
+            parts.forEach(part => {
+                const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
+                if (match) {
+                    const parsedName = match[1].trim();
+                    const parsedPrice = parseFloat(match[2]);
+                    const tSlots = parseInt(match[3]);
+                    extraSlotsTotal += tSlots;
+                    const finalParsedPrice = (applySale(parsedPrice) * multiplier).toFixed(2);
+                    
+                    additionalTiersHTML += `
+                      <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
+                        <span class="text-purple-400/90 font-medium">${parsedName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
+                        <span class="font-bold text-emerald-400">PHP ${finalParsedPrice}</span>
+                      </div>
+                    `;
+                }
+            });
+        }
+
+        let genAdSlots = totalSlots - extraSlotsTotal;
+        if (genAdSlots < 0) genAdSlots = 0;
+
+        const finalBasePrice = (ev.price * multiplier).toFixed(2);
+        document.getElementById('detailPrice').innerText = "PHP " + finalBasePrice;
+
+        tiersContainer.innerHTML = `
+          <div class="flex justify-between items-center text-sm py-1.5">
+            <span class="text-white/80">General Admission <span class="text-[10px] text-white/40 ml-1 font-normal">(${genAdSlots} allocated)</span></span>
+            <span class="font-bold text-emerald-400">PHP ${finalBasePrice}</span>
+          </div>
+        ` + additionalTiersHTML;
+
+        const soldTickets = parseInt(ev.ticketsSold) || 0;
+        const remaining = totalSlots - soldTickets;
+        document.getElementById('detailAvailable').innerText = `${remaining} / ${totalSlots} left`;
+        
+        const bookBtn = document.getElementById('bookBtn');
+        if (ev.status === 'Finished' || hoursUntilEvent < -24) { 
+          document.getElementById('detailAvailable').innerText = "Event Ended";
+          bookBtn.innerText = "Event Finished";
+          bookBtn.disabled = true;
+          bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
+        } else if (remaining <= 0) {
+          document.getElementById('detailAvailable').innerText = "SOLD OUT";
+          bookBtn.innerText = "Sold Out";
+          bookBtn.disabled = true;
+          bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
+        } else if (remaining <= 10) {
+           document.getElementById('urgencyText').classList.remove('hidden');
+        }
+
+        bookBtn.addEventListener('click', () => {
+          if (!localStorage.getItem('userFirstName')) {
+            alert("Please sign in or create an account to book tickets!");
+            window.location.href = '/pages/auth/login.html';
+          } else {
+            window.location.href = `/pages/bookings/Checkout.html?id=${eventId}`;
+          }
+        });
+
+      } catch(e) {
+        document.getElementById('loadingState').classList.add('hidden');
+        if (cachedEvent) return;
+        document.getElementById('errorState').classList.remove('hidden');
+      }
+    }
+
+    function renderEventReviews(reviews) {
+      const container = document.getElementById('eventReviewsList');
+      if (!container) return;
+      if (!reviews || !reviews.length) {
+        container.innerHTML = `<p class="text-sm text-white/50">No event reviews yet.</p>`;
+        return;
+      }
+
+      container.innerHTML = reviews.map(review => `
+        <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div class="flex items-center justify-between gap-4">
+            <p class="text-sm font-semibold text-white">${review.customerName || 'Customer'}</p>
+            <span class="text-[10px] uppercase tracking-widest text-yellow-300">${'★'.repeat(Number(review.rating || 0))}</span>
+          </div>
+          <p class="text-xs text-white/45 mt-2">${new Date(review.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+          <p class="text-sm text-white/75 mt-3 whitespace-pre-line">${review.feedback || 'No written feedback provided.'}</p>
+        </div>
+      `).join('');
+    }
+
+    function updateEventReviewEligibility(canReview, hasCustomerContext, lockedMessage = '') {
+      const panel = document.getElementById('eventReviewPanel');
+      const lockedPanel = document.getElementById('eventReviewLockedPanel');
+      const lockedStatus = document.getElementById('eventReviewLockedStatus');
+      const status = document.getElementById('eventReviewStatus');
+      const submitBtn = document.getElementById('submitEventReviewBtn');
+
+      if (!panel || !lockedPanel || !lockedStatus || !status || !submitBtn) return;
+
+      if (canReview) {
+        panel.classList.remove('hidden');
+        lockedPanel.classList.add('hidden');
+        status.innerText = 'Your ticket was scanned for this event, so you can leave a review now.';
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        return;
+      }
+
+      panel.classList.add('hidden');
+      lockedPanel.classList.remove('hidden');
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      if (hasCustomerContext) {
+        const message = lockedMessage || 'Event reviews unlock only after the organizer scans your ticket at the venue.';
+        lockedStatus.innerText = message;
+        status.innerText = message;
+      } else {
+        lockedStatus.innerText = 'Sign in as a Customer and attend the event before reviews become available.';
+        status.innerText = 'Sign in as a Customer and attend the event before reviews become available.';
+      }
+    }
+
+    async function getCustomerReviewTicketState(customerId, eventId) {
+      if (!customerId || !eventId) {
+        return {
+          hasPurchasedTicket: false,
+          hasScannedTicket: false,
+          message: 'Sign in as a Customer and attend the event before reviews become available.'
+        };
+      }
+
+      try {
+        const response = await fetch(`/api/ticket/customer/${customerId}`);
+        if (!response.ok) throw new Error('Failed to inspect customer tickets.');
+        const tickets = await response.json();
+        const matchingTickets = Array.isArray(tickets)
+          ? tickets.filter(ticket => String(ticket.eventId || '') === String(eventId))
+          : [];
+        const hasPurchasedTicket = matchingTickets.length > 0;
+        const hasScannedTicket = matchingTickets.some(ticket => Number(ticket.usedQuantity || 0) > 0 || ticket.isUsed === true);
+
+        return {
+          hasPurchasedTicket,
+          hasScannedTicket,
+          message: hasScannedTicket
+            ? 'Your ticket was scanned for this event, so you can leave a review now.'
+            : hasPurchasedTicket
+              ? 'Your ticket purchase was found, but reviews unlock only after the organizer scans your ticket at the venue.'
+              : 'No eligible ticket for this event was found on this customer account yet.'
+        };
+      } catch (error) {
+        return {
+          hasPurchasedTicket: false,
+          hasScannedTicket: false,
+          message: 'We could not verify your ticket status for reviews right now.'
+        };
+      }
+    }
+
+    async function loadEventReviewSummary(eventId) {
+      const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
+      try {
+        const query = customerId ? `?customerId=${customerId}` : '';
+        const response = await fetch(`/api/eventinteraction/summary/${eventId}${query}`);
+        if (!response.ok) throw new Error('Failed to load event reviews.');
+        const data = await response.json();
+        if (customerId) {
+          const fallbackState = await getCustomerReviewTicketState(customerId, eventId);
+          if (!data.canReview && fallbackState.hasScannedTicket) {
+            data.canReview = true;
+          }
+          if (!data.reviewEligibilityMessage || fallbackState.hasScannedTicket || fallbackState.hasPurchasedTicket) {
+            data.reviewEligibilityMessage = fallbackState.message;
+          }
+        }
+        document.getElementById('eventRatingAverage').innerText = Number(data.averageRating || 0).toFixed(1);
+        document.getElementById('eventReviewCount').innerText = data.reviewCount || 0;
+        updateEventReviewEligibility(!!data.canReview, !!customerId, data.reviewEligibilityMessage || '');
+        renderEventReviews(data.reviews || []);
+      } catch (error) {
+        updateEventReviewEligibility(false, !!customerId, error.message || '');
+        document.getElementById('eventReviewsList').innerHTML = `<p class="text-sm text-white/50">No event reviews yet.</p>`;
+      }
+    }
+
+    document.getElementById('eventReviewForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const customerId = localStorage.getItem('userId');
+      const role = localStorage.getItem('userRole');
+      if (role !== 'Customer' || !customerId || !currentEventId) {
+        alert('Only signed-in customers can rate an event after attending.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/eventinteraction/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            eventId: currentEventId,
+            rating: parseInt(document.getElementById('eventReviewRating').value, 10),
+            feedback: document.getElementById('eventReviewFeedback').value.trim()
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Failed to submit event review.');
+        document.getElementById('eventReviewFeedback').value = '';
+        document.getElementById('eventReviewStatus').innerText = data.message || 'Event review submitted successfully.';
+        await loadEventReviewSummary(currentEventId);
+      } catch (error) {
+        document.getElementById('eventReviewStatus').innerText = error.message || 'Failed to submit event review.';
+      }
+    });
+
+    document.getElementById('reportEventBtn')?.addEventListener('click', async () => {
+      const reporterUserId = localStorage.getItem('userId');
+      if (!reporterUserId || !currentEventId) {
+        alert('Please sign in first before sending a report.');
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      const reportPayload = await promptForStructuredEventReport();
+      if (!reportPayload) return;
+
+      try {
+        const response = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reporterUserId,
+            targetId: currentEventId,
+            targetType: 'event',
+            reason: reportPayload.reason,
+            details: reportPayload.details
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Failed to submit report.');
+        await window.systemDialog.alert(data.message || `${currentEventTitle} was reported successfully.`, {
+          title: 'Report Submitted',
+          kicker: 'Safety Report'
+        });
+      } catch (error) {
+        await window.systemDialog.alert(error.message || 'Failed to submit report.', {
+          title: 'Report Failed',
+          kicker: 'Safety Report'
+        });
+      }
+    });
+  </script>
+</body>
+</html>
+

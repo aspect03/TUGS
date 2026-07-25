@@ -1,4 +1,4 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,7 +19,7 @@ namespace ImajinationAPI.Services
         public JwtTokenService(IConfiguration configuration)
         {
             _configuration = configuration;
-            _issuer = configuration["Auth:JwtIssuer"] ?? "IMAJINATION";
+            _issuer = configuration["Auth:JwtIssuer"] ?? "Tugs!";
             _audience = configuration["Auth:JwtAudience"] ?? "IMAJINATION-CLIENT";
             _expiryMinutes = int.TryParse(configuration["Auth:JwtExpiryMinutes"], out var configuredExpiry)
                 ? Math.Clamp(configuredExpiry, 5, 1440)

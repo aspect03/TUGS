@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Redirect build output outside OneDrive so the compiler doesn't fight
+    the sync process on every file write. Cuts build time from ~200s → ~10s.
+  -->
+  <PropertyGroup>
+    <_BuildCacheRoot>C:\IMAJINATIONbuild</_BuildCacheRoot>
+    <BaseIntermediateOutputPath>$(_BuildCacheRoot)\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(_BuildCacheRoot)\bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

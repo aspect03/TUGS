@@ -1,15 +1,31 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Landing Page</title>
+  <title>Tugs! - Landing Page</title>
+  <!-- PWA -->
+  <!-- Inline SVG favicon — eliminates 404 for missing favicon.ico -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23cc292b'/><text x='50%25' y='54%25' dominant-baseline='central' text-anchor='middle' font-size='20' font-family='Arial' fill='white' font-weight='900'>T!</text></svg>">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#e53e3e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tugs!">
+  <link rel="apple-touch-icon" href="/assets/images/logo.png">
+  <!-- SEO / OG -->
+  <meta name="description" content="Book artists and sessionists, discover live events, and manage talent gigs in the Philippines.">
+  <meta property="og:title" content="Tugs! — Talent Booking &amp; Events">
+  <meta property="og:description" content="Book artists and sessionists, discover live events.">
+  <meta property="og:type" content="website">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-notifications.js"></script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
@@ -57,6 +73,203 @@
       color: white;
       border-bottom-color: rgba(239, 68, 68, 0.95);
     }
+    html.light-mode .detail-nav-link { color: rgba(26,20,16,0.55); }
+    html.light-mode .detail-nav-link:hover { color: #1a1410; }
+    html.light-mode .detail-nav-link.active { color: #1a1410; border-bottom-color: #e53e3e; }
+
+    /* ── LIGHT MODE OVERRIDES ─────────────────────────────────────────────── */
+    html.light-mode .detail-nav-link.active { color: #1a1410; }
+
+    /* ── PAGE BASE ──────────────────────────────────────────────────────── */
+    html.light-mode body {
+      background-color: #faf7f4 !important;
+      color: #1a1410 !important;
+    }
+
+    /* Remove dark fixed overlay — add warm radial glow instead */
+    html.light-mode .pointer-events-none.fixed.inset-0.z-0 {
+      background:
+        radial-gradient(70% 60% at 20% 10%, rgba(229,62,62,0.07), transparent 55%),
+        radial-gradient(50% 50% at 80% 80%, rgba(229,62,62,0.04), transparent 60%) !important;
+    }
+    html.light-mode .pointer-events-none.fixed.inset-0.z-0 > div { background: none !important; }
+
+    /* ── HERO ──────────────────────────────────────────────────────────── */
+    html.light-mode #landing {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(229,62,62,0.10) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 40% at 10% 30%, rgba(229,62,62,0.05) 0%, transparent 55%),
+        linear-gradient(175deg, #fff8f7 0%, #faf7f4 40%, #f5f0eb 100%) !important;
+    }
+    html.light-mode #heroBackgroundContainer > div { background: none !important; }
+
+    html.light-mode #landing .inline-flex.rounded-full {
+      border-color: rgba(204,41,43,0.22) !important;
+      background: rgba(204,41,43,0.07) !important;
+      color: #8b2020 !important;
+    }
+    html.light-mode #landing h1 .block:first-child { color: #1a1410 !important; }
+    html.light-mode #landing p { color: #5c524a !important; }
+
+    html.light-mode #heroSignInBtn {
+      background: rgba(26,20,16,0.06) !important;
+      border-color: rgba(26,20,16,0.16) !important;
+      color: #1a1410 !important;
+    }
+    html.light-mode #heroSignInBtn:hover { background: rgba(26,20,16,0.10) !important; }
+
+    /* Hero stat cards */
+    html.light-mode #landing .rounded-2xl.border {
+      background: rgba(255,255,255,0.80) !important;
+      border-color: rgba(204,41,43,0.10) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 4px rgba(204,41,43,0.06) !important;
+      backdrop-filter: blur(8px) !important;
+    }
+    html.light-mode #landing .rounded-2xl.border p { color: #1a1410 !important; }
+    html.light-mode #landing .rounded-2xl p.text-white\/60,
+    html.light-mode #landing .rounded-2xl p.text-white\/70 { color: #7a6e66 !important; }
+
+    /* ── BROWSE / EVENTS ──────────────────────────────────────────────── */
+    html.light-mode #browse {
+      background:
+        radial-gradient(ellipse 100% 50% at 100% 50%, rgba(204,41,43,0.04), transparent 60%),
+        #ffffff !important;
+      border-top: 1px solid rgba(204,41,43,0.10) !important;
+    }
+    html.light-mode #browse h2,
+    html.light-mode #browse .text-white { color: #1a1410 !important; }
+    html.light-mode #browse p,
+    html.light-mode #browse .text-white\/65,
+    html.light-mode #browse .text-white\/70 { color: #5c524a !important; }
+    html.light-mode #browse button,
+    html.light-mode #browse a.text-white\/70 { color: #5c524a !important; }
+
+    /* ── ARTISTS ──────────────────────────────────────────────────────── */
+    html.light-mode #artists {
+      background:
+        radial-gradient(ellipse 80% 60% at 0% 50%, rgba(204,41,43,0.05), transparent 55%),
+        linear-gradient(135deg, #f5f0eb 0%, #faf7f4 50%, #f2ede8 100%) !important;
+      border-top: 1px solid rgba(204,41,43,0.08) !important;
+    }
+    html.light-mode #artists .absolute { opacity: 0.3 !important; }
+    html.light-mode #artists h2,
+    html.light-mode #artists .text-white { color: #1a1410 !important; }
+    html.light-mode #artists p,
+    html.light-mode #artists a.text-white\/70 { color: #5c524a !important; }
+
+    /* ── SESSIONISTS ──────────────────────────────────────────────────── */
+    html.light-mode #sessionists {
+      background:
+        radial-gradient(ellipse 70% 50% at 80% 30%, rgba(204,41,43,0.04), transparent 55%),
+        #ffffff !important;
+      border-top: 1px solid rgba(204,41,43,0.06) !important;
+    }
+    html.light-mode #sessionists .absolute { opacity: 0.2 !important; }
+    html.light-mode #sessionists h2,
+    html.light-mode #sessionists .text-white { color: #1a1410 !important; }
+    html.light-mode #sessionists p,
+    html.light-mode #sessionists a.text-white\/70 { color: #5c524a !important; }
+
+    /* ── ABOUT / FEATURES ─────────────────────────────────────────────── */
+    html.light-mode #about {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(204,41,43,0.06), transparent 60%),
+        linear-gradient(175deg, #faf7f4 0%, #f5f0eb 100%) !important;
+      border-top: 1px solid rgba(204,41,43,0.08) !important;
+    }
+    html.light-mode #about h2,
+    html.light-mode #about .text-white { color: #1a1410 !important; }
+    html.light-mode #about p,
+    html.light-mode #about .text-white\/60,
+    html.light-mode #about .text-white\/65 { color: #5c524a !important; }
+
+    html.light-mode #about .rounded-3xl {
+      background: #ffffff !important;
+      border-color: rgba(26,20,16,0.07) !important;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04) !important;
+      backdrop-filter: none !important;
+    }
+    html.light-mode #about .rounded-3xl:hover {
+      border-color: rgba(204,41,43,0.20) !important;
+      box-shadow: 0 8px 32px rgba(204,41,43,0.08), 0 2px 8px rgba(0,0,0,0.06) !important;
+    }
+    html.light-mode #about .rounded-3xl h3,
+    html.light-mode #about .rounded-3xl .text-white { color: #1a1410 !important; }
+    html.light-mode #about .rounded-3xl p { color: #5c524a !important; }
+
+    /* ── BOTTOM CTA ────────────────────────────────────────────────────── */
+    html.light-mode #bottomCTASection section {
+      background:
+        radial-gradient(ellipse 80% 70% at 50% 0%, rgba(204,41,43,0.14) 0%, transparent 65%),
+        linear-gradient(160deg, #fff2f0 0%, #fce8e6 40%, #fdf4f3 100%) !important;
+      border: 1px solid rgba(204,41,43,0.20) !important;
+    }
+    html.light-mode #bottomCTASection .absolute.inset-0 > div { background: none !important; }
+    html.light-mode #bottomCTASection h2,
+    html.light-mode #bottomCTASection .text-white { color: #1c0c0c !important; }
+    html.light-mode #bottomCTASection p,
+    html.light-mode #bottomCTASection .text-white\/70 { color: #6b3535 !important; }
+
+    /* Dynamically rendered event cards */
+    html.light-mode #landingEventsContainer > div {
+      background: #ffffff !important;
+      border-color: rgba(26,20,16,0.08) !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
+      backdrop-filter: none !important;
+    }
+    html.light-mode #landingEventsContainer > div:hover {
+      border-color: rgba(229,62,62,0.25) !important;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.10) !important;
+    }
+    html.light-mode #landingEventsContainer .text-white { color: #1a1410 !important; }
+    html.light-mode #landingEventsContainer .text-white\/50 { color: #8a7e74 !important; }
+    html.light-mode #landingEventsContainer a.landing-event-detail-link {
+      background: rgba(26,20,16,0.04) !important;
+      border-color: rgba(26,20,16,0.10) !important;
+      color: #1a1410 !important;
+    }
+    html.light-mode #landingEventsContainer a.landing-event-detail-link:hover {
+      background: #cc292b !important;
+      border-color: transparent !important;
+      color: #fff !important;
+    }
+
+    /* Artist & Sessionist cards */
+    html.light-mode #spotlightArtistsContainer > div,
+    html.light-mode #spotlightSessionistsContainer > div {
+      background: #ffffff !important;
+      border-color: rgba(26,20,16,0.07) !important;
+      box-shadow: 0 2px 14px rgba(0,0,0,0.06) !important;
+    }
+    html.light-mode #spotlightArtistsContainer .text-white,
+    html.light-mode #spotlightSessionistsContainer .text-white { color: #1a1410 !important; }
+    html.light-mode #spotlightArtistsContainer .text-white\/50,
+    html.light-mode #spotlightSessionistsContainer .text-white\/50 { color: #8a7e74 !important; }
+    html.light-mode #spotlightArtistsContainer .text-white\/60,
+    html.light-mode #spotlightSessionistsContainer .text-white\/60 { color: #6b6258 !important; }
+    html.light-mode #spotlightArtistsContainer a[href*="ArtistDetails"],
+    html.light-mode #spotlightSessionistsContainer a[href*="Sessionist"] {
+      background: rgba(26,20,16,0.04) !important;
+      border-color: rgba(26,20,16,0.10) !important;
+      color: #1a1410 !important;
+    }
+    html.light-mode #spotlightArtistsContainer a[href*="ArtistDetails"]:hover,
+    html.light-mode #spotlightSessionistsContainer a[href*="Sessionist"]:hover {
+      background: rgba(26,20,16,0.08) !important;
+    }
+
+    /* Navigation in light mode */
+    html.light-mode nav .absolute.inset-0 {
+      background: rgba(255,255,255,0.9) !important;
+      border-color: rgba(26,20,16,0.08) !important;
+    }
+    html.light-mode nav .text-white\/70 { color: rgba(26,20,16,0.55) !important; }
+    html.light-mode nav .text-white\/80 { color: rgba(26,20,16,0.70) !important; }
+    html.light-mode nav .detail-nav-link:hover { color: #1a1410 !important; }
+    html.light-mode nav .detail-nav-link.active { color: #1a1410 !important; border-bottom-color: rgba(229,62,62,0.9) !important; }
+    html.light-mode nav .hover\:text-white\/90:hover { color: #1a1410 !important; }
+    html.light-mode .text-white\/70.hover\:text-white { color: rgba(26,20,16,0.6) !important; }
+    html.light-mode nav #authLoggedOut a.text-white\/80 { color: rgba(26,20,16,0.65) !important; }
   </style>
 </head>
 <body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif;">
@@ -75,7 +288,7 @@
         
         <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
@@ -83,7 +296,6 @@
           <a href="/" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Home</a>
           <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
           <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
-          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
           <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
         </div>
 
@@ -157,7 +369,7 @@
 
         <h1 class="mt-6 text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[0.95]">
           <span class="block text-white">DISCOVER</span>
-          <span class="block text-[#cc292b] drop-shadow-lg">IMAJINATION</span>
+          <span class="block text-[#cc292b] drop-shadow-lg">TUGS!</span>
         </h1>
 
         <p class="mt-5 text-base sm:text-lg text-white/70 max-w-2xl mx-auto font-normal leading-relaxed">
@@ -285,8 +497,8 @@
           </div>
           
           <div class="hidden sm:flex items-center gap-3">
-            <a href="/pages/browse/Sessionists.html" class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/70 hover:text-white transition-colors">
-              View all sessionists
+            <a href="/pages/browse/Artists.html" class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-white/70 hover:text-white transition-colors">
+              View all artists
               <i data-lucide="arrow-right" class="w-4 h-4" style="stroke-width:1.5"></i>
             </a>
           </div>
@@ -296,8 +508,8 @@
           <p class="col-span-4 text-red-500/50 text-sm pl-4 font-medium uppercase tracking-widest">Fetching live sessionists...</p>
         </div>
 
-        <a href="/pages/browse/Sessionists.html" class="mt-8 sm:hidden inline-flex w-full items-center justify-center py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-          View all sessionists
+        <a href="/pages/browse/Artists.html" class="mt-8 sm:hidden inline-flex w-full items-center justify-center py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white">
+          View all artists
         </a>
       </div>
     </section>
@@ -344,6 +556,134 @@
               Scout talent, manage applications, and keep everything in one place—without clutter.
             </p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── LAUNCH YOUR EVENT WITH US ── -->
+    <section id="partnerSection" class="relative py-24 border-t border-white/5">
+      <div class="max-w-6xl mx-auto px-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+
+          <!-- Left: pitch copy -->
+          <div class="lg:sticky lg:top-24">
+            <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500 mb-4">Partner with Tugs!</p>
+            <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white leading-tight mb-6">
+              Launch your event<br>through our platform.
+            </h2>
+            <p class="text-white/60 text-base leading-relaxed mb-8">
+              We handle the ticketing, promotion, and audience — you bring the show. Whether it's a gig, festival, or launch night, Tugs! gets your event in front of the right crowd.
+            </p>
+            <div class="space-y-5">
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="ticket" class="w-5 h-5 text-red-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-white">Ticket Sales, Handled</p>
+                  <p class="text-xs text-white/50 mt-0.5 leading-relaxed">Full-stack ticketing with PayMongo — GCash, PayMaya, cards. Customers get QR passes, you get real-time sales data.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="users" class="w-5 h-5 text-emerald-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-white">Built-in Audience</p>
+                  <p class="text-xs text-white/50 mt-0.5 leading-relaxed">Your event reaches our community of music fans, artists, and sessionists.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="scan-qr-code" class="w-5 h-5 text-violet-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-white">Door Scanner Included</p>
+                  <p class="text-xs text-white/50 mt-0.5 leading-relaxed">Our admin QR scanner works on any device — no hardware needed. Real-time attendance tracking.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="philippine-peso" class="w-5 h-5 text-amber-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-white">Simple Platform Fee</p>
+                  <p class="text-xs text-white/50 mt-0.5 leading-relaxed">Just ₱10 per ticket sold — no setup fee, no monthly charge. We only earn when you do.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: application form -->
+          <div class="bg-white/[0.03] border border-white/[0.08] rounded-3xl p-8">
+            <h3 class="text-lg font-bold text-white mb-1">Submit your event proposal</h3>
+            <p class="text-xs text-white/40 mb-6">We'll review and get back to you within 2–3 business days.</p>
+
+            <form id="partnerApplicationForm" class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Your Name *</label>
+                  <input id="pOrgName" type="text" required placeholder="e.g. Juan dela Cruz" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Email Address *</label>
+                  <input id="pEmail" type="email" required placeholder="you@example.com" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Phone / Viber</label>
+                  <input id="pPhone" type="text" placeholder="+63 9XX XXX XXXX" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Event Type</label>
+                  <select id="pEventType" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/50 transition-colors appearance-none">
+                    <option value="">Select type…</option>
+                    <option>Live Gig</option>
+                    <option>Festival</option>
+                    <option>Album Launch</option>
+                    <option>Corporate Event</option>
+                    <option>University Event</option>
+                    <option>Fundraiser</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Event Name *</label>
+                <input id="pEventName" type="text" required placeholder="What's your event called?" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Expected Date</label>
+                  <input id="pDate" type="text" placeholder="e.g. June 2026" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Expected Capacity</label>
+                  <input id="pCapacity" type="number" min="1" placeholder="e.g. 500" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+                </div>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Venue</label>
+                <input id="pVenue" type="text" placeholder="Venue name, city" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">Tell us about your event</label>
+                <textarea id="pDesc" rows="3" placeholder="Lineup, concept, vibe — anything that helps us understand your vision." class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors resize-none"></textarea>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1.5">How did you hear about us?</label>
+                <input id="pReferral" type="text" placeholder="e.g. Instagram, friend referral, saw a Tugs! event" class="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder:text-white/25 outline-none focus:border-red-500/50 transition-colors">
+              </div>
+
+              <button id="partnerSubmitBtn" type="submit"
+                class="w-full py-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-[0.16em] transition-colors shadow-[0_10px_25px_-10px_rgba(239,68,68,0.5)] mt-2">
+                Submit Proposal
+              </button>
+              <p id="partnerFormStatus" class="text-sm mt-3 text-center"></p>
+            </form>
+          </div>
+
         </div>
       </div>
     </section>
@@ -455,9 +795,8 @@
 
         const dashLink = document.getElementById('dashboardLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
         else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
 
         if (role === 'Artist' && userId) {
@@ -762,6 +1101,79 @@
         persistLandingEventPreview(eventId);
       }
     });
+
+    // ── Partner Application ───────────────────────────────────────────────────
+    const partnerForm = document.getElementById('partnerApplicationForm');
+    if (partnerForm) {
+      partnerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('partnerSubmitBtn');
+        const statusEl = document.getElementById('partnerFormStatus');
+        btn.disabled = true;
+        btn.textContent = 'Submitting…';
+        statusEl.textContent = '';
+        statusEl.className = 'text-sm mt-3 text-center';
+
+        const payload = {
+          organizerName:    document.getElementById('pOrgName').value.trim(),
+          email:            document.getElementById('pEmail').value.trim(),
+          phone:            document.getElementById('pPhone').value.trim(),
+          eventName:        document.getElementById('pEventName').value.trim(),
+          eventType:        document.getElementById('pEventType').value,
+          expectedDate:     document.getElementById('pDate').value.trim(),
+          expectedVenue:    document.getElementById('pVenue').value.trim(),
+          expectedCapacity: parseInt(document.getElementById('pCapacity').value) || null,
+          description:      document.getElementById('pDesc').value.trim(),
+          referralSource:   document.getElementById('pReferral').value.trim()
+        };
+
+        try {
+          const res = await fetch('/api/partner/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            statusEl.textContent = data.message || 'Proposal submitted! We\'ll be in touch within 2–3 business days.';
+            statusEl.className = 'text-sm mt-3 text-center text-emerald-400 font-semibold';
+            partnerForm.reset();
+          } else {
+            statusEl.textContent = data.message || 'Submission failed. Please try again.';
+            statusEl.className = 'text-sm mt-3 text-center text-red-400';
+          }
+        } catch {
+          statusEl.textContent = 'Could not connect. Please try again.';
+          statusEl.className = 'text-sm mt-3 text-center text-red-400';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Submit Proposal';
+        }
+      });
+    }
+  </script>
+
+  <!-- PWA: SW registration is handled by theme.js — only install prompt here -->
+  <script>
+    // Install prompt (Android Chrome "Add to Home Screen")
+    let _deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _deferredInstallPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.remove('hidden');
+    });
+    window.addEventListener('appinstalled', () => {
+      _deferredInstallPrompt = null;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.add('hidden');
+    });
+    window.triggerPwaInstall = async () => {
+      if (!_deferredInstallPrompt) return;
+      _deferredInstallPrompt.prompt();
+      await _deferredInstallPrompt.userChoice;
+      _deferredInstallPrompt = null;
+    };
   </script>
 </body>
 </html>

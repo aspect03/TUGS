@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Sessionists</title>
+  <title>Tugs! - Sessionists</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -46,7 +47,7 @@
         
         <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
@@ -170,6 +171,8 @@
   <script>
     lucide.createIcons();
 
+    function escapeHtml(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+
     function initializeSessionistsNavbarIdentity() {
       const firstName = (localStorage.getItem('userFirstName') || '').trim();
       const username = (localStorage.getItem('username') || '').trim();
@@ -196,9 +199,8 @@
       const dashLink = document.getElementById('dashboardLink');
       const profilePageLink = document.getElementById('profilePageLink');
       if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-      else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
       else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
       else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
 
       if (role === 'Customer' && profilePageLink) {
@@ -397,11 +399,11 @@
                 <img src="${s.profilePicture}" class="absolute inset-0 w-full h-full object-cover z-10" onerror="this.style.display='none'">
                 <i data-lucide="headphones" class="w-8 h-8 text-white/50 relative z-0"></i>
               </div>
-              <h4 class="mt-4 text-xl font-extrabold tracking-tight text-white line-clamp-1 pointer-events-none">${s.displayName}</h4>
+              <h4 class="text-xl font-extrabold tracking-tight text-white line-clamp-1 pointer-events-none">${escapeHtml(s.displayName)}</h4>
               <p class="text-[9px] font-bold text-red-300 mt-2 tracking-[0.18em] uppercase pointer-events-none">${sessionistTypeLabel}</p>
               <div class="mt-3 flex flex-wrap justify-center gap-2 min-h-[24px]">
                 ${sessionistGenres.length
-                  ? sessionistGenres.map(genre => `<button type="button" data-filter-genre="${genre.toLowerCase()}" class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/65 hover:bg-red-500/20 hover:border-red-500/40 hover:text-white transition-colors cursor-pointer">${genre}</button>`).join('')
+                  ? sessionistGenres.map(genre => `<button type="button" data-filter-genre="${escapeHtml(genre.toLowerCase())}" class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/65 hover:bg-red-500/20 hover:border-red-500/40 hover:text-white transition-colors cursor-pointer">${escapeHtml(genre)}</button>`).join('')
                   : `<span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/40 pointer-events-none">Sessionist</span>`}
                 ${getVerificationBadgeMarkup(isVerified ? 'approved' : (s.verificationStatus || ''))}
               </div>

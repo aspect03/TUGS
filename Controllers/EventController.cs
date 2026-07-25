@@ -155,11 +155,135 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        private static volatile bool _tierSchemaReady = false;
+        private static readonly SemaphoreSlim _tierSchemaLock = new(1, 1);
+
+        private async Task EnsureEventTiersSchema(NpgsqlConnection connection)
+        {
+            if (_tierSchemaReady) return;
+            await _tierSchemaLock.WaitAsync();
+            try
+            {
+                if (_tierSchemaReady) return;
+                const string sql = @"
+                    CREATE TABLE IF NOT EXISTS event_tiers (
+                        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                        event_id uuid NOT NULL,
+                        name varchar(120) NOT NULL,
+                        description text NULL,
+                        color varchar(20) NULL,
+                        price decimal(12,2) NOT NULL DEFAULT 0,
+                        total_slots integer NOT NULL DEFAULT 0,
+                        slots_sold integer NOT NULL DEFAULT 0,
+                        sort_order integer NOT NULL DEFAULT 0,
+                        created_at timestamptz NOT NULL DEFAULT NOW(),
+                        UNIQUE (event_id, name)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_event_tiers_event ON event_tiers(event_id);";
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                await cmd.ExecuteNonQueryAsync();
+                _tierSchemaReady = true;
+            }
+            finally { _tierSchemaLock.Release(); }
+        }
+
+        private async Task<List<ImajinationAPI.Models.TicketTierDto>> FetchTiersAsync(NpgsqlConnection connection, Guid eventId)
+        {
+            // slots_sold is calculated live from confirmed tickets so it's always accurate
+            // even if the increment column fell out of sync from previous code versions.
+            const string sql = @"
+                SELECT et.id, et.name, et.description, et.color, et.price, et.total_slots,
+                       COALESCE((
+                           SELECT SUM(t.quantity)
+                           FROM tickets t
+                           WHERE t.event_id = et.event_id
+                             AND LOWER(COALESCE(t.tier_name, '')) = LOWER(et.name)
+                             AND t.payment_method NOT IN ('AwaitingPayment')
+                       ), 0) AS slots_sold,
+                       et.sort_order
+                FROM event_tiers et
+                WHERE et.event_id = @eventId
+                ORDER BY et.sort_order ASC, et.created_at ASC;";
+            var tiers = new List<ImajinationAPI.Models.TicketTierDto>();
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@eventId", eventId);
+            await using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                tiers.Add(new ImajinationAPI.Models.TicketTierDto
+                {
+                    id = rdr.GetGuid(0),
+                    name = rdr.IsDBNull(1) ? "" : rdr.GetString(1),
+                    description = rdr.IsDBNull(2) ? null : rdr.GetString(2),
+                    color = rdr.IsDBNull(3) ? null : rdr.GetString(3),
+                    price = rdr.IsDBNull(4) ? 0 : rdr.GetDecimal(4),
+                    totalSlots = rdr.IsDBNull(5) ? 0 : rdr.GetInt32(5),
+                    slotsSold = rdr.IsDBNull(6) ? 0 : (int)(long)rdr.GetValue(6),
+                    sortOrder = rdr.IsDBNull(7) ? 0 : rdr.GetInt32(7)
+                });
+            }
+            return tiers;
+        }
+
+        private async Task SyncTiersAsync(NpgsqlConnection connection, Guid eventId, List<ImajinationAPI.Models.TicketTierDto> tiers)
+        {
+            await EnsureEventTiersSchema(connection);
+            if (tiers == null || tiers.Count == 0) return;
+
+            // Step 1: Delete all existing tiers that have no sales.
+            // We'll re-insert everything, so any tier with 0 sales can be safely removed.
+            // Tiers that have sales are preserved via the UPSERT conflict resolution below.
+            const string delSql = @"
+                DELETE FROM event_tiers
+                WHERE event_id = @eventId
+                  AND slots_sold = 0;";
+            await using (var delCmd = new NpgsqlCommand(delSql, connection))
+            {
+                delCmd.Parameters.AddWithValue("@eventId", eventId);
+                await delCmd.ExecuteNonQueryAsync();
+            }
+
+            // Step 2: Insert all tiers. ON CONFLICT preserves sold counts for tiers
+            // that had sales (they won't be deleted above) and re-adds zero-sales tiers.
+            int order = 0;
+            foreach (var tier in tiers)
+            {
+                var tierName = SecuritySupport.SanitizePlainText(tier.name, 120, false) ?? "Tier";
+                if (string.IsNullOrWhiteSpace(tierName)) continue;
+                var tierDesc = SecuritySupport.SanitizePlainText(tier.description, 300, false);
+
+                const string upsertSql = @"
+                    INSERT INTO event_tiers (id, event_id, name, description, color, price, total_slots, sort_order)
+                    VALUES (@id, @eventId, @name, @desc, @color, @price, @slots, @order)
+                    ON CONFLICT (event_id, name) DO UPDATE
+                        SET description = EXCLUDED.description,
+                            color       = EXCLUDED.color,
+                            price       = EXCLUDED.price,
+                            total_slots = EXCLUDED.total_slots,
+                            sort_order  = EXCLUDED.sort_order;";
+                await using var upsertCmd = new NpgsqlCommand(upsertSql, connection);
+                upsertCmd.Parameters.AddWithValue("@id", Guid.NewGuid());
+                upsertCmd.Parameters.AddWithValue("@eventId", eventId);
+                upsertCmd.Parameters.AddWithValue("@name", tierName);
+                upsertCmd.Parameters.AddWithValue("@desc", (object?)
+                    (string.IsNullOrWhiteSpace(tierDesc) ? null : tierDesc) ?? DBNull.Value);
+                upsertCmd.Parameters.AddWithValue("@color", (object?)
+                    (string.IsNullOrWhiteSpace(tier.color) ? null : tier.color) ?? DBNull.Value);
+                upsertCmd.Parameters.AddWithValue("@price", Math.Max(0m, tier.price));
+                upsertCmd.Parameters.AddWithValue("@slots", Math.Max(0, tier.totalSlots));
+                upsertCmd.Parameters.AddWithValue("@order", order++);
+                await upsertCmd.ExecuteNonQueryAsync();
+            }
+        }
+
         private async Task EnsureEventLineupColumns(NpgsqlConnection connection)
         {
             const string sql = @"
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS artist_lineup text;
-                ALTER TABLE events ADD COLUMN IF NOT EXISTS sessionist_lineup text;";
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS sessionist_lineup text;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_quantity_limit integer NULL;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_quantity_used integer NOT NULL DEFAULT 0;";
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
@@ -498,13 +622,22 @@ namespace ImajinationAPI.Controllers
         }
 
         // 1. CREATE EVENT
-        [Authorize(Roles = "Organizer,Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpPost("create")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto req)
         {
             try
             {
+                var eventTime = req.time.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(req.time, DateTimeKind.Local).ToUniversalTime()
+                    : req.time.ToUniversalTime();
+
+                if (eventTime <= DateTime.UtcNow)
+                {
+                    return BadRequest(new { message = "Event date and time must be in the future. Past dates are not allowed." });
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
@@ -516,16 +649,6 @@ namespace ImajinationAPI.Controllers
                 var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
                     ? parsedActorUserId
                     : Guid.Empty;
-
-                if (!User.IsInRole("Admin") && actorUserId != Guid.Empty && actorUserId != req.organizerId)
-                {
-                    return Forbid();
-                }
-
-                if (!User.IsInRole("Admin") && !await CommunitySupport.IsIdentityApprovedAsync(connection, req.organizerId, "Organizer"))
-                {
-                    return StatusCode(403, new { message = "Organizer identity verification must be approved by admin before creating events." });
-                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -560,10 +683,10 @@ namespace ImajinationAPI.Controllers
                 var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
 
                 string sql = @"
-                    INSERT INTO events 
-                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, max_tickets_per_customer, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, status, artist_lineup, sessionist_lineup) 
-                    VALUES 
-                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @maxTicketsPerCustomer, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @status, @artistLineup, @sessionistLineup)";
+                    INSERT INTO events
+                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, max_tickets_per_customer, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, sale_quantity_limit, status, artist_lineup, sessionist_lineup)
+                    VALUES
+                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @maxTicketsPerCustomer, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @saleQtyLimit, @status, @artistLineup, @sessionistLineup)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
@@ -593,6 +716,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleValue", (object?)req.saleValue ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@saleQtyLimit", (object?)req.saleQuantityLimit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
@@ -600,14 +724,26 @@ namespace ImajinationAPI.Controllers
                 await cmd.ExecuteNonQueryAsync();
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
-                    req.organizerId,
-                    "Organizer",
+                    actorUserId,
+                    "Admin",
                     "event_created",
                     "event",
                     eventId,
                     HttpContext,
-                    $"Organizer created event '{sanitizedTitle}'.");
+                    $"Admin created event '{sanitizedTitle}'.");
                 await NotifyLineupAddedAsync(connection, eventId, req.title, mergedLineup);
+
+                // Sync ticket tiers (wrapped so tier errors never kill the event save)
+                if (req.tiers is { Count: > 0 })
+                {
+                    try { await SyncTiersAsync(connection, eventId, req.tiers); }
+                    catch (Exception tierEx)
+                    {
+                        // Log but don't fail — event is already saved
+                        Console.Error.WriteLine($"[TierSync] Failed for event {eventId}: {tierEx.Message}");
+                    }
+                }
+
                 return Ok(new { message = normalizedStatus == "Draft" ? "Draft saved successfully!" : "Event successfully created!" });
             }
             catch (Exception ex)
@@ -654,10 +790,13 @@ namespace ImajinationAPI.Controllers
                             SELECT SUM(COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 0) ELSE 0 END))
                             FROM tickets t
                             WHERE t.event_id = e.id
-                        ), 0) AS attended_tickets
+                        ), 0) AS attended_tickets,
+                        e.poster_url,
+                        COALESCE(e.sale_quantity_limit, 0),
+                        COALESCE(e.sale_quantity_used, 0)
                     FROM events e
                     WHERE e.organizer_id = @orgId
-                    ORDER BY e.event_time ASC";
+                    ORDER BY e.created_at DESC, e.event_time ASC";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@orgId", orgId);
 
@@ -684,7 +823,10 @@ namespace ImajinationAPI.Controllers
                         saleStartsAt = reader.IsDBNull(14) ? null : (DateTime?)reader.GetDateTime(14),
                         saleEndsAt = reader.IsDBNull(15) ? null : (DateTime?)reader.GetDateTime(15),
                         artistLineup = DeserializeLineup(reader.IsDBNull(16) ? null : reader.GetString(16)),
-                        sessionistLineup = DeserializeLineup(reader.IsDBNull(17) ? null : reader.GetString(17))
+                        sessionistLineup = DeserializeLineup(reader.IsDBNull(17) ? null : reader.GetString(17)),
+                        posterUrl = reader.IsDBNull(19) ? null : reader.GetString(19),
+                        saleQuantityLimit = reader.IsDBNull(20) ? null : (int?)reader.GetInt32(20),
+                        saleQuantityUsed = reader.IsDBNull(21) ? null : (int?)reader.GetInt32(21)
                     });
                 }
                 return Ok(events);
@@ -955,7 +1097,7 @@ namespace ImajinationAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Organizer,Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpGet("organizer/{orgId}/analytics/{eventId}")]
         public async Task<IActionResult> GetOrganizerEventAnalytics(Guid orgId, Guid eventId)
         {
@@ -1194,7 +1336,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 4. FINISH EVENT
-        [Authorize(Roles = "Organizer,Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpPost("{eventId}/finish")]
         public async Task<IActionResult> FinishEvent(Guid eventId)
         {
@@ -1255,12 +1397,20 @@ namespace ImajinationAPI.Controllers
                            e.organizer_id,
                            COALESCE(NULLIF(u.productionname, ''), NULLIF(TRIM(COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')), ''), 'Unknown Organizer'),
                            COALESCE(u.profile_picture, ''),
-                           COALESCE(u.is_verified, FALSE)
+                           COALESCE(u.is_verified, FALSE),
+                           e.sale_name,
+                           e.sale_type,
+                           e.sale_value,
+                           e.sale_starts_at,
+                           e.sale_ends_at,
+                           COALESCE(e.artist_lineup, '[]'),
+                           COALESCE(e.sale_quantity_limit, 0),
+                           COALESCE(e.sale_quantity_used,  0)
                     FROM events e
                     LEFT JOIN users u ON u.id = e.organizer_id
                     WHERE COALESCE(e.status, 'Upcoming') = 'Upcoming'
                       AND e.event_time >= CURRENT_DATE
-                    ORDER BY e.event_time ASC
+                    ORDER BY e.created_at DESC, e.event_time ASC
                     LIMIT 12";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.CommandTimeout = 5;
@@ -1285,7 +1435,16 @@ namespace ImajinationAPI.Controllers
                         organizerId = reader.IsDBNull(9) ? Guid.Empty : reader.GetGuid(9),
                         organizerName = reader.IsDBNull(10) ? "Unknown Organizer" : reader.GetString(10),
                         organizerProfilePicture = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                        organizerVerified = !reader.IsDBNull(12) && reader.GetBoolean(12)
+                        organizerVerified = !reader.IsDBNull(12) && reader.GetBoolean(12),
+                        saleName = reader.IsDBNull(13) ? null : reader.GetString(13),
+                        saleType = reader.IsDBNull(14) ? null : reader.GetString(14),
+                        saleValue = reader.IsDBNull(15) ? null : (decimal?)reader.GetDecimal(15),
+                        saleStartsAt = reader.IsDBNull(16) ? null : (DateTime?)reader.GetDateTime(16),
+                        saleEndsAt = reader.IsDBNull(17) ? null : (DateTime?)reader.GetDateTime(17),
+                        artistLineup = DeserializeLineup(reader.IsDBNull(18) ? null : reader.GetString(18)),
+                        saleQuantityLimit = reader.GetInt32(19) > 0 ? reader.GetInt32(19) : (int?)null,
+                        saleQuantityUsed  = reader.GetInt32(20),
+                        saleExhausted     = reader.GetInt32(19) > 0 && reader.GetInt32(20) >= reader.GetInt32(19)
                     });
                 }
                 return Ok(events);
@@ -1321,12 +1480,15 @@ namespace ImajinationAPI.Controllers
                            e.organizer_id,
                            COALESCE(NULLIF(u.productionname, ''), NULLIF(TRIM(COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')), ''), 'Unknown Organizer'),
                            COALESCE(u.profile_picture, ''),
-                           COALESCE(u.is_verified, FALSE)
+                           COALESCE(u.is_verified, FALSE),
+                           e.sale_name, e.sale_type, e.sale_value, e.sale_starts_at, e.sale_ends_at,
+                           COALESCE(e.sale_quantity_limit, 0),
+                           COALESCE(e.sale_quantity_used,  0)
                     FROM events e
                     LEFT JOIN users u ON u.id = e.organizer_id
                     WHERE COALESCE(e.status, 'Upcoming') = 'Upcoming'
                       AND e.event_time >= CURRENT_DATE
-                    ORDER BY e.event_time ASC
+                    ORDER BY e.created_at DESC, e.event_time ASC
                     LIMIT 6";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.CommandTimeout = 5;
@@ -1348,7 +1510,15 @@ namespace ImajinationAPI.Controllers
                         organizerId = reader.IsDBNull(9) ? Guid.Empty : reader.GetGuid(9),
                         organizerName = reader.IsDBNull(10) ? "Unknown Organizer" : reader.GetString(10),
                         organizerProfilePicture = reader.IsDBNull(11) ? "" : reader.GetString(11),
-                        organizerVerified = !reader.IsDBNull(12) && reader.GetBoolean(12)
+                        organizerVerified = !reader.IsDBNull(12) && reader.GetBoolean(12),
+                        saleName     = reader.IsDBNull(13) ? null : reader.GetString(13),
+                        saleType     = reader.IsDBNull(14) ? null : reader.GetString(14),
+                        saleValue    = reader.IsDBNull(15) ? null : (decimal?)reader.GetDecimal(15),
+                        saleStartsAt = reader.IsDBNull(16) ? null : (DateTime?)reader.GetDateTime(16),
+                        saleEndsAt   = reader.IsDBNull(17) ? null : (DateTime?)reader.GetDateTime(17),
+                        saleQuantityLimit = reader.GetInt32(18) > 0 ? reader.GetInt32(18) : (int?)null,
+                        saleQuantityUsed  = reader.GetInt32(19),
+                        saleExhausted     = reader.GetInt32(18) > 0 && reader.GetInt32(19) >= reader.GetInt32(18)
                     });
                 }
                 return Ok(events);
@@ -1368,6 +1538,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
+                await EnsureEventTiersSchema(connection);
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
 
@@ -1396,6 +1567,8 @@ namespace ImajinationAPI.Controllers
                            e.sale_value,
                            e.sale_starts_at,
                            e.sale_ends_at,
+                           COALESCE(e.sale_quantity_limit, 0),
+                           COALESCE(e.sale_quantity_used, 0),
                            e.artist_lineup,
                            e.sessionist_lineup,
                            e.organizer_id,
@@ -1412,46 +1585,84 @@ namespace ImajinationAPI.Controllers
                 cmd.CommandTimeout = 5;
 
                 using var reader = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SingleRow);
-                if (await reader.ReadAsync())
+                if (!await reader.ReadAsync())
                 {
-                    return Ok(new
-                    {
-                        id = reader.GetGuid(0),
-                        title = reader.IsDBNull(1) ? "Untitled Event" : reader.GetString(1),
-                        artists = reader.IsDBNull(2) ? "TBA" : reader.GetString(2),
-                        description = reader.IsDBNull(3) ? "No description available." : reader.GetString(3),
-                        time = reader.GetDateTime(4),
-                        city = reader.IsDBNull(5) ? "" : reader.GetString(5),
-                        location = reader.IsDBNull(6) ? "TBA" : reader.GetString(6),
-                        posterUrl = reader.IsDBNull(7) ? "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600" : reader.GetString(7),
-                        price = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
-                        totalSlots = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
-                        ticketsSold = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
-                        maxTicketsPerCustomer = reader.IsDBNull(11) ? 5 : reader.GetInt32(11),
-                        status = reader.IsDBNull(12) ? "Upcoming" : reader.GetString(12),
-                        eventType = reader.IsDBNull(13) ? "Live Gig" : reader.GetString(13),
-                        genres = reader.IsDBNull(14) ? "" : reader.GetString(14),
-                        
-                        tierName = reader.IsDBNull(15) ? null : reader.GetString(15),
-                        tierPrice = reader.IsDBNull(16) ? null : (decimal?)reader.GetDecimal(16),
-                        tierSlots = reader.IsDBNull(17) ? null : (int?)reader.GetInt32(17),
-                        bundles = reader.IsDBNull(18) ? null : reader.GetString(18),
-                        saleName = reader.IsDBNull(19) ? null : reader.GetString(19),
-                        saleType = reader.IsDBNull(20) ? null : reader.GetString(20),
-                        saleValue = reader.IsDBNull(21) ? null : (decimal?)reader.GetDecimal(21),
-                        saleStartsAt = reader.IsDBNull(22) ? null : (DateTime?)reader.GetDateTime(22),
-                        saleEndsAt = reader.IsDBNull(23) ? null : (DateTime?)reader.GetDateTime(23),
-                        artistLineup = DeserializeLineup(reader.IsDBNull(24) ? null : reader.GetString(24)),
-                        sessionistLineup = DeserializeLineup(reader.IsDBNull(25) ? null : reader.GetString(25)),
-                        organizerId = reader.IsDBNull(26) ? Guid.Empty : reader.GetGuid(26),
-                        organizerName = reader.IsDBNull(27) ? "Unknown Organizer" : reader.GetString(27),
-                        organizerProfilePicture = reader.IsDBNull(28) ? "" : reader.GetString(28),
-                        organizerBio = reader.IsDBNull(29) ? "" : reader.GetString(29),
-                        organizerVerified = !reader.IsDBNull(30) && reader.GetBoolean(30),
-                        organizerEmail = reader.IsDBNull(31) ? "" : reader.GetString(31)
-                    });
+                    return NotFound(new { message = "Event not found." });
                 }
-                return NotFound(new { message = "Event not found." });
+
+                // Read all columns into local variables so we can close the reader and fetch tiers
+                var evId        = reader.GetGuid(0);
+                var evTitle     = reader.IsDBNull(1)  ? "Untitled Event" : reader.GetString(1);
+                var evArtists   = reader.IsDBNull(2)  ? "TBA"            : reader.GetString(2);
+                var evDesc      = reader.IsDBNull(3)  ? "No description available." : reader.GetString(3);
+                var evTime      = reader.GetDateTime(4);
+                var evCity      = reader.IsDBNull(5)  ? ""               : reader.GetString(5);
+                var evLocation  = reader.IsDBNull(6)  ? "TBA"            : reader.GetString(6);
+                var evPoster    = reader.IsDBNull(7)  ? "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600" : reader.GetString(7);
+                var evPrice     = reader.IsDBNull(8)  ? 0m               : reader.GetDecimal(8);
+                var evSlots     = reader.IsDBNull(9)  ? 0                : reader.GetInt32(9);
+                var evSold      = reader.IsDBNull(10) ? 0                : reader.GetInt32(10);
+                var evMaxTix    = reader.IsDBNull(11) ? 5                : reader.GetInt32(11);
+                var evStatus    = reader.IsDBNull(12) ? "Upcoming"       : reader.GetString(12);
+                var evType      = reader.IsDBNull(13) ? "Live Gig"       : reader.GetString(13);
+                var evGenres    = reader.IsDBNull(14) ? ""               : reader.GetString(14);
+                var evTierName  = reader.IsDBNull(15) ? null             : reader.GetString(15);
+                var evTierPrice = reader.IsDBNull(16) ? null             : (decimal?)reader.GetDecimal(16);
+                var evTierSlots = reader.IsDBNull(17) ? null             : (int?)reader.GetInt32(17);
+                var evBundles   = reader.IsDBNull(18) ? null             : reader.GetString(18);
+                var evSaleName  = reader.IsDBNull(19) ? null             : reader.GetString(19);
+                var evSaleType  = reader.IsDBNull(20) ? null             : reader.GetString(20);
+                var evSaleVal   = reader.IsDBNull(21) ? null             : (decimal?)reader.GetDecimal(21);
+                var evSaleStart    = reader.IsDBNull(22) ? null             : (DateTime?)reader.GetDateTime(22);
+                var evSaleEnd      = reader.IsDBNull(23) ? null             : (DateTime?)reader.GetDateTime(23);
+                var evSaleQtyLimit = reader.GetInt32(24);  // COALESCE → always int
+                var evSaleQtyUsed  = reader.GetInt32(25);  // COALESCE → always int
+                var evAL           = DeserializeLineup(reader.IsDBNull(26)  ? null : reader.GetString(26));
+                var evSL           = DeserializeLineup(reader.IsDBNull(27)  ? null : reader.GetString(27));
+                var evOrgId        = reader.IsDBNull(28) ? Guid.Empty       : reader.GetGuid(28);
+                var evOrgName      = reader.IsDBNull(29) ? "Unknown Organizer" : reader.GetString(29);
+                var evOrgPic       = reader.IsDBNull(30) ? ""               : reader.GetString(30);
+                var evOrgBio       = reader.IsDBNull(31) ? ""               : reader.GetString(31);
+                var evOrgVer       = !reader.IsDBNull(32) && reader.GetBoolean(32);
+                var evOrgEmail     = reader.IsDBNull(33) ? ""               : reader.GetString(33);
+                await reader.CloseAsync();
+
+                // Fetch tiers with live slot counts (separate query, reader already closed)
+                var tiers = await FetchTiersAsync(connection, evId);
+
+                // Calculate live ticketsSold from confirmed tickets so it's always accurate
+                int liveTicketsSold = evSold;
+                try
+                {
+                    await using var soldCmd = new NpgsqlCommand(
+                        @"SELECT COALESCE(SUM(quantity), 0) FROM tickets
+                          WHERE event_id = @id AND payment_method NOT IN ('AwaitingPayment')", connection);
+                    soldCmd.Parameters.AddWithValue("@id", evId);
+                    var soldResult = await soldCmd.ExecuteScalarAsync();
+                    liveTicketsSold = Convert.ToInt32(soldResult ?? 0);
+                }
+                catch { /* fallback to stored value */ }
+
+                return Ok(new
+                {
+                    id = evId, title = evTitle, artists = evArtists, description = evDesc,
+                    time = evTime, city = evCity, location = evLocation, posterUrl = evPoster,
+                    price = evPrice, totalSlots = evSlots, ticketsSold = liveTicketsSold,
+                    maxTicketsPerCustomer = evMaxTix, status = evStatus,
+                    eventType = evType, genres = evGenres,
+                    tierName = evTierName, tierPrice = evTierPrice, tierSlots = evTierSlots,
+                    bundles = evBundles, saleName = evSaleName, saleType = evSaleType,
+                    saleValue = evSaleVal, saleStartsAt = evSaleStart, saleEndsAt = evSaleEnd,
+                    saleQuantityLimit = evSaleQtyLimit > 0 ? evSaleQtyLimit : (int?)null,
+                    saleQuantityUsed  = evSaleQtyUsed,
+                    // saleExhausted = true when limit is set and fully used — frontend uses this to kill the promo instantly
+                    saleExhausted = evSaleQtyLimit > 0 && evSaleQtyUsed >= evSaleQtyLimit,
+                    artistLineup = evAL, sessionistLineup = evSL,
+                    organizerId = evOrgId, organizerName = evOrgName,
+                    organizerProfilePicture = evOrgPic, organizerBio = evOrgBio,
+                    organizerVerified = evOrgVer, organizerEmail = evOrgEmail,
+                    tiers
+                });
             }
             catch (Exception ex)
             {
@@ -1459,14 +1670,41 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        // GET /api/event/{id}/tiers — real-time tier availability
+        [HttpGet("{id}/tiers")]
+        public async Task<IActionResult> GetEventTiers(Guid id)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureEventTiersSchema(connection);
+                var tiers = await FetchTiersAsync(connection, id);
+                return Ok(tiers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching tiers: " + ex.Message });
+            }
+        }
+
         // 7. UPDATE EVENT
-        [Authorize(Roles = "Organizer,Admin")]
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] CreateEventDto req)
         {
             try
             {
+                var updatedEventTime = req.time.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(req.time, DateTimeKind.Local).ToUniversalTime()
+                    : req.time.ToUniversalTime();
+
+                if (updatedEventTime <= DateTime.UtcNow)
+                {
+                    return BadRequest(new { message = "Event date and time must be in the future. Past dates are not allowed." });
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
@@ -1478,16 +1716,6 @@ namespace ImajinationAPI.Controllers
                 var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
                     ? parsedActorUserId
                     : Guid.Empty;
-
-                if (!User.IsInRole("Admin") && actorUserId != Guid.Empty && req.organizerId != Guid.Empty && actorUserId != req.organizerId)
-                {
-                    return Forbid();
-                }
-
-                if (!User.IsInRole("Admin") && req.organizerId != Guid.Empty && !await CommunitySupport.IsIdentityApprovedAsync(connection, req.organizerId, "Organizer"))
-                {
-                    return StatusCode(403, new { message = "Organizer identity verification must be approved by admin before updating events." });
-                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -1592,6 +1820,8 @@ namespace ImajinationAPI.Controllers
                         sale_value = COALESCE(@saleValue, sale_value),
                         sale_starts_at = COALESCE(@saleStartsAt, sale_starts_at),
                         sale_ends_at = COALESCE(@saleEndsAt, sale_ends_at),
+                        sale_quantity_limit = @saleQtyLimit,
+                        sale_quantity_used = 0,
                         status = @status,
                         artist_lineup = @artistLineup,
                         sessionist_lineup = @sessionistLineup
@@ -1626,6 +1856,7 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleValue", (object?)req.saleValue ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@saleQtyLimit", (object?)req.saleQuantityLimit ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
@@ -1634,13 +1865,13 @@ namespace ImajinationAPI.Controllers
                 if (rows == 0) return NotFound(new { message = "Event not found or you don't have permission to edit it." });
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
-                    req.organizerId,
-                    "Organizer",
+                    actorUserId,
+                    "Admin",
                     "event_updated",
                     "event",
                     id,
                     HttpContext,
-                    $"Organizer updated event '{sanitizedTitle}'.");
+                    $"Admin updated event '{sanitizedTitle}'.");
 
                 var previousIds = MergeLineupMembers(previousArtistLineup, previousSessionistLineup).Select(item => item.id).ToHashSet();
                 var currentMembers = MergeLineupMembers(normalizedArtistLineup, normalizedSessionistLineup);
@@ -1722,6 +1953,10 @@ namespace ImajinationAPI.Controllers
                         message,
                         locationChanged ? "event_location_updated" : "event_updated");
                 }
+
+                // Sync ticket tiers on update
+                if (req.tiers is { Count: > 0 })
+                    await SyncTiersAsync(connection, id, req.tiers);
 
                 return Ok(new { message = normalizedStatus == "Draft" ? "Draft updated successfully!" : "Event successfully updated!" });
             }

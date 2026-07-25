@@ -19,6 +19,12 @@ select {
   color-scheme: dark;
 }
 
+/* Selects with appearance-none use a custom SVG arrow (1.5em at right 0.5rem).
+   Force enough right padding so text never overlaps the arrow. */
+select.appearance-none {
+  padding-right: 2.25rem !important;
+}
+
 select option,
 select optgroup {
   background-color: #141010;
@@ -530,4 +536,275 @@ html {
     transform: none !important;
     opacity: 1 !important;
   }
+}
+
+/* =========================================================
+   LIGHT MODE THEME  (html.light-mode)
+   ========================================================= */
+
+/* — CSS Variables — */
+html.light-mode {
+  --lm-bg:         #faf7f4;
+  --lm-bg-card:    #ffffff;
+  --lm-bg-card2:   #f4efe9;
+  --lm-bg-card3:   #ece7e0;
+  --lm-bg-input:   #f2ede7;
+  --lm-bg-nav:     rgba(250,247,244,0.94);
+  --lm-text:       #1a1410;
+  --lm-text-60:    rgba(26,20,16,0.58);
+  --lm-text-45:    rgba(26,20,16,0.43);
+  --lm-text-30:    rgba(26,20,16,0.28);
+  --lm-border:     rgba(26,20,16,0.09);
+  --lm-border-md:  rgba(26,20,16,0.14);
+  --lm-shadow:     0 2px 8px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* — Smooth transition ONLY when user actively toggles (class added by JS) — */
+html.theme-transitioning body,
+html.theme-transitioning body *:not(img):not(canvas):not(video):not(iframe):not(script) {
+  transition:
+    background-color 0.28s ease,
+    color 0.2s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease !important;
+}
+
+/* — Base — */
+html.light-mode body {
+  background-color: var(--lm-bg) !important;
+  color: var(--lm-text) !important;
+}
+
+html.light-mode select {
+  color-scheme: light;
+  /* Darker arrow in light mode for better visibility */
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%231a1410' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.8' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-position: right 0.6rem center !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.2em 1.2em !important;
+}
+
+html.light-mode select option,
+html.light-mode select optgroup {
+  background-color: #f0ece6;
+  color: #1a1410;
+}
+
+html.light-mode ::selection {
+  background-color: rgba(229,62,62,0.25);
+  color: #1a1410;
+}
+
+html.light-mode ::-webkit-scrollbar-track { background: var(--lm-bg); }
+html.light-mode ::-webkit-scrollbar-thumb { background: #c8c0b4; }
+
+/* — Page backgrounds — */
+html.light-mode .bg-neutral-950,
+html.light-mode .bg-\[\#0a0a0a\] { background-color: var(--lm-bg) !important; }
+
+html.light-mode .bg-neutral-900 { background-color: var(--lm-bg-card) !important; }
+
+html.light-mode .bg-neutral-900\/50,
+html.light-mode .bg-neutral-900\/80 { background-color: rgba(255,255,255,0.9) !important; }
+
+html.light-mode .bg-\[\#181414\],
+html.light-mode .bg-\[\#1a1515\],
+html.light-mode .bg-\[\#111\],
+html.light-mode .bg-\[\#111111\] { background-color: var(--lm-bg-card) !important; }
+
+/* — Overlay / transparent backgrounds → light equivalents — */
+html.light-mode .bg-black\/20 { background-color: rgba(26,20,16,0.04) !important; }
+html.light-mode .bg-black\/25 { background-color: rgba(26,20,16,0.05) !important; }
+html.light-mode .bg-black\/30 { background-color: rgba(255,255,255,0.88) !important; }
+html.light-mode .bg-black\/40 { background-color: var(--lm-bg-input) !important; }
+html.light-mode .bg-black\/50 { background-color: var(--lm-bg-input) !important; }
+html.light-mode .bg-black\/60 { background-color: var(--lm-bg-input) !important; }
+html.light-mode .bg-black\/70 { background-color: rgba(26,20,16,0.06) !important; }
+html.light-mode .bg-black\/80 { background-color: rgba(26,20,16,0.08) !important; }
+html.light-mode .bg-black\/85,
+html.light-mode .bg-black\/90 { background-color: rgba(0,0,0,0.55) !important; }
+
+html.light-mode .bg-white\/\[0\.02\],
+html.light-mode .bg-white\/\[0\.03\],
+html.light-mode .bg-white\/\[0\.04\] { background-color: rgba(26,20,16,0.03) !important; }
+html.light-mode .bg-white\/\[0\.05\],
+html.light-mode .bg-white\/\[0\.06\] { background-color: rgba(26,20,16,0.05) !important; }
+html.light-mode .bg-white\/\[0\.07\],
+html.light-mode .bg-white\/\[0\.08\] { background-color: rgba(26,20,16,0.06) !important; }
+html.light-mode .bg-white\/5  { background-color: rgba(26,20,16,0.04) !important; }
+html.light-mode .bg-white\/10 { background-color: rgba(26,20,16,0.07) !important; }
+html.light-mode .bg-white\/15 { background-color: rgba(26,20,16,0.09) !important; }
+
+html.light-mode .hover\:bg-white\/\[0\.04\]:hover,
+html.light-mode .hover\:bg-white\/\[0\.05\]:hover,
+html.light-mode .hover\:bg-white\/\[0\.06\]:hover,
+html.light-mode .hover\:bg-white\/\[0\.07\]:hover,
+html.light-mode .hover\:bg-white\/\[0\.08\]:hover,
+html.light-mode .hover\:bg-white\/\[0\.09\]:hover { background-color: rgba(26,20,16,0.07) !important; }
+html.light-mode .hover\:bg-white\/10:hover  { background-color: rgba(26,20,16,0.08) !important; }
+html.light-mode .hover\:bg-white\/15:hover  { background-color: rgba(26,20,16,0.10) !important; }
+html.light-mode .hover\:bg-white\/20:hover  { background-color: rgba(26,20,16,0.12) !important; }
+
+/* — Text overrides — */
+html.light-mode .text-white   { color: var(--lm-text) !important; }
+html.light-mode .text-white\/90 { color: rgba(26,20,16,0.90) !important; }
+html.light-mode .text-white\/80 { color: rgba(26,20,16,0.80) !important; }
+html.light-mode .text-white\/70 { color: rgba(26,20,16,0.70) !important; }
+html.light-mode .text-white\/65 { color: rgba(26,20,16,0.65) !important; }
+html.light-mode .text-white\/60 { color: rgba(26,20,16,0.60) !important; }
+html.light-mode .text-white\/55 { color: rgba(26,20,16,0.55) !important; }
+html.light-mode .text-white\/50 { color: rgba(26,20,16,0.50) !important; }
+html.light-mode .text-white\/45 { color: rgba(26,20,16,0.45) !important; }
+html.light-mode .text-white\/40 { color: rgba(26,20,16,0.40) !important; }
+html.light-mode .text-white\/35 { color: rgba(26,20,16,0.35) !important; }
+html.light-mode .text-white\/30 { color: rgba(26,20,16,0.30) !important; }
+html.light-mode .text-white\/25 { color: rgba(26,20,16,0.25) !important; }
+html.light-mode .text-white\/20 { color: rgba(26,20,16,0.20) !important; }
+
+/* Placeholder text */
+html.light-mode .placeholder\:text-white\/20::placeholder { color: rgba(26,20,16,0.30) !important; }
+html.light-mode .placeholder\:text-white\/25::placeholder { color: rgba(26,20,16,0.35) !important; }
+
+/* — Border overrides — */
+html.light-mode .border-white\/\[0\.05\],
+html.light-mode .border-white\/\[0\.06\],
+html.light-mode .border-white\/\[0\.07\],
+html.light-mode .border-white\/\[0\.08\],
+html.light-mode .border-white\/\[0\.09\] { border-color: rgba(26,20,16,0.10) !important; }
+html.light-mode .border-white\/5,
+html.light-mode .border-white\/10 { border-color: rgba(26,20,16,0.10) !important; }
+html.light-mode .border-white\/20 { border-color: rgba(26,20,16,0.15) !important; }
+
+/* — Navigation — */
+html.light-mode nav.fixed,
+html.light-mode nav.relative.z-50 {
+  background-color: var(--lm-bg-nav) !important;
+  border-color: rgba(26,20,16,0.10) !important;
+}
+html.light-mode .backdrop-blur-md,
+html.light-mode .backdrop-blur-xl {
+  backdrop-filter: blur(16px) !important;
+}
+
+/* — Inputs — */
+html.light-mode input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.light-mode textarea,
+html.light-mode select {
+  background-color: var(--lm-bg-input) !important;
+  color: var(--lm-text) !important;
+  border-color: rgba(26,20,16,0.15) !important;
+}
+html.light-mode input:focus,
+html.light-mode textarea:focus,
+html.light-mode select:focus {
+  border-color: rgba(229,62,62,0.5) !important;
+  background-color: #ffffff !important;
+}
+
+/* — Backdrop backdrops — */
+html.light-mode .bg-dashboard-backdrop {
+  background-image:
+    radial-gradient(60% 50% at 50% 0%, rgba(204,41,43,0.08), transparent 70%),
+    radial-gradient(40% 30% at 90% 80%, rgba(204,41,43,0.04), transparent 60%),
+    linear-gradient(175deg, #fff8f7 0%, #faf7f4 60%, #f4efe9 100%);
+}
+html.light-mode .bg-global-backdrop {
+  background-image:
+    radial-gradient(70% 60% at 50% 10%, rgba(204,41,43,0.09), transparent 60%),
+    radial-gradient(50% 40% at 90% 70%, rgba(204,41,43,0.04), transparent 55%),
+    linear-gradient(175deg, #fff8f7 0%, #faf7f4 50%, #f2ede8 100%);
+}
+
+/* — Cards & panels — */
+html.light-mode .rounded-2xl,
+html.light-mode .rounded-3xl,
+html.light-mode .rounded-\[2rem\],
+html.light-mode .rounded-\[24px\],
+html.light-mode .rounded-\[28px\] {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.04);
+}
+/* Slightly more depth on elevated surfaces */
+html.light-mode [class*="bg-white/[0.03]"],
+html.light-mode [class*="bg-white/[0.04]"],
+html.light-mode [class*="bg-white/[0.05]"] {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04) !important;
+}
+
+/* Nav dropdown panels */
+html.light-mode #profileDropdown,
+html.light-mode [id$="Dropdown"],
+html.light-mode [id$="BellDropdown"] {
+  background-color: var(--lm-bg-card) !important;
+  border-color: var(--lm-border) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+/* Modals */
+html.light-mode .fixed.inset-0[class*="bg-black"] > div,
+html.light-mode .fixed.inset-0[class*="z-\[60\]"] > div,
+html.light-mode .fixed.inset-0[class*="z-\[70\]"] > div {
+  background-color: var(--lm-bg-card) !important;
+  border-color: var(--lm-border) !important;
+}
+
+/* — Animation adjustments — */
+html.light-mode .dashboard-surface:hover {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.10) !important;
+}
+
+/* — Theme toggle button — */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+}
+.theme-toggle-btn:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+html.light-mode .theme-toggle-btn {
+  color: rgba(26,20,16,0.65);
+}
+html.light-mode .theme-toggle-btn:hover {
+  background: rgba(26,20,16,0.06);
+  color: var(--lm-text);
+}
+
+/* — Signup theme preference cards — */
+.theme-choice-card {
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.theme-choice-card.active {
+  border-color: #e53e3e;
+}
+.theme-choice-card--dark {
+  background: #0d0d0d;
+  color: #fff;
+}
+.theme-choice-card--light {
+  background: #f7f4ef;
+  color: #1a1410;
+  border-color: #e2ddd8;
+}
+.theme-choice-card--light.active {
+  border-color: #e53e3e;
 }

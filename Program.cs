@@ -59,6 +59,11 @@ builder.Services.AddSingleton<UploadScanningService>();
 builder.Services.AddSingleton<AutomatedVerificationAssessmentService>();
 builder.Services.AddSingleton<MessageProtectionService>();
 builder.Services.AddSingleton<BookingMessageStreamService>();
+builder.Services.AddSingleton<EmailService>();
+builder.Services.AddSingleton<TicketPdfService>();
+builder.Services.AddHostedService<EventReminderService>();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ImajinationAPI.Hubs.EventScanBroadcaster>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = "HybridAuth";
@@ -240,19 +245,21 @@ app.Use(async (context, next) =>
         "https://cdn.tailwindcss.com",
         "https://unpkg.com",
         "https://accounts.google.com",
-        "https://cdn.jsdelivr.net"
+        "https://cdn.jsdelivr.net",
+        "https://code.iconify.design",
+        "'wasm-unsafe-eval'"
     };
 
     context.Response.Headers["Content-Security-Policy"] =
         "default-src 'self' data: blob: https:; " +
-        "img-src 'self' data: blob: https:; " +
+        "img-src 'self' data: blob: https: http:; " +
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://accounts.google.com; " +
         "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com https://accounts.google.com; " +
         "font-src 'self' data: https://fonts.gstatic.com; " +
         $"script-src {string.Join(' ', scriptSources)}; " +
         "script-src-attr 'unsafe-inline'; " +
         "frame-src 'self' https://accounts.google.com; " +
-        "connect-src 'self' https:; " +
+        "connect-src 'self' https: wss: ws:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self'; " +
@@ -325,7 +332,8 @@ app.Use(async (context, next) =>
         requestPath.StartsWithSegments("/api/auth/google-login", StringComparison.OrdinalIgnoreCase) ||
         requestPath.StartsWithSegments("/api/auth/mfa/complete-login", StringComparison.OrdinalIgnoreCase) ||
         requestPath.StartsWithSegments("/api/auth/send-otp", StringComparison.OrdinalIgnoreCase) ||
-        requestPath.StartsWithSegments("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase);
+        requestPath.StartsWithSegments("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase) ||
+        requestPath.StartsWithSegments("/api/partner/apply", StringComparison.OrdinalIgnoreCase); // public partner form
     var isRealtimeMessagePost =
         HttpMethods.IsPost(context.Request.Method) &&
         requestPath.StartsWithSegments("/api/message/booking", StringComparison.OrdinalIgnoreCase);
@@ -370,6 +378,7 @@ app.UseAuthorization();
 
 // Map the routes
 app.MapControllers();
+app.MapHub<ImajinationAPI.Hubs.EventScanHub>("/hubs/event-scan");
 
 app.Run();
 

@@ -80,16 +80,18 @@ namespace ImajinationAPI.Controllers
         private readonly string _paymongoSecretKey;
         private readonly MessageProtectionService _messageProtection;
         private readonly IConfiguration _configuration;
+        private readonly ImajinationAPI.Services.EmailService _emailService;
         private const decimal BookingServiceFee = 15m;
         private const decimal PayMongoMinimumAmount = 15m;
         private const decimal FixedTalentPlatformFee = 15m;
 
-        public BookingController(IConfiguration configuration, MessageProtectionService messageProtection)
+        public BookingController(IConfiguration configuration, MessageProtectionService messageProtection, ImajinationAPI.Services.EmailService emailService)
         {
             _configuration = configuration;
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _paymongoSecretKey = configuration["PayMongo:SecretKey"] ?? string.Empty;
             _messageProtection = messageProtection;
+            _emailService = emailService;
         }
 
         private static string NormalizePaymentStatus(string? rawStatus)
@@ -338,9 +340,6 @@ namespace ImajinationAPI.Controllers
                 }
 
                 var normalizedRole = NormalizeTargetRole(req.targetRole);
-                var normalizedRequesterRole = actorRole.Equals("Organizer", StringComparison.OrdinalIgnoreCase)
-                    ? "Organizer"
-                    : "Customer";
                 if ((string.Equals(normalizedRole, "Artist", StringComparison.OrdinalIgnoreCase) ||
                      string.Equals(normalizedRole, "Sessionist", StringComparison.OrdinalIgnoreCase)) &&
                     !await CommunitySupport.IsIdentityApprovedAsync(connection, req.targetUserId, normalizedRole))
@@ -350,14 +349,12 @@ namespace ImajinationAPI.Controllers
 
                 var notes = string.IsNullOrWhiteSpace(req.notes) ? req.message : req.notes;
                 var protectedNotes = string.IsNullOrWhiteSpace(notes) ? null : _messageProtection.Protect(notes);
-                var bookingFee = normalizedRequesterRole == "Organizer" ? 0m : BookingServiceFee;
+                var bookingFee = BookingServiceFee;
                 var talentPlatformFee = CalculateTalentPlatformFee(normalizedRole, req.budget);
-                var initialStatus = normalizedRequesterRole == "Organizer"
-                    ? $"Pending {normalizedRole} Approval"
-                    : $"Awaiting {normalizedRole} Fee Payment";
-                var paymentStatus = normalizedRequesterRole == "Organizer" ? "NotRequired" : "Unpaid";
-                var serviceFeeStatus = normalizedRequesterRole == "Organizer" ? "NotRequired" : "Unpaid";
-                var talentPlatformFeeStatus = normalizedRequesterRole == "Organizer" && talentPlatformFee <= 0 ? "NotRequired" : (talentPlatformFee > 0 ? "Unpaid" : "NotRequired");
+                var initialStatus = $"Awaiting {normalizedRole} Fee Payment";
+                var paymentStatus = "Unpaid";
+                var serviceFeeStatus = "Unpaid";
+                var talentPlatformFeeStatus = talentPlatformFee > 0 ? "Unpaid" : "NotRequired";
                 await EnsureNotificationsTableExists(connection);
 
                 var bookingWindows = new List<(DateTime Start, DateTime End)>();
@@ -391,7 +388,7 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "Add at least one booking date and end time." });
                 }
 
-                if (normalizedRequesterRole == "Customer")
+                if (string.Equals(actorRole, "Customer", StringComparison.OrdinalIgnoreCase))
                 {
                     var activeBookingsForRole = await CountActiveBookingsForCustomerAsync(connection, req.customerId, normalizedRole);
                     if (activeBookingsForRole + bookingWindows.Count > 20)
@@ -464,13 +461,21 @@ namespace ImajinationAPI.Controllers
                         "booking");
                 }
 
+                // Fire-and-forget: email talent about the new request
+                var (custFirst, custLast) = await GetUserNameAsync(connection, req.customerId);
+                var customerDisplayName = $"{custFirst} {custLast}".Trim();
+                if (string.IsNullOrWhiteSpace(customerDisplayName)) customerDisplayName = "A customer";
+                _ = _emailService.SendBookingRequestEmailAsync(
+                    connection, req.targetUserId, customerDisplayName, normalizedRole,
+                    req.eventTitle ?? "Untitled Event",
+                    req.bookingSlots?.FirstOrDefault()?.eventDate ?? req.eventDate,
+                    req.location, req.budget);
+
                 return Ok(new
                 {
-                    message = normalizedRequesterRole == "Organizer"
-                        ? (bookingIds.Count > 1 ? $"{bookingIds.Count} booking requests created and sent to the talent." : "Booking request created and sent to the talent.")
-                        : bookingIds.Count > 1
-                            ? $"{bookingIds.Count} booking requests were created. Continue with the first service-fee payment to start the first chat thread."
-                            : $"Booking created. Pay the {FormatPeso(BookingServiceFee)} service fee to open the chat.",
+                    message = bookingIds.Count > 1
+                        ? $"{bookingIds.Count} booking requests were created. Continue with the first service-fee payment to start the first chat thread."
+                        : $"Booking created. Pay the {FormatPeso(BookingServiceFee)} service fee to open the chat.",
                     bookingId = bookingIds.FirstOrDefault(),
                     bookingIds,
                     bookingCount = bookingIds.Count,
@@ -1153,6 +1158,45 @@ namespace ImajinationAPI.Controllers
                 {
                     await InsertNotification(connection, targetUserId, "booking_status", "Booking cancelled", $"The customer cancelled the booking for {eventTitle}.", bookingId, "booking");
                 }
+
+                // Fire-and-forget emails for key status transitions
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await using var emailConn = new NpgsqlConnection(_connectionString);
+                        await emailConn.OpenAsync();
+                        var (tFirst, tLast) = await GetUserNameAsync(emailConn, targetUserId);
+                        var targetDisplayName = $"{tFirst} {tLast}".Trim();
+                        if (string.IsNullOrWhiteSpace(targetDisplayName)) targetDisplayName = targetRole;
+
+                        if (normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase))
+                        {
+                            await _emailService.SendBookingConfirmedEmailAsync(
+                                emailConn, customerId, targetDisplayName, targetRole,
+                                eventTitle, eventDate, location, budget);
+                        }
+                        else if (completionFinalized)
+                        {
+                            await _emailService.SendBookingCompletedEmailAsync(
+                                emailConn, customerId, targetUserId, targetDisplayName, eventTitle);
+                        }
+                        else if (normalizedStatus.Equals($"Cancelled by {targetRole}", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var (cFirst, _) = await GetUserNameAsync(emailConn, customerId);
+                            await _emailService.SendBookingCancelledEmailAsync(
+                                emailConn, customerId, targetDisplayName, eventTitle, isRefundIssued: true);
+                        }
+                        else if (normalizedStatus.Equals("Cancelled by Customer", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var (cFirst, _) = await GetUserNameAsync(emailConn, customerId);
+                            var custName = string.IsNullOrWhiteSpace(cFirst) ? "The customer" : cFirst;
+                            await _emailService.SendBookingCancelledEmailAsync(
+                                emailConn, targetUserId, custName, eventTitle, isRefundIssued: false);
+                        }
+                    }
+                    catch { /* email errors never break main flow */ }
+                });
 
                 var responseMessage = normalizedStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase)
                     ? "Booking completed and settlement finalized."
@@ -2424,7 +2468,7 @@ namespace ImajinationAPI.Controllers
                     platformFeeStatus = reader.IsDBNull(10) ? "Unpaid" : reader.GetString(10);
                 }
 
-                var isCustomerSide = actorUserId.Value == customerId || actorRole.Equals("Organizer", StringComparison.OrdinalIgnoreCase);
+                var isCustomerSide = actorUserId.Value == customerId;
                 var isTargetSide = actorUserId.Value == targetUserId || actorRole.Equals(targetRole, StringComparison.OrdinalIgnoreCase);
                 if (!isCustomerSide && !isTargetSide && !actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
                 {
@@ -3163,6 +3207,16 @@ namespace ImajinationAPI.Controllers
         {
             var normalized = (role ?? "").Trim().ToLowerInvariant();
             return normalized == "sessionist" ? "Sessionist" : "Artist";
+        }
+
+        private static async Task<(string first, string last)> GetUserNameAsync(NpgsqlConnection connection, Guid userId)
+        {
+            const string sql = "SELECT COALESCE(firstname,''), COALESCE(lastname,'') FROM users WHERE id=@id LIMIT 1;";
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@id", userId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync()) return (reader.GetString(0), reader.GetString(1));
+            return ("", "");
         }
 
         private static string FormatPeso(decimal amount)

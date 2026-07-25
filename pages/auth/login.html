@@ -1,16 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IMAJINATION - Sign In</title>
+  <title>Tugs! - Sign In</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -29,7 +30,7 @@
       class="w-full h-16 flex items-center justify-center border-b border-white/10 bg-black/30 backdrop-blur-md">
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-9 w-32 sm:h-10 sm:w-36 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
         </div>
       </a>
     </nav>
@@ -107,7 +108,7 @@
               <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-white/45 mb-3">Member Portal</p>
               <h2 class="text-4xl xl:text-[3.35rem] font-extrabold tracking-tight text-white leading-[0.95] mb-4">
                 Sign in and step back into the scene.
-                <span class="block text-red-600 mt-2">IMAJINATION</span>
+                <span class="block text-red-600 mt-2">TUGS!</span>
               </h2>
               <p class="text-base text-white/70 leading-relaxed max-w-xl mb-6">
                 Track bookings, discover gigs, message collaborators, and move through your dashboard without extra steps.
@@ -190,6 +191,18 @@
 
     function normalizeRole(role) {
       return (role || '').trim().toLowerCase();
+    }
+
+    function getPostLoginRedirect() {
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get('returnTo');
+      if (returnTo && returnTo.startsWith('/pages/')) return returnTo;
+      const storedEventId = localStorage.getItem('checkoutReturnEventId');
+      if (storedEventId) {
+        localStorage.removeItem('checkoutReturnEventId');
+        return `/pages/bookings/Checkout.html?id=${encodeURIComponent(storedEventId)}`;
+      }
+      return '/';
     }
 
     function persistUserSession(data) {
@@ -326,12 +339,12 @@
           }
 
           persistUserSession(mfaData);
-          window.location.href = '/';
+          window.location.href = getPostLoginRedirect();
           return;
         }
 
         persistUserSession(data);
-        window.location.href = '/';
+        window.location.href = getPostLoginRedirect();
       } catch (error) {
         status.textContent = error.message || 'Google Sign-In failed.';
       }
@@ -387,7 +400,7 @@
             if (mfaData?.signedOutOtherDevices) {
               sessionStorage.setItem('loginSessionNotice', 'This sign-in ended your older sessions on other devices.');
             }
-            window.location.href = '/';
+            window.location.href = getPostLoginRedirect();
             return;
           }
 
@@ -396,7 +409,7 @@
           if (data?.signedOutOtherDevices) {
             sessionStorage.setItem('loginSessionNotice', 'This sign-in ended your older sessions on other devices.');
           }
-          window.location.href = '/';
+          window.location.href = getPostLoginRedirect();
         } else {
           const serverMessage = data?.message || 'Login failed.';
           const isServerError = response.status >= 500;

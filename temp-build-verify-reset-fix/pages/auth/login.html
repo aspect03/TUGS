@@ -1,0 +1,514 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Sign In</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white"
+  style="font-family: 'Montserrat', system-ui, sans-serif;">
+
+  <div class="pointer-events-none fixed inset-0 z-0">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_60%)]"></div>
+    <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black"></div>
+  </div>
+
+  <main class="relative z-10 w-full min-h-screen flex flex-col">
+    <nav
+      class="w-full h-16 flex items-center justify-center border-b border-white/10 bg-black/30 backdrop-blur-md">
+      <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+        <div class="h-9 w-32 sm:h-10 sm:w-36 flex items-center">
+          <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
+        </div>
+      </a>
+    </nav>
+
+    <section id="auth" class="max-w-6xl mx-auto px-6 py-6 md:py-8 flex-1 flex items-center">
+      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,470px)_minmax(0,1fr)] gap-6 lg:gap-8 items-center w-full">
+
+        <div class="bg-white/5 rounded-3xl border border-white/10 p-6 md:p-7 max-w-xl w-full mx-auto backdrop-blur-sm self-center shadow-[0_20px_60px_-30px_rgba(0,0,0,0.85)]">
+          <div class="mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400/80 mb-2">Account Access</p>
+            <h3 class="text-2xl font-semibold tracking-tight text-white">Welcome back</h3>
+            <p class="text-sm md:text-base text-white/60 mt-2">Enter your details to sign in.</p>
+          </div>
+
+          <form id="loginForm" class="space-y-4">
+            <div class="space-y-2">
+              <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Email address</label>
+              <input type="email" id="email" placeholder="name@example.com" required
+                class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-shadow">
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex items-center justify-between gap-4">
+                <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Password</label>
+                <a href="/pages/auth/forgotpassword.html"
+                  class="text-xs font-semibold uppercase tracking-[0.12em] text-white/60 hover:text-white">Forgot Password</a>
+              </div>
+
+              <div class="relative">
+                <input type="password" id="password" placeholder="••••••••" required
+                  class="w-full pl-4 pr-12 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-shadow">
+                <button type="button" onclick="togglePassword('password', 'eyeIcon')"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white">
+                  <i data-lucide="eye" id="eyeIcon" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <p id="lockoutMsg" class="text-xs text-red-500 font-semibold hidden text-center mt-2"></p>
+            <button type="submit" id="loginBtn"
+              class="w-full inline-flex items-center justify-center py-3 px-4 bg-red-600 text-white rounded-xl text-xs font-semibold uppercase tracking-[0.16em] hover:bg-red-500 transition-colors mt-2 disabled:bg-red-900 disabled:text-white/50 disabled:cursor-not-allowed">Sign
+              in</button>
+          </form>
+
+          <div class="relative my-4">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-white/10"></div>
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+              <span class="bg-neutral-900 px-4 text-white/50 font-medium tracking-wider">Or continue with</span>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div id="googleButtonWrap" class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3">
+              <div id="googleSignInButton" class="flex justify-center"></div>
+            </div>
+            <p id="googleSignInStatus" class="hidden text-center text-xs font-medium text-white/60"></p>
+          </div>
+
+          <p class="text-center text-sm text-white/60 mt-5">
+            Don't have an account?
+            <a href="/pages/auth/signuproles.html" class="font-semibold text-white hover:text-red-400 transition-colors">Sign up</a>
+          </p>
+
+          <div class="mt-4 border-t border-white/10 pt-4">
+            <p class="text-center text-[10px] text-white/40 uppercase">Dashboard access now requires a real sign-in session.</p>
+          </div>
+        </div>
+
+        <div class="hidden lg:flex flex-col justify-center">
+          <div class="rounded-[2rem] border border-white/10 bg-black/20 backdrop-blur-sm p-8 xl:p-9 min-h-[520px] relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(55%_45%_at_65%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_70%)]"></div>
+            <div class="relative z-10">
+              <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-white/45 mb-3">Member Portal</p>
+              <h2 class="text-4xl xl:text-[3.35rem] font-extrabold tracking-tight text-white leading-[0.95] mb-4">
+                Sign in and step back into the scene.
+                <span class="block text-red-600 mt-2">TUGS!</span>
+              </h2>
+              <p class="text-base text-white/70 leading-relaxed max-w-xl mb-6">
+                Track bookings, discover gigs, message collaborators, and move through your dashboard without extra steps.
+              </p>
+
+              <div class="grid grid-cols-2 gap-4 max-w-xl mb-6">
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[10px] uppercase tracking-widest text-white/45">Live Discovery</p>
+                  <p class="text-lg font-semibold text-white mt-2">Events, artists, sessionists</p>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <p class="text-[10px] uppercase tracking-widest text-white/45">Fast Access</p>
+                  <p class="text-lg font-semibold text-white mt-2">Tickets, bookings, messages</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    let googleClientReady = false;
+    let googleClientConfig = null;
+
+    function renderGoogleUnavailable(buttonHost, label) {
+      buttonHost.innerHTML = `<button type="button" disabled class="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-white/40 cursor-not-allowed"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>${label}</button>`;
+    }
+
+    async function waitForGoogleLibrary(timeoutMs = 5000) {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (window.google?.accounts?.id) {
+          return;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      throw new Error('Google Sign-In library did not load.');
+    }
+
+    function isOriginConfigurationError(message) {
+      return /origin|registered origin|not allowed|403/i.test(message || '');
+    }
+
+    async function readResponsePayload(response) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          return await response.json();
+        } catch {
+          return {};
+        }
+      }
+
+      const text = await response.text();
+      return {
+        message: text || `Request failed with status ${response.status}.`
+      };
+    }
+
+    // TOGGLE PASSWORD VISIBILITY FUNCTION
+    function togglePassword(inputId, iconId) {
+      const input = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        input.type = 'password';
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+    }
+
+    function normalizeRole(role) {
+      return (role || '').trim().toLowerCase();
+    }
+
+    function persistUserSession(data) {
+      const safeFirstName = (data.firstName || '').trim();
+      const safeUsername = (data.username || '').trim();
+      const safeSessionToken = (data.sessionToken || '').trim();
+
+      localStorage.setItem('userId', data.id);
+      localStorage.setItem('userFirstName', safeFirstName);
+      localStorage.setItem('userRole', (data.role || '').trim());
+      localStorage.setItem('username', safeUsername);
+      localStorage.setItem('userEmail', data.email || '');
+      localStorage.setItem('userProfilePicture', data.profilePicture || '');
+      if (safeSessionToken) {
+        localStorage.setItem('sessionToken', safeSessionToken);
+      } else {
+        localStorage.removeItem('sessionToken');
+      }
+      localStorage.removeItem('accessToken');
+    }
+
+    function storePendingGoogleSignup(data) {
+      sessionStorage.setItem('pendingGoogleSignup', JSON.stringify({
+        email: data.email || '',
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+        fullName: data.fullName || '',
+        suggestedUsername: data.suggestedUsername || '',
+        profilePicture: data.profilePicture || ''
+      }));
+    }
+
+    async function requestMfaCode() {
+      return window.systemDialog.prompt(
+        'Enter the 6-digit code from your authenticator app to finish signing in.',
+        {
+          title: 'Multi-Factor Authentication',
+          kicker: 'Secure Sign-In',
+          placeholder: '6-digit authenticator code',
+          okText: 'Verify',
+          cancelText: 'Cancel',
+          required: true
+        }
+      );
+    }
+
+    async function initializeGoogleSignIn() {
+      const status = document.getElementById('googleSignInStatus');
+      const buttonHost = document.getElementById('googleSignInButton');
+
+      try {
+        const configResponse = await fetch('/api/auth/google-client-id');
+        googleClientConfig = await readResponsePayload(configResponse);
+
+        if (!configResponse.ok || !googleClientConfig.clientId) {
+          renderGoogleUnavailable(buttonHost, 'Google Sign-In Unavailable');
+          throw new Error(googleClientConfig?.message || 'Google Sign-In is not configured.');
+        }
+
+        await waitForGoogleLibrary();
+
+        window.google.accounts.id.initialize({
+          client_id: googleClientConfig.clientId,
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          ux_mode: 'popup'
+        });
+
+        buttonHost.innerHTML = '';
+        window.google.accounts.id.renderButton(buttonHost, {
+          theme: 'outline',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          width: Math.min(360, Math.max(260, buttonHost.clientWidth || 320))
+        });
+
+        googleClientReady = true;
+        status.classList.add('hidden');
+      } catch (error) {
+        renderGoogleUnavailable(buttonHost, 'Google Sign-In Unavailable');
+        const message = error?.message || 'Google Sign-In is unavailable right now.';
+        status.textContent = isOriginConfigurationError(message) && googleClientConfig?.setupHint
+          ? `${message} ${googleClientConfig.setupHint}`
+          : message;
+        status.classList.remove('hidden');
+      }
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      const status = document.getElementById('googleSignInStatus');
+
+      try {
+        if (!response?.credential) {
+          const originHint = googleClientConfig?.setupHint
+            || `Add ${window.location.origin} to Authorized JavaScript origins for your Google Web client.`;
+          throw new Error(`Google did not return a sign-in credential. If Google shows "origin not allowed", update the Google Cloud OAuth Web client. ${originHint}`);
+        }
+
+        status.textContent = 'Signing in with Google...';
+        status.classList.remove('hidden');
+
+        const loginResponse = await fetch('/api/auth/google-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+
+        const data = await readResponsePayload(loginResponse);
+        if (!loginResponse.ok) {
+          if (loginResponse.status === 409 && data?.signUpRequired) {
+            storePendingGoogleSignup(data);
+            window.location.href = '/pages/auth/signuproles.html?from=google';
+            return;
+          }
+          throw new Error(data?.message || 'Google Sign-In failed.');
+        }
+
+        if (data?.mfaRequired && data?.mfaTicket) {
+          const code = await requestMfaCode();
+          if (!code) {
+            throw new Error('MFA verification is required to continue.');
+          }
+
+          const mfaResponse = await fetch('/api/auth/mfa/complete-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
+          });
+          const mfaData = await readResponsePayload(mfaResponse);
+          if (!mfaResponse.ok) {
+            throw new Error(mfaData?.message || 'Authenticator verification failed.');
+          }
+
+          persistUserSession(mfaData);
+          window.location.href = '/';
+          return;
+        }
+
+        persistUserSession(data);
+        window.location.href = '/';
+      } catch (error) {
+        status.textContent = error.message || 'Google Sign-In failed.';
+      }
+    }
+
+    // LOGIN & LOCKOUT LOGIC
+    let lockoutInterval = null;
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const loginBtn = document.getElementById('loginBtn');
+      const lockoutMsg = document.getElementById('lockoutMsg');
+
+      try {
+        loginBtn.innerText = "Signing in...";
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await readResponsePayload(response);
+
+        if (response.ok) {
+          if (data?.mfaRequired && data?.mfaTicket) {
+            const code = await requestMfaCode();
+            if (!code) {
+              await window.systemDialog.alert('Sign-in paused until you complete MFA.', {
+                title: 'MFA Required',
+                kicker: 'Account Access'
+              });
+              return;
+            }
+
+            const mfaResponse = await fetch('/api/auth/mfa/complete-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ mfaTicket: data.mfaTicket, code })
+            });
+            const mfaData = await readResponsePayload(mfaResponse);
+            if (!mfaResponse.ok) {
+              await window.systemDialog.alert(mfaData?.message || 'Authenticator verification failed.', {
+                title: 'MFA Failed',
+                kicker: 'Account Access'
+              });
+              return;
+            }
+
+            clearClientLockout(loginBtn, lockoutMsg);
+            persistUserSession(mfaData);
+            if (mfaData?.signedOutOtherDevices) {
+              sessionStorage.setItem('loginSessionNotice', 'This sign-in ended your older sessions on other devices.');
+            }
+            window.location.href = '/';
+            return;
+          }
+
+          clearClientLockout(loginBtn, lockoutMsg);
+          persistUserSession(data);
+          if (data?.signedOutOtherDevices) {
+            sessionStorage.setItem('loginSessionNotice', 'This sign-in ended your older sessions on other devices.');
+          }
+          window.location.href = '/';
+        } else {
+          const serverMessage = data?.message || 'Login failed.';
+          const isServerError = response.status >= 500;
+
+          if (isServerError) {
+            await window.systemDialog.alert('Unable to sign in right now. Please try again in a moment.', {
+              title: 'Sign-In Unavailable',
+              kicker: 'System Message'
+            });
+            return;
+          }
+
+          if (response.status === 429 && Number.isFinite(Number(data?.retryAfterSeconds))) {
+            triggerLockout(loginBtn, lockoutMsg, Number(data.retryAfterSeconds));
+          } else {
+            await window.systemDialog.alert(serverMessage, {
+              title: 'Sign-In Notice',
+              kicker: 'Account Access'
+            });
+          }
+        }
+      } catch (error) {
+        await window.systemDialog.alert('Failed to connect to the server.', {
+          title: 'Connection Problem',
+          kicker: 'System Message'
+        });
+      } finally {
+        if (!loginBtn.disabled) loginBtn.innerText = "Sign in";
+      }
+    });
+
+    function clearClientLockout(btn, msgElement) {
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+        lockoutInterval = null;
+      }
+      btn.disabled = false;
+      btn.innerText = "Sign in";
+      msgElement.classList.add('hidden');
+    }
+
+    function triggerLockout(btn, msgElement, seconds) {
+      btn.disabled = true;
+      msgElement.classList.remove('hidden');
+      let timeLeft = Math.max(1, Number(seconds) || 30);
+
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+      }
+
+      lockoutInterval = setInterval(() => {
+        msgElement.innerText = `Too many failed attempts. Try again in ${timeLeft}s.`;
+        timeLeft--;
+        if (timeLeft < 0) {
+          clearClientLockout(btn, msgElement);
+        }
+      }, 1000);
+    }
+
+    function clearHandledLoginState(params, keysToDelete = []) {
+      let changed = false;
+      keysToDelete.forEach((key) => {
+        if (params.has(key)) {
+          params.delete(key);
+          changed = true;
+        }
+      });
+
+      if (!changed) return;
+
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+      window.history.replaceState({}, document.title, nextUrl);
+    }
+
+    window.addEventListener('load', () => {
+      const params = new URLSearchParams(window.location.search);
+
+      if (localStorage.getItem('sessionTimedOut') === '1') {
+        localStorage.removeItem('sessionTimedOut');
+        window.systemDialog?.alert?.('Your session timed out due to inactivity. Please sign in again.');
+        clearHandledLoginState(params, ['timeout']);
+      }
+
+      const sessionReason = params.get('session') || localStorage.getItem('sessionEndedReason') || '';
+      if (sessionReason === 'another-device' || sessionReason === 'another_device') {
+        localStorage.removeItem('sessionEndedReason');
+        window.systemDialog?.alert?.('This account was signed in on another device, so your older session was ended for security.', {
+          title: 'Signed Out',
+          kicker: 'Session Protection'
+        });
+        clearHandledLoginState(params, ['session']);
+      } else if (sessionReason === 'expired' || sessionReason === 'session_ended') {
+        localStorage.removeItem('sessionEndedReason');
+        window.systemDialog?.alert?.('Your previous session is no longer active. Please sign in again.', {
+          title: 'Session Ended',
+          kicker: 'Account Access'
+        });
+        clearHandledLoginState(params, ['session']);
+      }
+
+      const loginSessionNotice = sessionStorage.getItem('loginSessionNotice');
+      if (loginSessionNotice) {
+        sessionStorage.removeItem('loginSessionNotice');
+        window.systemDialog?.alert?.(loginSessionNotice, {
+          title: 'Session Updated',
+          kicker: 'Device Security'
+        });
+      }
+      initializeGoogleSignIn();
+    });
+  </script>
+</body>
+
+</html>

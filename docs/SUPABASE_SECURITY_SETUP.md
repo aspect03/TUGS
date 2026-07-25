@@ -1,4 +1,4 @@
-## Supabase Security And Recovery Setup
+﻿## Supabase Security And Recovery Setup
 
 Use environment variables for local development and deployment so your database and Brevo credentials are not stored in `appsettings.json`.
 
@@ -8,7 +8,7 @@ Use environment variables for local development and deployment so your database 
 $env:ConnectionStrings__SupabaseConnection = "Host=YOUR_SUPABASE_HOST;Port=5432;Database=postgres;Username=postgres;Password=YOUR_DB_PASSWORD;SSL Mode=Require;Trust Server Certificate=true;Timeout=5;Command Timeout=10;"
 $env:EmailSettings__SmtpServer = "smtp-relay.brevo.com"
 $env:EmailSettings__Port = "587"
-$env:EmailSettings__SenderName = "Imajination Accounts"
+$env:EmailSettings__SenderName = "Tugs! Accounts"
 $env:EmailSettings__SenderEmail = "YOUR_VERIFIED_SENDER_EMAIL"
 $env:EmailSettings__Username = "YOUR_BREVO_SMTP_USERNAME"
 $env:EmailSettings__Password = "YOUR_BREVO_SMTP_PASSWORD"

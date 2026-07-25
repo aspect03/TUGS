@@ -1,12 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Secure Checkout</title>
+  <title>Tugs! - Secure Checkout</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
 </head>
@@ -23,8 +24,22 @@
         <p class="text-[10px] text-red-500 uppercase tracking-widest font-bold mb-2">Order Summary</p>
         <h2 id="checkoutEventTitle" class="text-3xl font-extrabold text-white mb-4 leading-tight">Loading...</h2>
 
-        <div id="pricingPhaseBadge" class="hidden px-3 py-1 border rounded-md text-xs font-bold uppercase tracking-wider mb-6 w-fit">
+        <div id="pricingPhaseBadge" class="hidden px-3 py-1 border rounded-md text-xs font-bold uppercase tracking-wider mb-3 w-fit">
           Loading Phase...
+        </div>
+
+        <div id="saleBanner" class="hidden mb-6 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <div class="flex items-center gap-2">
+              <i data-lucide="tag" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
+              <span id="saleBannerLabel" class="text-emerald-300 text-xs font-bold uppercase tracking-wider"></span>
+            </div>
+            <div id="saleCountdown" class="hidden items-center gap-1.5 text-[11px] text-white/50">
+              <i data-lucide="clock" class="w-3 h-3 shrink-0"></i>
+              <span>Ends in</span>
+              <span id="saleCountdownTimer" class="font-mono font-bold text-emerald-300 tabular-nums"></span>
+            </div>
+          </div>
         </div>
 
         <img id="checkoutEventImg" src="" class="w-full h-48 object-cover rounded-xl border border-white/10 mb-6 hidden" alt="Event poster">
@@ -35,13 +50,24 @@
           <span>Subtotal</span>
           <span id="displaySubtotal">PHP 0.00</span>
         </div>
+        <div id="saleDiscountRow" class="hidden justify-between items-center text-sm font-medium text-emerald-400">
+          <span id="saleDiscountLabel">Discount</span>
+          <span id="displayDiscount">-PHP 0.00</span>
+        </div>
         <div class="flex justify-between items-center text-sm font-medium text-white/70">
           <span id="serviceFeeLabel">Ticket Service Fee (5%)</span>
           <span id="displayFee">PHP 0.00</span>
         </div>
-        <div class="flex justify-between items-center text-xl font-extrabold text-white pt-3 border-t border-white/10">
+        <div class="flex justify-between items-center text-sm font-medium text-white/70">
+          <span>Platform Fee</span>
+          <span id="displayPlatformFee">PHP 0.00</span>
+        </div>
+        <div class="flex justify-between items-start text-xl font-extrabold text-white pt-3 border-t border-white/10">
           <span>Total to Pay</span>
-          <span id="displayTotal" class="text-red-500">PHP 0.00</span>
+          <div class="text-right">
+            <span id="displayOriginalTotal" class="text-white/35 text-sm font-medium line-through block hidden"></span>
+            <span id="displayTotal" class="text-red-500">PHP 0.00</span>
+          </div>
         </div>
       </div>
     </div>
@@ -80,7 +106,10 @@
 
   <script>lucide.createIcons();</script>
   <script>
+    function escapeHtml(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+
     let currentTicketServiceFeeRate = 0.05;
+    let currentPlatformFeePerTicket = 10;  // ₱10 per ticket — platform revenue
 
     function formatPeso(amount) {
       const numericAmount = Number.isFinite(amount) ? amount : 0;
@@ -107,39 +136,67 @@
     }
 
     function updateTotal() {
-      const selectedTier = document.querySelector('input[name="tier"]:checked');
-      if (!selectedTier) return;
+      // Fall back to first available radio if none is checked
+      let selectedTier = document.querySelector('input[name="tier"]:checked');
+      if (!selectedTier) {
+        const first = document.querySelector('input[name="tier"]:not([disabled])') || document.querySelector('input[name="tier"]');
+        if (first) { first.checked = true; selectedTier = first; } else return;
+      }
 
       const basePrice = parseFloat(selectedTier.getAttribute('data-price'));
+      const originalPrice = parseFloat(selectedTier.getAttribute('data-original-price') || selectedTier.getAttribute('data-price'));
       const qty = parseInt(document.getElementById('ticketQty').value, 10);
 
       const subtotal = basePrice * qty;
       const serviceFee = subtotal * currentTicketServiceFeeRate;
-      const total = subtotal + serviceFee;
+      const platformFee = currentPlatformFeePerTicket * qty;
+      const total = subtotal + serviceFee + platformFee;
 
-      document.getElementById('displaySubtotal').innerText = formatPeso(subtotal);
+      const originalSubtotal = originalPrice * qty;
+      const originalServiceFee = originalSubtotal * currentTicketServiceFeeRate;
+      const originalTotal = originalSubtotal + originalServiceFee + platformFee;
+      const discountAmount = originalSubtotal - subtotal;
+      const hasSale = discountAmount > 0.001;
+
+      document.getElementById('displaySubtotal').innerText = formatPeso(originalSubtotal);
       document.getElementById('displayFee').innerText = formatPeso(serviceFee);
+      document.getElementById('displayPlatformFee').innerText = formatPeso(platformFee);
       document.getElementById('displayTotal').innerText = formatPeso(total);
       document.getElementById('btnTotal').innerText = formatPeso(total);
+
+      const discountRow = document.getElementById('saleDiscountRow');
+      if (hasSale) {
+        document.getElementById('displayDiscount').innerText = `-${formatPeso(discountAmount)}`;
+        discountRow.classList.remove('hidden');
+        discountRow.classList.add('flex');
+      } else {
+        discountRow.classList.add('hidden');
+        discountRow.classList.remove('flex');
+      }
+
+      const origTotalEl = document.getElementById('displayOriginalTotal');
+      if (hasSale) {
+        origTotalEl.innerText = formatPeso(originalTotal);
+        origTotalEl.classList.remove('hidden');
+      } else {
+        origTotalEl.classList.add('hidden');
+      }
+    }
+
+    function getAuthHeaders(extra = {}) {
+      const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+      return {
+        'Content-Type': 'application/json',
+        ...(sessionToken ? { 'X-Session-Token': sessionToken } : {}),
+        ...extra
+      };
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
       const customerId = localStorage.getItem('userId');
-      const currentRole = localStorage.getItem('userRole');
-      if (!customerId) {
-        window.location.href = '/pages/auth/login.html';
-        return;
-      }
-
-      if (currentRole === 'Artist' || currentRole === 'Sessionist') {
-        await showSystemAlert('Artists and Sessionists cannot purchase event tickets.', 'Access Restricted');
-        history.back();
-        return;
-      }
-
-      if (currentRole === 'Organizer') {
-        await showSystemAlert('Organizers cannot purchase tickets for events.', 'Access Restricted');
-        history.back();
+      const sessionToken = (localStorage.getItem('sessionToken') || '').trim();
+      if (!customerId || !sessionToken) {
+        window.location.href = '/pages/auth/login.html?session=expired';
         return;
       }
 
@@ -151,16 +208,26 @@
       }
 
       try {
-        const res = await fetch(`/api/ticket/event-checkout/${eventId}`);
+        // Fetch checkout data + tiers in parallel — always use dedicated tiers endpoint
+        const [res, tiersRes] = await Promise.all([
+          fetch(`/api/ticket/event-checkout/${eventId}`, { headers: { 'X-Session-Token': sessionToken } }),
+          fetch(`/api/event/${eventId}/tiers`, { cache: 'no-store' }).catch(() => null)
+        ]);
         const ev = await readApiPayload(res);
         if (!res.ok) throw new Error(ev.message || 'Failed to load checkout details.');
+
+        const tiersFromEndpoint = tiersRes?.ok ? await tiersRes.json().catch(() => []) : [];
+        const mainTiers = Array.isArray(ev.tiers) ? ev.tiers : [];
+        ev.tiers = (Array.isArray(tiersFromEndpoint) && tiersFromEndpoint.length > 0)
+          ? tiersFromEndpoint : mainTiers;
 
         document.getElementById('checkoutEventTitle').innerText = ev.title;
         document.getElementById('checkoutEventImg').src = ev.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30';
         document.getElementById('checkoutEventImg').classList.remove('hidden');
 
 
-        currentTicketServiceFeeRate = Number(ev.ticketServiceFeeRate || 0.05);
+        currentTicketServiceFeeRate  = Number(ev.ticketServiceFeeRate  || 0.05);
+        currentPlatformFeePerTicket  = Number(ev.platformFeePerTicket  || 10);
         const maxTicketsPerCustomer = Math.max(1, Math.min(10, Number(ev.maxTicketsPerCustomer || 5)));
         const badgeTone = String(ev.pricingPhaseTone || 'blue').toLowerCase();
         const badgeClassMap = {
@@ -174,65 +241,166 @@
         const badge = document.getElementById('pricingPhaseBadge');
         badge.innerText = phaseLabel;
         badge.classList.remove('hidden');
-        badge.className = `inline-block px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider mb-6 border ${badgeClasses}`;
+        badge.className = `inline-block px-3 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider mb-3 border ${badgeClasses}`;
         document.getElementById('serviceFeeLabel').innerText = ev.ticketServiceFeeLabel || `Ticket Service Fee (${(currentTicketServiceFeeRate * 100).toFixed(0)}%)`;
 
+        const saleActive = !!ev.saleActive;
+        const pricingMultiplier = Number(ev.pricingMultiplier || 1);
+
+        if (saleActive) {
+          const saleSuffix = String(ev.saleType || '').toLowerCase() === 'percent'
+            ? `${Number(ev.saleValue).toFixed(0)}% OFF`
+            : `PHP ${Number(ev.saleValue).toFixed(0)} OFF`;
+          let saleLabel = `${ev.saleName || 'Sale'} • ${saleSuffix}`;
+          if (ev.saleQuantityLimit != null) {
+            const remaining = ev.saleQuantityRemaining ?? (ev.saleQuantityLimit - (ev.saleQuantityUsed || 0));
+            saleLabel += ` • ${Math.max(0, remaining)} promo ticket${remaining === 1 ? '' : 's'} left`;
+          }
+          document.getElementById('saleBannerLabel').innerText = saleLabel;
+          document.getElementById('saleBanner').classList.remove('hidden');
+          document.getElementById('saleDiscountLabel').innerText = ev.saleName || 'Sale Discount';
+
+          if (ev.saleEndsAt) {
+            const endsAt = new Date(ev.saleEndsAt);
+            const countdownWrap = document.getElementById('saleCountdown');
+            const timerEl = document.getElementById('saleCountdownTimer');
+            countdownWrap.classList.remove('hidden');
+            countdownWrap.classList.add('flex');
+            const tick = () => {
+              const msLeft = endsAt - new Date();
+              if (msLeft <= 0) { timerEl.innerText = 'Ended'; clearInterval(saleTimer); return; }
+              const h = Math.floor(msLeft / 3600000);
+              const m = Math.floor((msLeft % 3600000) / 60000);
+              const s = Math.floor((msLeft % 60000) / 1000);
+              timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            };
+            tick();
+            const saleTimer = setInterval(tick, 1000);
+          }
+        }
+
+        const priceCell = (displayPrice, originalPrice, colorClass = 'text-red-400') => {
+          if (saleActive && Math.abs(parseFloat(originalPrice) - parseFloat(displayPrice)) > 0.001) {
+            return `<div class="text-right leading-tight">
+              <span class="text-white/35 text-xs line-through block">${formatPeso(parseFloat(originalPrice))}</span>
+              <span class="font-bold text-emerald-400">${formatPeso(parseFloat(displayPrice))}</span>
+            </div>`;
+          }
+          return `<span class="font-bold ${colorClass}">${formatPeso(parseFloat(displayPrice))}</span>`;
+        };
+
         const tierContainer = document.getElementById('tierOptionsContainer');
-        tierContainer.innerHTML = '';
 
-        const finalBasePrice = Number(ev.displayBasePrice || ev.basePrice || 0).toFixed(2);
+        // ── Use new event_tiers if present; fall back to legacy single-tier ──
+        // Note: checkout API returns ev.slots (not ev.totalSlots) — support both
+        const eventTiers = Array.isArray(ev.tiers) && ev.tiers.length > 0
+          ? ev.tiers.map(t => ({ ...t,
+              price: t.price ?? 0,
+              displayPrice: t.displayPrice ?? t.price ?? 0,
+              totalSlots: t.totalSlots ?? 0,
+              slotsSold: t.slotsSold ?? 0
+            }))
+          : [{ name: 'General Admission', price: ev.basePrice || ev.price || 0, totalSlots: ev.totalSlots || ev.slots || 0, slotsSold: ev.ticketsSold || 0, description: null, color: '#059669' }];
 
-        tierContainer.innerHTML += `
-          <label class="cursor-pointer block">
-            <input type="radio" name="tier" value="General Admission" data-price="${finalBasePrice}" class="peer hidden" checked>
-            <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
-              <span class="font-semibold text-white">General Admission</span>
-              <span class="font-bold text-red-400">${formatPeso(parseFloat(finalBasePrice))}</span>
-            </div>
-          </label>
-        `;
+        // Build all tier HTML at once to avoid innerHTML += re-parse losing checked state
+        let tierHtmlParts = [];
+        let firstAvailableIdx = -1;
 
-        if (ev.tierName && (ev.displayTierPrice || ev.tierPrice)) {
-          const finalTierPrice = Number(ev.displayTierPrice || ev.tierPrice || 0).toFixed(2);
-          tierContainer.innerHTML += `
-            <label class="cursor-pointer block mt-2">
-              <input type="radio" name="tier" value="${ev.tierName}" data-price="${finalTierPrice}" class="peer hidden">
-              <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
-                <span class="font-semibold text-yellow-500">${ev.tierName}</span>
-                <span class="font-bold text-red-400">${formatPeso(parseFloat(finalTierPrice))}</span>
-              </div>
-            </label>
-          `;
-        }
+        eventTiers.forEach((tier, idx) => {
+          const baseP = Number(tier.price || 0);
+          // Use tier's own displayPrice if API provided it, otherwise apply promo to first tier
+          const hasDisplayPrice = tier.displayPrice != null && Number(tier.displayPrice) !== Number(tier.price);
+          const usePromo = !hasDisplayPrice && idx === 0 && ev.saleActive;
+          const dispP = hasDisplayPrice ? Number(tier.displayPrice) : (usePromo ? Number(ev.displayBasePrice || baseP) : baseP);
+          const totalSlots = Number(tier.totalSlots || 0);
+          const slotsSold  = Number(tier.slotsSold  || 0);
+          // Only mark sold out when we KNOW capacity: totalSlots > 0 AND fully sold
+          const soldOut  = totalSlots > 0 && slotsSold >= totalSlots;
+          const remaining = totalSlots > 0 ? Math.max(0, totalSlots - slotsSold) : null; // null = unknown
+          const tierColor = tier.color || '#e53e3e';
+          if (firstAvailableIdx === -1 && !soldOut) firstAvailableIdx = idx;
 
-        if (Array.isArray(ev.bundleTiers)) {
-          ev.bundleTiers.forEach(bundle => {
-            const parsedName = bundle.tierName;
-            const finalParsedPrice = Number(bundle.displayPrice || 0).toFixed(2);
-            tierContainer.innerHTML += `
-              <label class="cursor-pointer block mt-2">
-                <input type="radio" name="tier" value="${parsedName}" data-price="${finalParsedPrice}" class="peer hidden">
-                <div class="p-3 border border-white/10 rounded-xl flex justify-between items-center peer-checked:bg-red-600/10 peer-checked:border-red-500 transition-colors">
-                  <span class="font-semibold text-purple-400">${parsedName}</span>
-                  <span class="font-bold text-red-400">${formatPeso(parseFloat(finalParsedPrice))}</span>
+          const availText = soldOut
+            ? '<span class="text-red-400">Sold Out</span>'
+            : remaining === null
+              ? ''  // no slot data — don't show availability
+              : remaining <= 10
+                ? `<span class="text-amber-400">Only ${remaining} left!</span>`
+                : `<span class="text-white/35">${remaining} available</span>`;
+
+          tierHtmlParts.push(`
+            <label class="cursor-pointer block ${idx > 0 ? 'mt-2' : ''}">
+              <input type="radio" name="tier" value="${tier.name}"
+                data-price="${dispP.toFixed(2)}"
+                data-original-price="${baseP.toFixed(2)}"
+                data-remaining="${remaining !== null ? remaining : 9999}"
+                class="peer hidden"
+                ${soldOut ? 'disabled' : ''}>
+              <div class="p-3.5 border rounded-xl transition-all ${soldOut ? 'opacity-40 cursor-not-allowed border-white/5' : 'border-white/10 peer-checked:border-transparent peer-checked:shadow-[0_0_0_2px_var(--tier-color)]'}" style="--tier-color:${tierColor}">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="w-3 h-3 rounded-full flex-shrink-0 mt-0.5" style="background:${tierColor}"></span>
+                    <div class="min-w-0">
+                      <p class="font-bold text-white text-sm truncate">${escapeHtml(tier.name)}</p>
+                      ${tier.description ? `<p class="text-xs text-white/50 mt-0.5">${escapeHtml(tier.description)}</p>` : ''}
+                      <p class="text-[10px] mt-1 uppercase tracking-wider font-semibold">${availText}</p>
+                    </div>
+                  </div>
+                  <div class="flex-shrink-0 text-right">
+                    ${priceCell(dispP.toFixed(2), baseP.toFixed(2), 'text-white')}
+                  </div>
                 </div>
-              </label>
-            `;
-          });
+              </div>
+            </label>`);
+        });
+
+        // Set innerHTML once so the DOM is stable, then check the first available radio
+        tierContainer.innerHTML = tierHtmlParts.join('');
+
+        // Check the first available (non-sold-out) tier, or first tier if all sold out
+        const radioToCheck = tierContainer.querySelectorAll('input[name="tier"]')[
+          firstAvailableIdx >= 0 ? firstAvailableIdx : 0
+        ];
+        if (radioToCheck) radioToCheck.checked = true;
+
+        tierContainer.querySelectorAll('input[name="tier"]').forEach(radio => {
+          radio.addEventListener('change', () => { updateTotal(); rebuildQtySelector(); });
+        });
+
+        function rebuildQtySelector() {
+          const qtySelect = document.getElementById('ticketQty');
+          if (!qtySelect) return;
+          const promoRemaining = (ev.saleActive && ev.saleQuantityLimit != null)
+            ? (ev.saleQuantityRemaining ?? ev.saleQuantityLimit)
+            : null;
+          const checkedRadio = document.querySelector('input[name="tier"]:checked');
+          const tierRem = checkedRadio ? parseInt(checkedRadio.dataset.remaining ?? '9999') : 9999;
+          const effectiveMax = Math.min(
+            maxTicketsPerCustomer,
+            promoRemaining != null ? Math.max(1, promoRemaining) : 9999,
+            tierRem > 0 ? tierRem : maxTicketsPerCustomer   // 0 remaining → use max (sold out tier)
+          );
+          const prev = qtySelect.value;
+          qtySelect.innerHTML = '';
+          for (let qty = 1; qty <= Math.max(1, effectiveMax); qty++) {
+            const opt = document.createElement('option');
+            opt.value = String(qty);
+            opt.textContent = `${qty} Ticket${qty === 1 ? '' : 's'}${promoRemaining != null ? ' (promo)' : ''}`;
+            qtySelect.appendChild(opt);
+          }
+          if (promoRemaining != null && promoRemaining < maxTicketsPerCustomer) {
+            const note = document.createElement('option');
+            note.disabled = true;
+            note.textContent = `— Only ${promoRemaining} promo ticket${promoRemaining === 1 ? '' : 's'} left —`;
+            qtySelect.insertBefore(note, qtySelect.firstChild);
+          }
+          // Restore previous qty if still valid
+          if (prev && parseInt(prev) <= effectiveMax) qtySelect.value = prev;
         }
 
-        const qtySelect = document.getElementById('ticketQty');
-        qtySelect.innerHTML = '';
-        for (let qty = 1; qty <= maxTicketsPerCustomer; qty += 1) {
-          const option = document.createElement('option');
-          option.value = String(qty);
-          option.textContent = `${qty} Ticket${qty === 1 ? '' : 's'}`;
-          qtySelect.appendChild(option);
-        }
-
-        document.querySelectorAll('input[name="tier"]').forEach(radio => radio.addEventListener('change', updateTotal));
+        rebuildQtySelector();
         document.getElementById('ticketQty').addEventListener('change', updateTotal);
-        updateTotal();
+        updateTotal(); // safe now — radio is checked, qty is built
       } catch (error) {
         await showSystemAlert(error.message || 'Error loading checkout details.', 'Checkout Error');
         history.back();
@@ -252,12 +420,24 @@
         const finalTotalToCharge = rawPrice + fee;
 
         const currentOrigin = window.location.origin;
-        let dynamicSuccessUrl = `${window.location.origin}/pages/dashboards/CustomerDashboard.html`;
+        const role = (localStorage.getItem('userRole') || '').trim();
+        const isSessionist = role === 'Sessionist' || localStorage.getItem('sessionistDashboard') === '1';
+        const roleDashboard = role === 'Artist'
+          ? '/pages/dashboards/ArtistDashboard.html'
+          : isSessionist
+            ? '/pages/dashboards/SessionistDashboard.html'
+            : role === 'Organizer'
+              ? '/pages/dashboards/OrganizerDashboard.html'
+              : role === 'Admin'
+                ? '/pages/dashboards/ProfileAdmin.html'
+                : '/pages/dashboards/CustomerDashboard.html';
+
+        let dynamicSuccessUrl = `${window.location.origin}${roleDashboard}`;
         let dynamicCancelUrl = `${window.location.origin}/pages/bookings/Checkout.html?id=${eventId}`;
 
         if (currentOrigin !== 'null' && !currentOrigin.startsWith('file')) {
           const basePath = window.location.pathname.replace('/pages/bookings/Checkout.html', '');
-          dynamicSuccessUrl = currentOrigin + basePath + '/pages/dashboards/CustomerDashboard.html';
+          dynamicSuccessUrl = currentOrigin + basePath + roleDashboard;
           dynamicCancelUrl = window.location.href;
         }
 
@@ -274,9 +454,18 @@
         try {
           const res = await fetch('/api/ticket/checkout', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload)
           });
+
+          // Session expired — redirect to login, return to checkout after
+          if (res.status === 401) {
+            localStorage.setItem('checkoutReturnEventId', eventId);
+            await showSystemAlert('Your session has expired. Please sign in again to complete your purchase.', 'Session Expired');
+            window.location.href = `/pages/auth/login.html?session=expired&returnTo=/pages/bookings/Checkout.html?id=${encodeURIComponent(eventId)}`;
+            return;
+          }
+
           const data = await readApiPayload(res);
 
           if (res.ok && data.checkoutUrl) {
@@ -284,11 +473,11 @@
             return;
           }
 
-          console.error('SERVER ERROR REASON:', data.message || data.title || data);
-          await showSystemAlert(
-            `Checkout failed: ${data.message || data.title || `Request returned ${res.status}.`}`,
-            'Checkout Failed'
-          );
+          console.error('SERVER ERROR REASON:', data.message || data.title || data.details || data);
+          const failureMessage = data.details
+            ? `${data.message || data.title || `Request returned ${res.status}.`}\n\nDetails: ${data.details}`
+            : (data.message || data.title || `Request returned ${res.status}.`);
+          await showSystemAlert(`Checkout failed: ${failureMessage}`, 'Checkout Failed');
         } catch (error) {
           console.error('Network Error:', error);
           await showSystemAlert(

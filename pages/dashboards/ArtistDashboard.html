@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Artist Dashboard</title>
+  <title>Tugs! - Artist Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
@@ -33,7 +34,7 @@
     <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
       <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
         <div class="h-8 w-28 sm:w-32 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
         </div>
       </a>
       
@@ -41,7 +42,6 @@
         <a href="/" class="hover:text-white/90 transition-colors">Home</a>
         <a href="/pages/browse/Events.html" class="hover:text-white/90 transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="hover:text-white/90 transition-colors">Artists</a>
-        <a href="/pages/browse/Sessionists.html" class="hover:text-white/90 transition-colors">Sessionists</a>
         <a href="/pages/browse/Community.html" class="hover:text-white/90 transition-colors">Community</a>
       </div>
 
@@ -110,6 +110,10 @@
         <button onclick="openArtistSchedulesView()" id="tabBtn-schedules" class="w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
           <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="calendar-range" class="w-3.5 h-3.5"></i></span>
           <span>Schedules</span>
+        </button>
+        <button onclick="switchTab('my-tickets')" id="tabBtn-my-tickets" class="w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150">
+          <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.08] border border-white/[0.08] flex-shrink-0"><i data-lucide="ticket" class="w-3.5 h-3.5"></i></span>
+          <span>My Tickets</span>
         </button>
       </nav>
 
@@ -243,18 +247,43 @@
             </div>
 
             <div class="bg-black/40 border border-white/10 rounded-2xl p-4 space-y-4">
-              <div>
-                <h3 class="text-xs font-bold uppercase tracking-widest text-white/60">Calendar Control</h3>
-                <p class="text-xs text-white/45 mt-2">Block dates when you do not want people to book you.</p>
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="text-xs font-bold uppercase tracking-widest text-white/60">Availability Calendar</h3>
+                  <p class="text-xs text-white/45 mt-1">Click any date to block or unblock it. Blocked dates are hidden from booking requests.</p>
+                </div>
+                <div class="flex items-center gap-3 text-[10px] text-white/40">
+                  <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-red-500/40 border border-red-500/30"></span>Blocked</span>
+                  <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500/20 border border-emerald-500/25"></span>Available</span>
+                </div>
               </div>
-              <form id="artistCalendarBlockForm" class="grid grid-cols-1 md:grid-cols-[180px_minmax(0,1fr)_auto] gap-3">
-                <input type="date" id="artistBlockedDateInput" required class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
-                <input type="text" id="artistBlockReasonInput" placeholder="Reason (optional)" class="w-full px-4 py-3 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none">
-                <button type="submit" class="px-5 py-3 bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-[0.18em] rounded-xl transition-colors">Block Day</button>
-              </form>
-              <div id="artistCalendarBlockList" class="space-y-3">
-                <p class="text-sm text-white/50">Loading blocked dates...</p>
+
+              <!-- Month navigation -->
+              <div class="flex items-center justify-between">
+                <button type="button" id="calPrevMonth" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white transition-all">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                </button>
+                <p id="calMonthLabel" class="text-sm font-bold text-white"></p>
+                <button type="button" id="calNextMonth" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white transition-all">
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
               </div>
+
+              <!-- Calendar grid -->
+              <div id="artistCalendarGrid" class="select-none">
+                <!-- Injected by JS -->
+              </div>
+
+              <!-- Quick block reason (shown after clicking a day) -->
+              <div id="calBlockReasonRow" class="hidden flex items-center gap-3">
+                <input type="text" id="calBlockReasonInput" placeholder="Optional: reason for blocking this date"
+                  class="flex-1 px-3 py-2.5 bg-black/60 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+                <button type="button" id="calConfirmBlockBtn" class="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors whitespace-nowrap">Block Date</button>
+                <button type="button" id="calCancelBlockBtn" class="px-4 py-2.5 bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">Cancel</button>
+              </div>
+
+              <!-- Compact list of all blocked dates -->
+              <div id="artistCalendarBlockList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
             </div>
           </section>
         </div>
@@ -391,6 +420,21 @@
                 <div id="artist-profile-details" class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] space-y-6 backdrop-blur-md shadow-2xl">
                   <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-2 border-b border-white/10 pb-4">2. Artist Details</h3>
 
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">First Name</label>
+                      <input type="text" id="firstNameInput" placeholder="First name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                    </div>
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Last Name</label>
+                      <input type="text" id="lastNameInput" placeholder="Last name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                    </div>
+                    <div class="space-y-3">
+                      <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Stage Name</label>
+                      <input type="text" id="stageNameInput" placeholder="Public artist name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
+                    </div>
+                  </div>
+
                   <div class="space-y-3">
                     <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Main Genres (Comma Separated)</label>
                     <input type="text" id="genresInput" placeholder="e.g. Rock, Acoustic, Indie Pop" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
@@ -482,7 +526,7 @@
                     <div class="space-y-3 text-xs text-white/65">
                       <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                         <input id="artistVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
-                        <span>I confirm this Philippine ID belongs to me and I allow IMAJINATION admins to review the document for account verification.</span>
+                        <span>I confirm this Philippine ID belongs to me and I allow Tugs! Admins to review the document for account verification.</span>
                       </label>
                       <label class="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                         <input id="artistFaceVerificationConsent" type="checkbox" class="mt-1 h-4 w-4 rounded border-white/20 bg-black/60 text-emerald-400 focus:ring-emerald-500">
@@ -501,7 +545,20 @@
                 </div>
 
                 <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Password Recovery</h3>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Security</h3>
+                  <div class="rounded-2xl border border-white/10 bg-black/40 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                    <div>
+                      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white">Change Password</p>
+                      <p class="text-sm text-white/65 mt-2">Verify with your current password and a one-time code sent to your artist email.</p>
+                    </div>
+                    <button id="openChangePasswordModalBtn" type="button" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-neutral-950 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-neutral-200 transition-colors">
+                      <i data-lucide="shield-check" class="w-4 h-4"></i> Change Password
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">5. Password Recovery</h3>
                   <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
@@ -559,12 +616,91 @@
             </div>
           </div>
         </div>
+
+        <!-- MY TICKETS VIEW -->
+        <div id="view-my-tickets" class="hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-extrabold text-white tracking-tight mb-1">My Tickets</h2>
+            <p class="text-xs text-white/50">Tickets you've purchased for events on the platform.</p>
+          </div>
+
+          <!-- Filter pills -->
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-ticket-filter="all"     class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/25 text-red-300 text-[10px] font-bold uppercase tracking-wider transition-colors">All</button>
+            <button type="button" data-ticket-filter="upcoming" class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Upcoming</button>
+            <button type="button" data-ticket-filter="used"    class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Scanned</button>
+            <button type="button" data-ticket-filter="expired" class="talent-ticket-filter-btn px-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors">Expired</button>
+          </div>
+
+          <div id="talentTicketsList" class="space-y-4">
+            <p class="text-sm text-white/40 text-center py-8">Loading tickets…</p>
+          </div>
+        </div>
+
       </nav>
     </main>
   </div>
 
+  <!-- Ticket Receipt Modal (Artist) -->
+  <div id="talentTicketModal" class="fixed inset-0 z-[70] hidden flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm animate-pop-in relative">
+      <div class="receipt-paper p-8 text-sm overflow-y-auto max-h-[90vh]">
+        <button id="closeTalentTicketModal" aria-label="Close receipt" class="absolute top-3 right-3 inline-flex items-center justify-center w-9 h-9 rounded-full border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+        <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">TUGS!</h2>
+          <p class="text-xs text-gray-500">Official E-Ticket</p>
+        </div>
+        <div class="flex justify-center mb-6 relative">
+          <img id="talentTicketQrImg" src="" alt="QR Code" class="w-40 h-40 border-4 border-white shadow-sm rounded-lg bg-white">
+          <div id="talentQrUsedOverlay" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden rounded-lg">
+            <span class="font-extrabold text-2xl rotate-12 tracking-widest text-red-600 border-4 border-red-600 px-3 py-1 rounded">USED</span>
+          </div>
+        </div>
+        <div id="talentTicketUnitNav" class="hidden mb-6">
+          <div class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+            <button id="talentTicketPrevUnit" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Prev</button>
+            <p id="talentTicketUnitLabel" class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Ticket 1 of 1</p>
+            <button id="talentTicketNextUnit" type="button" class="px-3 py-1.5 rounded-lg border border-gray-300 text-[10px] font-bold uppercase tracking-widest text-gray-700 hover:bg-white transition-colors">Next</button>
+          </div>
+        </div>
+        <div class="space-y-3 mb-6 border-b border-gray-300 pb-6 border-dashed">
+          <div><p class="text-[10px] text-gray-500 uppercase tracking-widest">Event</p><p id="talentRTitle" class="font-bold text-base leading-tight mt-0.5">—</p></div>
+          <div><p class="text-[10px] text-gray-500 uppercase tracking-widest">Location &amp; Time</p><p id="talentRLocTime" class="font-bold whitespace-pre-line mt-0.5">—</p></div>
+        </div>
+        <div class="space-y-2 mb-6 border-b border-gray-300 pb-6 border-dashed text-sm">
+          <div class="flex justify-between"><span class="text-gray-600">Tier:</span><span id="talentRTier" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Qty:</span><span id="talentRQty" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Phase:</span><span id="talentRPhase" class="font-bold">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Subtotal:</span><span id="talentRSubtotal" class="font-bold">₱0.00</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Service Fee:</span><span id="talentRFee" class="font-bold">₱0.00</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Payment:</span><span id="talentRMethod" class="font-bold uppercase">—</span></div>
+          <div class="flex justify-between"><span class="text-gray-600">Date Bought:</span><span id="talentRDate" class="font-bold text-[10px]">—</span></div>
+        </div>
+        <div class="flex justify-between items-center text-lg font-bold mb-4">
+          <span>TOTAL:</span><span id="talentRTotal">₱0.00</span>
+        </div>
+        <div class="text-center text-xs text-gray-500 space-y-1">
+          <p>Ticket ID: <span id="talentRId" class="font-mono font-bold">—</span></p>
+          <p class="font-bold mt-2" id="talentQrInstruction">Present this QR code at the entrance.</p>
+        </div>
+        <div id="talentUsedWarning" class="hidden mt-4 p-3 bg-red-100 text-center rounded-lg border border-red-200">
+          <p class="text-xs font-extrabold text-red-600 tracking-wider">THIS TICKET HAS BEEN SCANNED.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     lucide.createIcons();
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
     let base64Image = null;
     let artistBookings = [];
     let artistNotifications = [];
@@ -576,6 +712,8 @@
     let artistProfileImageDirty = false;
     let artistVerificationApproved = false;
     let artistCalendarBlocks = [];
+    let artistCalendarBlocksLoaded = false;
+    let artistCalendarBlocksLoading = false;
     let artistPostsLoaded = false;
     const artistVerificationUploads = {
       artistVerificationIdFront: null,
@@ -609,8 +747,15 @@
       }).format(value || 0);
     }
 
+    function getArtistDraftDisplayName() {
+      const stageName = document.getElementById('stageNameInput')?.value?.trim() || '';
+      const firstName = document.getElementById('firstNameInput')?.value?.trim() || '';
+      const lastName = document.getElementById('lastNameInput')?.value?.trim() || '';
+      return stageName || `${firstName} ${lastName}`.trim() || localStorage.getItem('userDisplayName') || localStorage.getItem('userFirstName') || 'Artist';
+    }
+
     function renderArtistProfilePreview() {
-      const displayName = document.getElementById('sidebarName')?.innerText?.trim() || localStorage.getItem('userFirstName') || 'Artist';
+      const displayName = getArtistDraftDisplayName();
       const avatarSrc = document.getElementById('avatarPreview')?.src || localStorage.getItem('userProfilePicture') || '';
       const genres = document.getElementById('genresInput')?.value?.trim() || 'Genres will appear here after you update your profile.';
       const bio = document.getElementById('bioInput')?.value?.trim() || 'Add a bio so organizers know your sound, performance style, and what you bring to a lineup.';
@@ -627,6 +772,9 @@
         if (element) element.innerText = value;
       };
 
+      setText('sidebarName', displayName);
+      setText('userNameDisplay', displayName);
+      setText('dropdownName', displayName);
       setText('artistPublicDisplayName', displayName);
       setText('artistPublicGenres', genres);
       setText('artistPublicBio', bio);
@@ -918,7 +1066,23 @@
         panel.classList.toggle('bg-emerald-500/15', artistVerificationApproved);
       }
 
-      if (!artistVerificationApproved) return;
+      if (!artistVerificationApproved) {
+        if (statusText) {
+          const level = profile.verificationLevel ? ` • ${profile.verificationLevel}` : '';
+          statusText.innerText = `${profile.verificationStatus || 'Not Submitted'}${level}`;
+        }
+        if (helperText) {
+          helperText.innerText = String(profile.verificationStatus || '').toLowerCase() === 'pending'
+            ? 'Your verification request is waiting for admin review.'
+            : 'Submit your Philippine ID and selfie so admins can verify this account.';
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Submit Verification';
+          submitBtn.className = 'w-full py-4 bg-gradient-to-r from-rose-500 to-red-500 text-white text-[10px] font-bold uppercase tracking-[0.2em] rounded-2xl shadow-[0_18px_45px_rgba(239,68,68,0.28)] transition hover:brightness-110';
+        }
+        return;
+      }
 
       if (statusText) statusText.innerText = 'Approved - Identity Verified';
       if (helperText) helperText.innerText = 'Your Philippine ID and selfie were approved by admin. This verification record is now locked for protection.';
@@ -938,32 +1102,42 @@
         artistPostsLoaded = true;
         await loadArtistPostsManager();
       }
+
+      if (tabName === 'schedules' && !artistCalendarBlocksLoaded && !artistCalendarBlocksLoading) {
+        await loadArtistCalendarBlocks();
+      }
     }
 
     async function switchTab(tabName) {
-      const dashboardView = document.getElementById('view-dashboard');
-      const schedulesView = document.getElementById('view-schedules');
+      const dashboardView   = document.getElementById('view-dashboard');
+      const schedulesView   = document.getElementById('view-schedules');
       const profilePageView = document.getElementById('view-profile-page');
       const editProfileView = document.getElementById('view-edit-profile');
-      const communityView = document.getElementById('view-community');
-      const dashboardBtn = document.getElementById('tabBtn-dashboard');
-      const profilePageBtn = document.getElementById('tabBtn-profile-page');
-      const editProfileBtn = document.getElementById('tabBtn-edit-profile');
-      const communityBtn = document.getElementById('tabBtn-community');
-      const schedulesBtn = document.getElementById('tabBtn-schedules');
+      const communityView   = document.getElementById('view-community');
+      const myTicketsView   = document.getElementById('view-my-tickets');
+      const dashboardBtn    = document.getElementById('tabBtn-dashboard');
+      const profilePageBtn  = document.getElementById('tabBtn-profile-page');
+      const editProfileBtn  = document.getElementById('tabBtn-edit-profile');
+      const communityBtn    = document.getElementById('tabBtn-community');
+      const schedulesBtn    = document.getElementById('tabBtn-schedules');
+      const myTicketsBtn    = document.getElementById('tabBtn-my-tickets');
 
       dashboardView.classList.toggle('hidden', tabName !== 'dashboard');
       schedulesView.classList.toggle('hidden', tabName !== 'schedules');
       profilePageView.classList.toggle('hidden', tabName !== 'profile-page');
       editProfileView.classList.toggle('hidden', tabName !== 'edit-profile');
       communityView.classList.toggle('hidden', tabName !== 'community');
+      if (myTicketsView) myTicketsView.classList.toggle('hidden', tabName !== 'my-tickets');
+
+      if (tabName === 'my-tickets') loadTalentTickets();
 
       [
         [dashboardBtn, tabName === 'dashboard'],
         [profilePageBtn, tabName === 'profile-page'],
         [editProfileBtn, tabName === 'edit-profile'],
         [communityBtn, tabName === 'community'],
-        [schedulesBtn, tabName === 'schedules']
+        [schedulesBtn, tabName === 'schedules'],
+        [myTicketsBtn, tabName === 'my-tickets']
       ].forEach(([button, isActive]) => {
         if (!button) return;
         button.className = isActive
@@ -1013,6 +1187,9 @@
         localStorage.setItem('userFirstName', firstName);
       }
       syncArtistForgotPasswordLink(artist.email);
+      document.getElementById('firstNameInput').value = artist.firstName || '';
+      document.getElementById('lastNameInput').value = artist.lastName || '';
+      document.getElementById('stageNameInput').value = artist.stageName || '';
       document.getElementById('sidebarName').innerText = displayName;
       document.getElementById('userNameDisplay').innerText = displayName;
       document.getElementById('dropdownName').innerText = displayName;
@@ -1030,6 +1207,12 @@
       document.getElementById('spotifyInput').value = artist.spotifyLink || '';
       document.getElementById('bioInput').value = artist.bio.includes("hasn't written") ? '' : artist.bio;
       document.getElementById('basePriceInput').value = artist.basePrice || 0;
+      const verificationRequest = artist.verificationRequest || {};
+      document.getElementById('artistIdType').value = verificationRequest.idType || 'PhilSys National ID';
+      document.getElementById('artistIdLast4').value = verificationRequest.idLast4 || '';
+      document.getElementById('artistVerificationSummary').value = verificationRequest.evidenceSummary || '';
+      document.getElementById('artistVerificationLinks').value = verificationRequest.supportingLinks || '';
+      document.getElementById('artistVerificationReference').value = verificationRequest.referenceContact || verificationRequest.referenceName || '';
       document.getElementById('artistProfileStatusLabel').innerText = artist.isVerified ? 'Identity Verified ✓' : (artist.verificationStatus === 'Approved' ? 'Identity Verified ✓' : artist.verificationStatus === 'Pending' ? 'Verification Pending — awaiting admin review' : 'Not Verified — submit your government ID to get verified');
       document.getElementById('artistProfileStatusPercent').innerText = `${artist.profileCompletionPercent || 0}%`;
       const verificationStatusText = document.getElementById('artistVerificationStatusText');
@@ -1061,18 +1244,30 @@
       const params = new URLSearchParams(window.location.search);
       const requestedTab = params.get('tab');
       const savedTab = sessionStorage.getItem('artistActiveTab');
-      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules'];
-      const initialTab = allowedTabs.includes(requestedTab || '')
-        ? requestedTab
-        : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
+      const allowedTabs = ['dashboard', 'profile-page', 'edit-profile', 'community', 'schedules', 'my-tickets'];
+
+      // Redirect to My Tickets tab after a ticket payment
+      const ticketPaid = params.get('ticketPaid');
+      const ticketId   = params.get('ticketId');
+      const initialTab = ticketPaid === '1'
+        ? 'my-tickets'
+        : allowedTabs.includes(requestedTab || '')
+          ? requestedTab
+          : (allowedTabs.includes(savedTab || '') ? savedTab : 'dashboard');
       await switchTab(initialTab);
+
+      // Confirm payment if returning from checkout
+      if (ticketPaid === '1' && ticketId) {
+        confirmTalentTicketPayment(ticketId);
+      }
       window.initDashboardMfaSettings?.({ containerId: 'artistMfaSettings', title: 'Artist MFA' });
       syncArtistForgotPasswordLink();
 
       await Promise.allSettled([
         loadArtistProfile(userId),
         loadArtistBookings(userId),
-        loadArtistNotifications(userId)
+        loadArtistNotifications(userId),
+        loadArtistCalendarBlocks()
       ]);
       artistNotificationInterval = window.setInterval(() => loadArtistNotifications(userId), 30000);
     });
@@ -1108,6 +1303,262 @@
       localStorage.clear();
       window.location.href = '/pages/auth/login.html';
     }
+
+    // ── MY TICKETS (Artist / Sessionist) ──────────────────────────────────────
+    async function confirmTalentTicketPayment(ticketId) {
+      const delays = [1000, 2000, 2000, 3000, 3000, 4000, 4000, 5000];
+      try {
+        let confirmed = false;
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+            confirmed = true;
+            window.systemDialog?.alert('Your ticket payment has been confirmed! Your ticket is ready.', { title: 'Payment Confirmed', kicker: 'Tickets' });
+            loadTalentTickets();
+            break;
+          }
+          if (attempt < delays.length - 1) await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+        if (!confirmed) {
+          window.systemDialog?.alert('Payment is processing — your ticket will appear shortly. Refresh if needed.', { title: 'Payment Processing', kicker: 'Tickets' });
+        }
+      } catch {
+        window.systemDialog?.alert('Could not verify ticket payment right now. Please refresh.', { title: 'Verification Error', kicker: 'Tickets' });
+      } finally {
+        window.history.replaceState({}, document.title, `${window.location.origin}${window.location.pathname}`);
+      }
+    }
+
+    let talentAllTickets = [];
+    let talentTicketFilter = 'all';
+    let talentActiveQrIndex = 0;
+    let talentActiveQrTicket = null;
+
+    async function loadTalentTickets(forceRefresh = false) {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      const container = document.getElementById('talentTicketsList');
+      if (!container) return;
+      if (talentAllTickets.length > 0 && !forceRefresh) { renderTalentTickets(); return; }
+      container.innerHTML = '<p class="text-sm text-white/40 text-center py-8">Loading tickets…</p>';
+      try {
+        const res = await fetch(`/api/ticket/customer/${userId}`);
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || `Server error ${res.status}`);
+        }
+        talentAllTickets = (await res.json()) || [];
+        renderTalentTickets();
+        const awaiting = talentAllTickets.filter(t =>
+          String(t.paymentMethod || '').toLowerCase() === 'awaitingpayment');
+        if (awaiting.length > 0) autoConfirmPendingTickets(awaiting);
+      } catch (err) {
+        console.error('[ArtistDashboard] loadTalentTickets failed:', err);
+        container.innerHTML = `<p class="text-sm text-red-400 text-center py-8">Failed to load tickets: ${escapeHtml(err.message || 'Unknown error')}</p>`;
+      }
+    }
+
+    async function autoConfirmPendingTickets(awaitingTickets) {
+      let anyConfirmed = false;
+      for (const t of awaitingTickets) {
+        try {
+          const res = await fetch(`/api/ticket/${t.ticketId}/payment/confirm`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') anyConfirmed = true;
+        } catch { /* ignore */ }
+      }
+      if (anyConfirmed) { talentAllTickets = []; await loadTalentTickets(true); }
+    }
+
+    async function retryTalentTicketConfirm(ticketId) {
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+          window.systemDialog?.alert('Payment confirmed! Your ticket is ready.', { title: 'Confirmed', kicker: 'Tickets' });
+          talentAllTickets = []; loadTalentTickets(true);
+        } else {
+          window.systemDialog?.alert('Payment not found yet. If you completed payment, please wait a moment and try again.', { title: 'Still Pending', kicker: 'Tickets' });
+        }
+      } catch { window.systemDialog?.alert('Could not reach the server.', { title: 'Error', kicker: 'Tickets' }); }
+    }
+
+    async function cancelPendingTicket(ticketId) {
+      const ok = await window.systemDialog?.confirm('Remove this pending ticket? Only do this if you did not complete payment.', { title: 'Cancel Ticket', okText: 'Remove' });
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/ticket/${ticketId}/cancel-pending`, { method: 'DELETE', headers: { 'X-Session-Token': localStorage.getItem('sessionToken') || '' } });
+        if (res.ok) { talentAllTickets = talentAllTickets.filter(t => t.ticketId !== ticketId); renderTalentTickets(); }
+        else { const d = await res.json().catch(() => ({})); window.systemDialog?.alert(d.message || 'Could not remove.', { title: 'Error', kicker: 'Tickets' }); }
+      } catch { window.systemDialog?.alert('Could not reach the server.', { title: 'Error', kicker: 'Tickets' }); }
+    }
+
+    function renderTalentTickets() {
+      const container = document.getElementById('talentTicketsList');
+      if (!container) return;
+      const now = Date.now();
+      let tickets = talentAllTickets.map(t => {
+        const qty = Number(t.quantity || 0);
+        const used = Math.max(0, Number(t.usedQuantity || 0));
+        const remaining = Math.max(0, qty - used);
+        const passed = new Date(t.eventTime).getTime() < now - 86400000;
+        const isFullyUsed = qty > 0 && used >= qty;
+        const isExpired = remaining > 0 && (t.eventStatus === 'Finished' || passed);
+        const isAwaiting = String(t.paymentMethod || '').toLowerCase() === 'awaitingpayment';
+        const isUpcoming = remaining > 0 && !isExpired && !isAwaiting;
+        return { ...t, qty, used, remaining, isFullyUsed, isExpired, isAwaiting, isUpcoming };
+      });
+
+      if (talentTicketFilter === 'upcoming') tickets = tickets.filter(t => t.isUpcoming);
+      else if (talentTicketFilter === 'used')    tickets = tickets.filter(t => t.used > 0);
+      else if (talentTicketFilter === 'expired') tickets = tickets.filter(t => t.isExpired);
+
+      if (!tickets.length) {
+        container.innerHTML = `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-8 text-center">
+          <i data-lucide="ticket" class="w-8 h-8 text-white/15 mx-auto mb-3"></i>
+          <p class="text-white/40 text-sm">${talentTicketFilter === 'all' ? 'No tickets purchased yet. Browse events to find something!' : 'No tickets in this category.'}</p>
+          ${talentTicketFilter === 'all' ? '<a href="/pages/browse/Events.html" class="mt-4 inline-flex px-4 py-2 rounded-xl bg-red-600/80 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Browse Events</a>' : ''}
+        </div>`;
+        lucide.createIcons(); return;
+      }
+
+      container.innerHTML = tickets.map((t, i) => {
+        const evDate = new Date(t.eventTime).toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        const ref = String(t.ticketId || '').slice(0,8).toUpperCase();
+        const canQr = !t.isAwaiting && String(t.refundStatus||'') !== 'Refunded';
+
+        let badge = '';
+        let opacity = '';
+        if (t.isAwaiting) { badge='<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase tracking-wide">Awaiting Payment</span>'; opacity='opacity-50'; }
+        else if (String(t.refundStatus||'') === 'Refunded') { badge='<span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold uppercase tracking-wide">Refunded</span>'; opacity='opacity-60 grayscale'; }
+        else if (t.isFullyUsed) { badge='<span class="px-2 py-0.5 rounded bg-neutral-600/30 text-neutral-400 text-[9px] font-bold uppercase tracking-wide">Scanned</span>'; opacity='opacity-50 grayscale'; }
+        else if (t.used > 0) { badge=`<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase tracking-wide">${t.used}/${t.qty} Scanned</span>`; }
+        else if (t.isExpired) { badge='<span class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-bold uppercase tracking-wide">Expired</span>'; opacity='opacity-50 grayscale'; }
+        else { badge='<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase tracking-wide">Valid</span>'; }
+
+        return `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-white/[0.10] transition-colors ${opacity}">
+          <div class="flex-1 min-w-0 space-y-2">
+            <div class="flex items-center gap-2 flex-wrap">${badge}
+              <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider">${escapeHtml(t.tierName||'General')} · ${t.qty} ticket${t.qty!==1?'s':''}</span>
+            </div>
+            <p class="font-bold text-white text-sm truncate">${escapeHtml(t.eventTitle||'Event')}</p>
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/40">
+              <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>${evDate}</span>
+              <span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>${escapeHtml(t.location||'TBA')}</span>
+              <span class="flex items-center gap-1"><i data-lucide="hash" class="w-3 h-3"></i>${ref}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap flex-shrink-0">
+            <span class="text-base font-bold text-white">₱${Number(t.totalPrice||0).toFixed(2)}</span>
+            ${t.isAwaiting ? `<button type="button" onclick="retryTalentTicketConfirm('${t.ticketId}')" class="px-3.5 py-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase tracking-wider hover:bg-amber-500/30 transition-colors flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>Retry</button>` : ''}
+            ${t.isAwaiting ? `<button type="button" onclick="cancelPendingTicket('${t.ticketId}')" class="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/40 hover:text-red-400 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"><i data-lucide="x" class="w-3.5 h-3.5"></i>Cancel</button>` : ''}
+            ${canQr ? `<button type="button" onclick="openTalentTicketQr(${i})" class="px-3.5 py-2 rounded-xl bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"><i data-lucide="qr-code" class="w-3.5 h-3.5"></i>View QR</button>` : ''}
+            ${canQr ? `<a href="/api/ticket/${t.ticketId}/download" target="_blank" class="px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/25 transition-colors flex items-center gap-1.5"><i data-lucide="download" class="w-3.5 h-3.5"></i>PDF</a>` : ''}
+            <a href="/pages/details/EventDetailPage.html?id=${escapeHtml(t.eventId||'')}" class="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-colors">Event</a>
+          </div>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function openTalentTicketQr(listIndex) {
+      const now = Date.now();
+      let t2 = talentAllTickets.map(t => {
+        const qty=Number(t.quantity||0), used=Math.max(0,Number(t.usedQuantity||0));
+        const remaining=Math.max(0,qty-used), passed=new Date(t.eventTime).getTime()<now-86400000;
+        const isFullyUsed=qty>0&&used>=qty, isExpired=remaining>0&&(t.eventStatus==='Finished'||passed);
+        const isAwaiting=String(t.paymentMethod||'').toLowerCase()==='awaitingpayment';
+        return {...t,qty,used,remaining,isFullyUsed,isExpired,isAwaiting};
+      });
+      if (talentTicketFilter==='upcoming') t2=t2.filter(t=>t.isUpcoming);
+      else if (talentTicketFilter==='used') t2=t2.filter(t=>t.used>0);
+      else if (talentTicketFilter==='expired') t2=t2.filter(t=>t.isExpired);
+      talentActiveQrTicket = t2[listIndex];
+      talentActiveQrIndex = 1;
+      populateTalentReceipt();
+      document.getElementById('talentTicketModal').classList.remove('hidden');
+      document.getElementById('talentTicketModal').classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function populateTalentReceipt() {
+      const t = talentActiveQrTicket;
+      if (!t) return;
+      const qty = Math.max(1, Number(t.quantity || 1));
+      const usedUnits = Array.isArray(t.usedTicketUnits) ? t.usedTicketUnits : [];
+      const unitUsed = usedUnits.includes(talentActiveQrIndex);
+
+      const qrData = encodeURIComponent(`${t.ticketId}|${talentActiveQrIndex}`);
+      document.getElementById('talentTicketQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${qrData}`;
+
+      const overlay = document.getElementById('talentQrUsedOverlay');
+      const warning = document.getElementById('talentUsedWarning');
+      const instruction = document.getElementById('talentQrInstruction');
+      if (t.isFullyUsed || unitUsed) {
+        overlay.classList.remove('hidden'); warning.classList.remove('hidden');
+        instruction.innerText = 'This ticket has already been scanned.';
+      } else {
+        overlay.classList.add('hidden'); warning.classList.add('hidden');
+        instruction.innerText = qty > 1 ? `Present ticket ${talentActiveQrIndex} of ${qty} at the entrance.` : 'Present this QR code at the entrance.';
+      }
+
+      const nav = document.getElementById('talentTicketUnitNav');
+      const label = document.getElementById('talentTicketUnitLabel');
+      if (qty > 1) {
+        nav.classList.remove('hidden');
+        label.innerText = `Ticket ${talentActiveQrIndex} of ${qty}`;
+        document.getElementById('talentTicketPrevUnit').disabled = talentActiveQrIndex <= 1;
+        document.getElementById('talentTicketNextUnit').disabled = talentActiveQrIndex >= qty;
+      } else {
+        nav.classList.add('hidden');
+      }
+
+      const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      document.getElementById('talentRTitle').innerText = t.eventTitle || 'Event';
+      document.getElementById('talentRLocTime').innerText = `${t.location || 'TBA'}\n${evDate}`;
+      const phase = t.pricingPhase || 'Pre-Sale';
+      document.getElementById('talentRTier').innerText = t.tierName || 'General Admission';
+      document.getElementById('talentRQty').innerText = qty;
+      document.getElementById('talentRPhase').innerText = Number(t.pricingPhasePercentage||0) > 0 ? `${phase} (+${t.pricingPhasePercentage}%)` : phase;
+      document.getElementById('talentRSubtotal').innerText = `₱${Number(t.subtotal || t.totalPrice || 0).toFixed(2)}`;
+      document.getElementById('talentRFee').innerText = `₱${Number(t.serviceFee || 0).toFixed(2)}`;
+      const m = String(t.paymentMethod||'').toLowerCase();
+      document.getElementById('talentRMethod').innerText = m==='gcash'?'GCash':m==='paymaya'||m==='maya'?'Maya':m==='card'?'Card':m==='paymongo'?'PayMongo':t.paymentMethod||'—';
+      document.getElementById('talentRDate').innerText = t.purchaseDate ? new Date(t.purchaseDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      document.getElementById('talentRTotal').innerText = `₱${Number(t.totalPrice||0).toFixed(2)}`;
+      document.getElementById('talentRId').innerText = String(t.ticketId||'').slice(0,8).toUpperCase();
+    }
+
+    function updateTalentQrModal() { populateTalentReceipt(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const closeTalentModal = () => {
+        document.getElementById('talentTicketModal').classList.add('hidden');
+        document.getElementById('talentTicketModal').classList.remove('flex');
+      };
+      document.getElementById('closeTalentTicketModal')?.addEventListener('click', closeTalentModal);
+      document.getElementById('talentTicketModal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('talentTicketModal')) closeTalentModal();
+      });
+      document.getElementById('talentTicketPrevUnit')?.addEventListener('click', () => {
+        if (talentActiveQrIndex > 1) { talentActiveQrIndex--; populateTalentReceipt(); }
+      });
+      document.getElementById('talentTicketNextUnit')?.addEventListener('click', () => {
+        const qty = Math.max(1, Number(talentActiveQrTicket?.quantity||1));
+        if (talentActiveQrIndex < qty) { talentActiveQrIndex++; populateTalentReceipt(); }
+      });
+      document.querySelectorAll('.talent-ticket-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          talentTicketFilter = btn.dataset.ticketFilter;
+          document.querySelectorAll('.talent-ticket-filter-btn').forEach(b => {
+            const active = b === btn;
+            b.className = `talent-ticket-filter-btn px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors ${active ? 'bg-red-500/15 border border-red-500/25 text-red-300' : 'bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white'}`;
+          });
+          renderTalentTickets();
+        });
+      });
+    });
 
     function formatBookingDate(value) {
       if (!value) return 'Schedule to be confirmed';
@@ -1156,8 +1607,8 @@
       const visible = notifications.slice(0, 8);
       list.innerHTML = visible.map((notification, index) => `
         <button type="button" data-index="${index}" class="artist-bell-item w-full text-left p-3 bg-black/30 border ${notification.isRead ? 'border-white/5' : 'border-red-500/20'} rounded-xl hover:border-white/20 transition-colors">
-          <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
-          <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+          <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${escapeHtml(notification.title || 'Notification')}</p>
+          <p class="text-xs text-white/55 mt-1">${escapeHtml(notification.message || '')}</p>
           <p class="text-[10px] text-white/35 mt-3 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
         </button>
       `).join('');
@@ -1197,10 +1648,10 @@
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-start justify-between gap-2">
-                    <p class="text-sm font-semibold leading-snug ${isNew ? 'text-white' : 'text-white/70'}">${notification.title || 'Notification'}</p>
+                    <p class="text-sm font-semibold leading-snug ${isNew ? 'text-white' : 'text-white/70'}">${escapeHtml(notification.title || 'Notification')}</p>
                     ${isNew ? '<span class="flex-shrink-0 text-[9px] font-bold uppercase tracking-widest text-blue-300 bg-blue-500/15 border border-blue-500/25 px-2 py-0.5 rounded-full">New</span>' : ''}
                   </div>
-                  <p class="text-xs text-white/50 mt-1 leading-relaxed">${notification.message || ''}</p>
+                  <p class="text-xs text-white/50 mt-1 leading-relaxed">${escapeHtml(notification.message || '')}</p>
                   <p class="text-[10px] text-white/30 mt-2 uppercase tracking-widest">${formatNotificationTime(notification.createdAt)}</p>
                 </div>
               </div>
@@ -1306,42 +1757,178 @@
       renderArtistScheduleList('artistAllScheduleContainer', allSchedules, 'No schedules yet.');
     }
 
+    // ── VISUAL CALENDAR ───────────────────────────────────────────────────────
+    let _calViewYear = new Date().getFullYear();
+    let _calViewMonth = new Date().getMonth(); // 0-indexed
+    let _calPendingDate = null; // date string 'YYYY-MM-DD' awaiting block confirmation
+
+    function getBlockedDateSet() {
+      return new Set(artistCalendarBlocks.map(b => {
+        const raw = b.blockedDate || b.blockDate || '';
+        return raw.slice(0, 10);
+      }));
+    }
+
+    function renderCalendarGrid() {
+      const grid = document.getElementById('artistCalendarGrid');
+      const label = document.getElementById('calMonthLabel');
+      if (!grid || !label) return;
+
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+      const firstDay = new Date(_calViewYear, _calViewMonth, 1);
+      const daysInMonth = new Date(_calViewYear, _calViewMonth + 1, 0).getDate();
+      const startDow = firstDay.getDay(); // 0=Sun
+      const blocked = getBlockedDateSet();
+
+      label.innerText = firstDay.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+
+      const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      let html = `<div class="grid grid-cols-7 gap-1 mb-1">
+        ${dayNames.map(d => `<div class="text-center text-[10px] font-bold text-white/25 uppercase tracking-wider py-1">${d}</div>`).join('')}
+      </div>
+      <div class="grid grid-cols-7 gap-1">`;
+
+      // Empty cells before first day
+      for (let i = 0; i < startDow; i++)
+        html += `<div></div>`;
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${_calViewYear}-${String(_calViewMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const isBlocked = blocked.has(dateStr);
+        const isToday = dateStr === today;
+        const isPast = dateStr < today;
+        const isPending = dateStr === _calPendingDate;
+
+        let cls = 'flex items-center justify-center h-9 rounded-xl text-sm font-semibold cursor-pointer transition-all ';
+        if (isPending) cls += 'bg-amber-500/30 border border-amber-400/50 text-amber-200 scale-110 ';
+        else if (isBlocked) cls += 'bg-red-500/25 border border-red-500/30 text-red-300 hover:bg-red-500/40 ';
+        else if (isPast) cls += 'text-white/20 cursor-default ';
+        else if (isToday) cls += 'bg-white/10 border border-white/20 text-white ring-1 ring-white/30 hover:bg-red-500/25 hover:border-red-500/30 ';
+        else cls += 'text-white/70 hover:bg-red-500/20 hover:text-white hover:border hover:border-red-500/20 ';
+
+        html += `<div class="cal-day ${cls}" data-date="${dateStr}" data-blocked="${isBlocked}" data-past="${isPast}">${day}</div>`;
+      }
+
+      html += '</div>';
+      grid.innerHTML = html;
+
+      grid.querySelectorAll('.cal-day').forEach(cell => {
+        cell.addEventListener('click', () => {
+          if (cell.dataset.past === 'true') return;
+          const dateStr = cell.dataset.date;
+          if (cell.dataset.blocked === 'true') {
+            // Unblock immediately
+            const block = artistCalendarBlocks.find(b => (b.blockedDate || b.blockDate || '').slice(0,10) === dateStr);
+            if (block) removeArtistCalendarBlock(block.id);
+          } else {
+            // Show reason input
+            _calPendingDate = dateStr;
+            document.getElementById('calBlockReasonRow')?.classList.remove('hidden');
+            document.getElementById('calBlockReasonInput').value = '';
+            document.getElementById('calBlockReasonInput').focus();
+            renderCalendarGrid();
+          }
+        });
+      });
+    }
+
     function renderArtistCalendarBlocks() {
+      renderCalendarGrid();
       const container = document.getElementById('artistCalendarBlockList');
       if (!container) return;
       if (!artistCalendarBlocks.length) {
-        container.innerHTML = `<p class="text-sm text-white/50">No blocked dates yet.</p>`;
+        container.innerHTML = `<p class="text-xs text-white/35 py-2">No dates blocked yet. Click any future date above to block it.</p>`;
         return;
       }
-
-      container.innerHTML = artistCalendarBlocks.map(block => `
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-black/50 border border-white/10 rounded-2xl">
-          <div>
-            <p class="text-sm font-semibold text-white">${new Date((block.blockedDate || block.blockDate).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-            <p class="text-xs text-white/50 mt-1">${block.reason || 'Blocked manually by artist.'}</p>
+      const sorted = [...artistCalendarBlocks].sort((a,b) => {
+        const da = (a.blockedDate || a.blockDate || '').slice(0,10);
+        const db = (b.blockedDate || b.blockDate || '').slice(0,10);
+        return da.localeCompare(db);
+      });
+      container.innerHTML = sorted.map(block => {
+        const dateStr = (block.blockedDate || block.blockDate || '').slice(0,10);
+        const dateLabel = dateStr ? new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PH', {weekday:'short', month:'short', day:'numeric', year:'numeric'}) : 'Unknown date';
+        return `<div class="flex items-center justify-between gap-3 px-3 py-2.5 bg-red-500/[0.07] border border-red-500/15 rounded-xl">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-red-200">${dateLabel}</p>
+            ${block.reason ? `<p class="text-xs text-white/35 truncate">${block.reason}</p>` : ''}
           </div>
-          <button type="button" data-block-id="${block.id}" class="artist-remove-block px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Remove</button>
-        </div>
-      `).join('');
-
-      container.querySelectorAll('.artist-remove-block').forEach((button) => {
-        button.addEventListener('click', () => removeArtistCalendarBlock(button.dataset.blockId));
+          <button type="button" data-block-id="${block.id}" class="artist-remove-block text-[10px] font-bold uppercase tracking-wider text-white/40 hover:text-red-400 transition-colors flex-shrink-0">Remove</button>
+        </div>`;
+      }).join('');
+      container.querySelectorAll('.artist-remove-block').forEach(btn => {
+        btn.addEventListener('click', () => removeArtistCalendarBlock(btn.dataset.blockId));
       });
     }
+
+    // Wire calendar navigation and confirm buttons (once after DOM ready)
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('calPrevMonth')?.addEventListener('click', () => {
+        _calViewMonth--;
+        if (_calViewMonth < 0) { _calViewMonth = 11; _calViewYear--; }
+        _calPendingDate = null;
+        document.getElementById('calBlockReasonRow')?.classList.add('hidden');
+        renderCalendarGrid();
+      });
+      document.getElementById('calNextMonth')?.addEventListener('click', () => {
+        _calViewMonth++;
+        if (_calViewMonth > 11) { _calViewMonth = 0; _calViewYear++; }
+        _calPendingDate = null;
+        document.getElementById('calBlockReasonRow')?.classList.add('hidden');
+        renderCalendarGrid();
+      });
+      document.getElementById('calCancelBlockBtn')?.addEventListener('click', () => {
+        _calPendingDate = null;
+        document.getElementById('calBlockReasonRow')?.classList.add('hidden');
+        renderCalendarGrid();
+      });
+      document.getElementById('calConfirmBlockBtn')?.addEventListener('click', async () => {
+        if (!_calPendingDate) return;
+        const reason = document.getElementById('calBlockReasonInput').value.trim();
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+        document.getElementById('calConfirmBlockBtn').disabled = true;
+        document.getElementById('calConfirmBlockBtn').innerText = 'Blocking…';
+        try {
+          const res = await fetch('/api/calendar/block', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, role: 'Artist', blockedDate: _calPendingDate, reason: reason || null })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || 'Failed to block date.');
+          _calPendingDate = null;
+          document.getElementById('calBlockReasonRow')?.classList.add('hidden');
+          await loadArtistCalendarBlocks();
+        } catch(err) {
+          alert(err.message || 'Failed to block date.');
+          document.getElementById('calConfirmBlockBtn').disabled = false;
+          document.getElementById('calConfirmBlockBtn').innerText = 'Block Date';
+        }
+      });
+    });
 
     async function loadArtistCalendarBlocks() {
       const userId = localStorage.getItem('userId');
       if (!userId) return;
+      if (artistCalendarBlocksLoading) return;
+
+      artistCalendarBlocksLoading = true;
 
       try {
         const res = await fetch(`/api/calendar/Artist/${userId}`);
         if (!res.ok) throw new Error('Failed to load calendar blocks.');
         const data = await res.json();
         artistCalendarBlocks = Array.isArray(data.blocks) ? data.blocks : [];
+        artistCalendarBlocksLoaded = true;
         renderArtistCalendarBlocks();
       } catch (error) {
+        artistCalendarBlocksLoaded = false;
         const container = document.getElementById('artistCalendarBlockList');
         if (container) container.innerHTML = `<p class="text-sm text-red-400">Failed to load blocked dates.</p>`;
+      } finally {
+        artistCalendarBlocksLoading = false;
       }
     }
 
@@ -1672,6 +2259,9 @@
       btn.innerText = "SAVING..."; btn.disabled = true;
 
       const payload = {
+        firstName: document.getElementById('firstNameInput').value,
+        lastName: document.getElementById('lastNameInput').value,
+        stageName: document.getElementById('stageNameInput').value,
         bio: document.getElementById('bioInput').value,
         genres: document.getElementById('genresInput').value,
         spotifyLink: document.getElementById('spotifyInput').value,
@@ -1707,6 +2297,22 @@
         }
 
         if (res.ok) {
+          if (data.displayName) {
+            localStorage.setItem('userDisplayName', data.displayName);
+            document.getElementById('sidebarName').innerText = data.displayName;
+            document.getElementById('userNameDisplay').innerText = data.displayName;
+            document.getElementById('dropdownName').innerText = data.displayName;
+          }
+          if (typeof data.firstName === 'string') {
+            localStorage.setItem('userFirstName', data.firstName);
+            document.getElementById('firstNameInput').value = data.firstName;
+          }
+          if (typeof data.lastName === 'string') {
+            document.getElementById('lastNameInput').value = data.lastName;
+          }
+          if (typeof data.stageName === 'string') {
+            document.getElementById('stageNameInput').value = data.stageName;
+          }
           if (payload.profilePicture) {
             localStorage.setItem('userProfilePicture', base64Image || '');
             artistProfileImageDirty = false;
@@ -1729,6 +2335,86 @@
         alert(err.message || "Server error.");
       } finally {
         btn.innerText = "SAVE PROFILE CHANGES"; btn.disabled = false;
+      }
+    });
+
+    function openChangePasswordModal() {
+      const modal = document.getElementById('changePasswordModal');
+      if (!modal) return;
+      document.getElementById('modalCurrentPasswordInput').value = '';
+      document.getElementById('modalNewPasswordInput').value = '';
+      document.getElementById('modalOtpInput').value = '';
+      document.getElementById('changePasswordStatus').innerText = 'New passwords must be at least 8 characters and include uppercase, lowercase, number, and special character.';
+      document.getElementById('passwordOtpEmailInput').value = (localStorage.getItem('userEmail') || '').trim();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeChangePasswordModal() {
+      const modal = document.getElementById('changePasswordModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    document.getElementById('openChangePasswordModalBtn')?.addEventListener('click', openChangePasswordModal);
+    document.getElementById('closeChangePasswordModalBtn')?.addEventListener('click', closeChangePasswordModal);
+
+    document.getElementById('sendPasswordOtpBtn')?.addEventListener('click', async () => {
+      const email = (document.getElementById('passwordOtpEmailInput').value || '').trim();
+      const status = document.getElementById('changePasswordStatus');
+      const button = document.getElementById('sendPasswordOtpBtn');
+      if (!email) {
+        status.innerText = 'An email address is required before requesting an OTP.';
+        return;
+      }
+
+      button.disabled = true;
+      button.innerText = 'Sending...';
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to send OTP.');
+        status.innerText = data.message || 'OTP sent successfully.';
+      } catch (error) {
+        status.innerText = error.message || 'Failed to send OTP.';
+      } finally {
+        button.disabled = false;
+        button.innerText = 'Send OTP';
+      }
+    });
+
+    document.getElementById('changePasswordForm')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const status = document.getElementById('changePasswordStatus');
+      const button = document.getElementById('submitChangePasswordBtn');
+      button.disabled = true;
+      button.innerText = 'Changing...';
+
+      try {
+        const res = await fetch(`/api/artist/${localStorage.getItem('userId')}/change-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: document.getElementById('modalCurrentPasswordInput').value,
+            newPassword: document.getElementById('modalNewPasswordInput').value,
+            otp: document.getElementById('modalOtpInput').value
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to change password.');
+        status.innerText = data.message || 'Password changed successfully.';
+        alert(data.message || 'Password changed successfully.');
+        closeChangePasswordModal();
+      } catch (error) {
+        status.innerText = error.message || 'Failed to change password.';
+      } finally {
+        button.disabled = false;
+        button.innerText = 'Change Password';
       }
     });
 
@@ -1805,7 +2491,7 @@
       }
     });
 
-    ['genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
+    ['firstNameInput', 'lastNameInput', 'stageNameInput', 'genresInput', 'spotifyInput', 'bioInput', 'basePriceInput'].forEach((inputId) => {
       document.getElementById(inputId)?.addEventListener('input', renderArtistProfilePreview);
     });
     ['artistVerificationIdFront', 'artistVerificationIdBack', 'artistVerificationSelfie'].forEach((inputId) => {
@@ -1856,6 +2542,47 @@
     });
   </script>
 
+  <div id="changePasswordModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
+    <div class="w-full max-w-xl rounded-[28px] border border-white/10 bg-[#171212] shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div>
+          <h2 class="text-xl font-bold text-white">Change Password</h2>
+          <p class="text-xs text-white/50 mt-1">Verify with your current password and a one-time code sent to your email.</p>
+        </div>
+        <button id="closeChangePasswordModalBtn" type="button" class="text-white/50 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="changePasswordForm" class="p-6 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2 md:col-span-2">
+            <label for="passwordOtpEmailInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Email Address</label>
+            <input id="passwordOtpEmailInput" type="email" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500" readonly>
+          </div>
+          <div class="space-y-2">
+            <label for="modalCurrentPasswordInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Current Password</label>
+            <input id="modalCurrentPasswordInput" type="password" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label for="modalNewPasswordInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">New Password</label>
+            <input id="modalNewPasswordInput" type="password" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2 md:col-span-2">
+            <label for="modalOtpInput" class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">OTP Code</label>
+            <div class="flex flex-col sm:flex-row gap-3">
+              <input id="modalOtpInput" type="text" inputmode="numeric" maxlength="6" required class="flex-1 px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500" placeholder="Enter 6-digit code">
+              <button id="sendPasswordOtpBtn" type="button" class="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-white/10 transition-colors whitespace-nowrap">Send OTP</button>
+            </div>
+          </div>
+        </div>
+        <p id="changePasswordStatus" class="text-xs text-white/45">New passwords must be at least 8 characters and include uppercase, lowercase, number, and special character.</p>
+        <button id="submitChangePasswordBtn" type="submit" class="w-full py-3.5 rounded-xl bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors">
+          Change Password
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div id="artistEscrowReceiptModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 transition-opacity">
     <div class="w-full max-w-sm animate-pop-in relative mt-6">
       <div class="receipt-paper p-8 text-sm">
@@ -1882,7 +2609,7 @@
           <p class="font-bold">NET PAYOUT:</p>
           <p id="erNetPayout" class="font-bold">₱0.00</p>
         </div>
-        <p class="text-center text-[10px] text-gray-400 mt-6 border-t border-dashed border-gray-300 pt-4">Escrow released upon mutual booking completion.<br>Thank you for performing on IMAJINATION.</p>
+        <p class="text-center text-[10px] text-gray-400 mt-6 border-t border-dashed border-gray-300 pt-4">Escrow released upon mutual booking completion.<br>Thank you for performing on Tugs!.</p>
       </div>
     </div>
   </div>

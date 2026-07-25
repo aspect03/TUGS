@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Artists</title>
+  <title>Tugs! - Artists</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -42,7 +43,7 @@
       <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
@@ -50,7 +51,6 @@
           <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
           <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
           <a href="/pages/browse/Artists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Artists</a>
-          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
           <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
         </div>
 
@@ -113,44 +113,62 @@
           <h2 class="text-4xl font-extrabold tracking-tight text-white">Artists</h2>
         </div>
 
-        <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-8">
+        <!-- Search & Filters -->
+        <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-3">
           <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
-            <div class="relative flex-1 min-w-[160px]">
+            <div class="relative flex-1 min-w-[200px]">
               <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
-              <input type="text" id="searchInput" placeholder="Search artists..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors">
+              <input type="text" id="searchInput" placeholder="Search by name, genre, or style…" class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors placeholder:text-white/25">
             </div>
             <select id="genreFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
-              <option value="">Genre</option>
+              <option value="">All Genres</option>
             </select>
             <select id="artistTypeFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
-              <option value="">Artist Type</option>
+              <option value="">Any Type</option>
               <option value="solo">Solo</option>
               <option value="duo">Duo</option>
               <option value="trio">Trio</option>
               <option value="group">Group</option>
             </select>
             <select id="popularityFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
-              <option value="">Popularity</option>
-              <option value="highest-rated">Highest Rated</option>
-              <option value="most-reviewed">Most Reviewed</option>
+              <option value="">Sort: Default</option>
+              <option value="highest-rated">⭐ Highest Rated</option>
+              <option value="most-reviewed">💬 Most Reviewed</option>
+              <option value="price-asc">₱ Price: Low → High</option>
+              <option value="price-desc">₱ Price: High → Low</option>
             </select>
             <select id="availabilityFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
-              <option value="">Availability</option>
-              <option value="available">Available</option>
+              <option value="">Any Availability</option>
+              <option value="available">Available Now</option>
               <option value="unavailable">Unavailable</option>
             </select>
             <select id="priceRangeFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
-              <option value="">Price Range</option>
+              <option value="">Any Price</option>
               <option value="0-5000">₱0 – 5K</option>
               <option value="5001-15000">₱5K – 15K</option>
               <option value="15001-30000">₱15K – 30K</option>
               <option value="30001+">₱30K+</option>
             </select>
+            <select id="minRatingFilter" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+              <option value="">Any Rating</option>
+              <option value="3">3+ Stars</option>
+              <option value="4">4+ Stars</option>
+              <option value="4.5">4.5+ Stars</option>
+            </select>
+            <label class="flex items-center gap-2 px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl cursor-pointer hover:bg-white/[0.07] transition-colors select-none whitespace-nowrap">
+              <input type="checkbox" id="verifiedOnlyFilter" class="accent-red-500 w-3.5 h-3.5">
+              <span class="text-sm text-white/70 font-medium">Verified Only</span>
+            </label>
             <div class="flex items-center gap-2 sm:ml-auto">
               <button id="clearBtn" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">Clear</button>
-              <button id="searchBtn" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors shadow-lg">Apply</button>
             </div>
           </div>
+        </div>
+
+        <!-- Result count + active filter chips -->
+        <div class="flex items-center justify-between mb-5 min-h-[24px]">
+          <p id="resultsCount" class="text-xs text-white/40 font-medium"></p>
+          <div id="activeFilterChips" class="flex flex-wrap gap-1.5"></div>
         </div>
 
         <div id="artistsGrid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -166,6 +184,8 @@
   
   <script>
     lucide.createIcons();
+
+    function escapeHtml(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 
     function initializeArtistsNavbarIdentity() {
       const firstName = (localStorage.getItem('userFirstName') || '').trim();
@@ -193,9 +213,8 @@
       const dashLink = document.getElementById('dashboardLink');
       const profilePageLink = document.getElementById('profilePageLink');
       if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-      else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
       else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
       else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
 
       if (role === 'Customer' && profilePageLink) {
@@ -247,7 +266,7 @@
     function handleLogout() { localStorage.clear(); window.location.reload(); }
 
     let allArtists = [];
-    const artistsCacheKey = 'artistsPageCacheV1';
+    const artistsCacheKey = 'artistsPageCacheV2';
     const artistsCacheTtlMs = 2 * 60 * 1000;
     async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
       const controller = new AbortController();
@@ -377,6 +396,51 @@
       genreFilter.value = selectedValue;
     }
 
+    function renderStars(rating) {
+      const r = Math.round(Number(rating || 0) * 2) / 2;
+      let stars = '';
+      for (let i = 1; i <= 5; i++) {
+        if (i <= r) stars += `<span style="color:#f59e0b">★</span>`;
+        else if (i - 0.5 === r) stars += `<span style="color:#f59e0b">½</span>`;
+        else stars += `<span style="color:#ffffff22">★</span>`;
+      }
+      return `<span style="font-size:12px;letter-spacing:1px">${stars}</span>`;
+    }
+
+    function updateActiveFilterChips() {
+      const chips = document.getElementById('activeFilterChips');
+      if (!chips) return;
+      const active = [];
+      const genre = document.getElementById('genreFilter').value;
+      const artistType = document.getElementById('artistTypeFilter').value;
+      const popularity = document.getElementById('popularityFilter').value;
+      const availability = document.getElementById('availabilityFilter').value;
+      const priceRange = document.getElementById('priceRangeFilter').value;
+      const minRating = document.getElementById('minRatingFilter').value;
+      const verifiedOnly = document.getElementById('verifiedOnlyFilter').checked;
+      if (genre) active.push({ label: genre, id: 'genreFilter', type: 'select' });
+      if (artistType) active.push({ label: artistType, id: 'artistTypeFilter', type: 'select' });
+      if (popularity) active.push({ label: popularity.replace('-', ' '), id: 'popularityFilter', type: 'select' });
+      if (availability) active.push({ label: availability, id: 'availabilityFilter', type: 'select' });
+      if (priceRange) active.push({ label: priceRange, id: 'priceRangeFilter', type: 'select' });
+      if (minRating) active.push({ label: `${minRating}+ stars`, id: 'minRatingFilter', type: 'select' });
+      if (verifiedOnly) active.push({ label: 'Verified Only', id: 'verifiedOnlyFilter', type: 'check' });
+      chips.innerHTML = active.map(f => `
+        <button type="button" data-chip-id="${f.id}" data-chip-type="${f.type}"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/15 border border-red-500/25 text-[10px] font-bold uppercase tracking-wider text-red-300 hover:bg-red-500/25 transition-colors">
+          ${f.label} <span class="text-red-400/60">×</span>
+        </button>`).join('');
+      chips.querySelectorAll('[data-chip-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const el = document.getElementById(btn.dataset.chipId);
+          if (!el) return;
+          if (btn.dataset.chipType === 'check') el.checked = false;
+          else el.value = '';
+          applyArtistFilters();
+        });
+      });
+    }
+
     function applyArtistFilters() {
       const query = document.getElementById('searchInput').value.trim().toLowerCase();
       const genre = document.getElementById('genreFilter').value;
@@ -384,6 +448,8 @@
       const popularity = document.getElementById('popularityFilter').value;
       const availability = document.getElementById('availabilityFilter').value;
       const priceRange = document.getElementById('priceRangeFilter').value;
+      const minRating = parseFloat(document.getElementById('minRatingFilter').value) || 0;
+      const verifiedOnly = document.getElementById('verifiedOnlyFilter').checked;
 
       let filtered = allArtists.filter(artist => {
         const genres = parseGenres(artist.genres);
@@ -395,20 +461,35 @@
         ].join(' ').toLowerCase();
 
         const matchesQuery = !query || searchableText.includes(query);
-        const matchesGenre = !genre || genres.some(item => item.toLowerCase() === genre);
+        const matchesGenre = !genre || genres.some(item => item.toLowerCase() === genre.toLowerCase());
         const matchesType = !artistType || normalizeArtistType(artist.talentCategory, artist.memberNames) === artistType;
         const matchesAvailability = !availability || (availability === 'available' ? artist.isAvailable !== false : artist.isAvailable === false);
         const matchesPrice = matchesPriceRange(artist.basePrice, priceRange);
+        const matchesRating = !minRating || Number(artist.averageRating || 0) >= minRating;
+        const matchesVerified = !verifiedOnly || !!artist.isVerified || String(artist.verificationStatus || '').toLowerCase() === 'approved';
 
-        return matchesQuery && matchesGenre && matchesType && matchesAvailability && matchesPrice;
+        return matchesQuery && matchesGenre && matchesType && matchesAvailability && matchesPrice && matchesRating && matchesVerified;
       });
 
       if (popularity === 'highest-rated') {
-        filtered = [...filtered].sort((a, b) => Number(b.averageRating || 0) - Number(a.averageRating || 0) || Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
+        filtered.sort((a, b) => Number(b.averageRating || 0) - Number(a.averageRating || 0) || Number(b.reviewCount || 0) - Number(a.reviewCount || 0));
       } else if (popularity === 'most-reviewed') {
-        filtered = [...filtered].sort((a, b) => Number(b.reviewCount || 0) - Number(a.reviewCount || 0) || Number(b.averageRating || 0) - Number(a.averageRating || 0));
+        filtered.sort((a, b) => Number(b.reviewCount || 0) - Number(a.reviewCount || 0) || Number(b.averageRating || 0) - Number(a.averageRating || 0));
+      } else if (popularity === 'price-asc') {
+        filtered.sort((a, b) => Number(a.basePrice || 0) - Number(b.basePrice || 0));
+      } else if (popularity === 'price-desc') {
+        filtered.sort((a, b) => Number(b.basePrice || 0) - Number(a.basePrice || 0));
       }
 
+      const countEl = document.getElementById('resultsCount');
+      if (countEl) {
+        const total = allArtists.length;
+        countEl.textContent = filtered.length === total
+          ? `${total} artist${total !== 1 ? 's' : ''}`
+          : `${filtered.length} of ${total} artist${total !== 1 ? 's' : ''} match your filters`;
+      }
+
+      updateActiveFilterChips();
       renderArtists(filtered);
     }
 
@@ -419,7 +500,7 @@
       if (cachedArtists && cachedArtists.length > 0) {
         allArtists = cachedArtists;
         populateGenreFilter();
-        renderArtists(cachedArtists);
+        applyArtistFilters();
       }
 
       try {
@@ -436,13 +517,13 @@
         allArtists = data;
         writeCachedArtists(data);
         populateGenreFilter();
-        
+
         if (allArtists.length === 0) {
-            grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No artists registered yet.</p>`;
-            return;
+          grid.innerHTML = `<p class="col-span-4 text-white/50 text-center py-10">No artists registered yet.</p>`;
+          return;
         }
 
-        renderArtists(allArtists);
+        applyArtistFilters();
       } catch (error) {
         if (cachedArtists && cachedArtists.length > 0) return;
         console.error(error);
@@ -477,23 +558,26 @@
           return `
             <div class="group flex flex-col p-4 bg-[#181414] rounded-3xl border border-white/5 hover:border-white/10 hover:shadow-2xl transition-all text-center shadow-lg cursor-pointer" data-detail-href="${detailHref}">
               <img src="${artist.profilePicture}" onerror="this.src='https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300'" alt="Avatar" class="w-20 h-20 rounded-full object-cover mx-auto ring-2 ring-white/10 shadow-lg pointer-events-none">
-              <h4 class="mt-4 text-xl font-extrabold tracking-tight text-white line-clamp-1 pointer-events-none">${artist.displayName}</h4>
+              <h4 class="mt-4 text-xl font-extrabold tracking-tight text-white line-clamp-1 pointer-events-none">${escapeHtml(artist.displayName)}</h4>
               <p class="text-[9px] font-bold text-red-300 mt-2 tracking-[0.18em] uppercase pointer-events-none">${artistTypeLabel}</p>
               <div class="mt-3 flex flex-wrap justify-center gap-2 min-h-[24px] pointer-events-none">
                 ${artistGenres.length
-                  ? artistGenres.map(genre => `<span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/65">${genre}</span>`).join('')
+                  ? artistGenres.map(genre => `<span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/65">${escapeHtml(genre)}</span>`).join('')
                   : `<span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] font-bold uppercase tracking-widest text-white/40">Music</span>`}
                 ${getVerificationBadgeMarkup(isVerified ? 'approved' : (artist.verificationStatus || ''))}
               </div>
               <p class="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] pointer-events-none ${(isAvailable && isVerified) ? 'text-emerald-300' : 'text-white/35'}">${(isAvailable && isVerified) ? 'Available' : isVerified ? 'Unavailable' : 'Not Bookable Yet'}</p>
-              <div class="mt-4 grid grid-cols-2 gap-3 w-full pointer-events-none">
+              <div class="mt-3 pointer-events-none">${renderStars(averageRating)}</div>
+              <div class="mt-3 grid grid-cols-2 gap-3 w-full pointer-events-none">
                 <div class="rounded-2xl border border-white/5 bg-black/30 px-3 py-3 text-left">
                   <p class="text-[8px] uppercase tracking-[0.18em] text-white/35">Rating</p>
-                  <p class="mt-1 text-xl font-extrabold text-white">${averageRating}</p>
+                  <p class="mt-1 text-xl font-extrabold text-amber-400">${averageRating}</p>
+                  <p class="text-[8px] text-white/30">${reviewCount} review${reviewCount !== 1 ? 's' : ''}</p>
                 </div>
                 <div class="rounded-2xl border border-white/5 bg-black/30 px-3 py-3 text-left">
-                  <p class="text-[8px] uppercase tracking-[0.18em] text-white/35">Reviews</p>
-                  <p class="mt-1 text-xl font-extrabold text-white">${reviewCount}</p>
+                  <p class="text-[8px] uppercase tracking-[0.18em] text-white/35">From</p>
+                  <p class="mt-1 text-xl font-extrabold text-white">${Number(artist.basePrice || 0) > 0 ? '₱' + Number(artist.basePrice).toLocaleString() : '—'}</p>
+                  <p class="text-[8px] text-white/30">base price</p>
                 </div>
               </div>
               <div class="mt-4 w-full px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-semibold uppercase tracking-[0.16em] text-white group-hover:bg-white/10 group-hover:border-white/20 transition-colors pointer-events-none">${isOrganizerEventFlow ? 'Book For Event' : 'View Profile'}</div>
@@ -504,22 +588,30 @@
         lucide.createIcons();
     }
 
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        applyArtistFilters();
+    // Live debounced search
+    let _searchDebounce;
+    document.getElementById('searchInput').addEventListener('input', () => {
+      clearTimeout(_searchDebounce);
+      _searchDebounce = setTimeout(applyArtistFilters, 220);
     });
+    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') { clearTimeout(_searchDebounce); applyArtistFilters(); } });
+
+    // All select/toggle filters trigger instantly
+    ['genreFilter','artistTypeFilter','popularityFilter','availabilityFilter','priceRangeFilter','minRatingFilter'].forEach(id => {
+      document.getElementById(id)?.addEventListener('change', applyArtistFilters);
+    });
+    document.getElementById('verifiedOnlyFilter')?.addEventListener('change', applyArtistFilters);
 
     document.getElementById('clearBtn').addEventListener('click', () => {
-        document.getElementById('searchInput').value = "";
-        document.getElementById('genreFilter').value = "";
-        document.getElementById('artistTypeFilter').value = "";
-        document.getElementById('popularityFilter').value = "";
-        document.getElementById('availabilityFilter').value = "";
-        document.getElementById('priceRangeFilter').value = "";
-        applyArtistFilters();
-    });
-
-    document.getElementById('searchInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') applyArtistFilters();
+      document.getElementById('searchInput').value = '';
+      document.getElementById('genreFilter').value = '';
+      document.getElementById('artistTypeFilter').value = '';
+      document.getElementById('popularityFilter').value = '';
+      document.getElementById('availabilityFilter').value = '';
+      document.getElementById('priceRangeFilter').value = '';
+      document.getElementById('minRatingFilter').value = '';
+      document.getElementById('verifiedOnlyFilter').checked = false;
+      applyArtistFilters();
     });
 
     document.getElementById('artistsGrid').addEventListener('click', (e) => {

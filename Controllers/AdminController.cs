@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Npgsql;
+using NpgsqlTypes;
 using System.Net;
 using System.Net.Mail;
+using System.Text.Json;
 using ImajinationAPI.Services;
 
 namespace ImajinationAPI.Controllers
@@ -15,6 +17,11 @@ namespace ImajinationAPI.Controllers
     public class UpdateUserModerationRequest
     {
         public string? action { get; set; }
+    }
+
+    public class DeleteUserAccountRequest
+    {
+        public string? confirmation { get; set; }
     }
 
     public class ReviewVerificationRequest
@@ -34,6 +41,19 @@ namespace ImajinationAPI.Controllers
     [Authorize(Roles = "Admin")]
     public class AdminController : ControllerBase
     {
+        private sealed class AdminLineupItem
+        {
+            public Guid id { get; set; }
+            public string? displayName { get; set; }
+            public string? role { get; set; }
+            public string? profilePicture { get; set; }
+        }
+
+        private static readonly JsonSerializerOptions LineupJsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
         private readonly string _connectionString;
         private readonly IConfiguration _configuration;
 
@@ -1227,27 +1247,20 @@ namespace ImajinationAPI.Controllers
                     "admin_account_action",
                     action switch
                     {
-                        "approve" => "Organizer account approved",
-                        "deny" => "Organizer account denied",
+                        "approve" => "Account approved",
+                        "deny" => "Account denied",
                         "ban" => "Account restricted",
                         _ => "Account restored"
                     },
                     action switch
                     {
-                        "approve" => "An administrator approved your organizer account. You can now sign in and start setting up events.",
-                        "deny" => "An administrator denied your organizer account request. Please contact support if you think this was a mistake.",
+                        "approve" => "An administrator approved your account. You can now sign in and use the platform.",
+                        "deny" => "An administrator denied your account request. Please contact support if you think this was a mistake.",
                         "ban" => "An administrator restricted your account. Please contact support if you think this was a mistake.",
                         _ => "An administrator restored your account access."
                     },
                     targetUserId,
                     "user");
-
-                if (string.Equals(targetRole, "Organizer", StringComparison.OrdinalIgnoreCase)
-                    && (action == "approve" || action == "deny")
-                    && !string.IsNullOrWhiteSpace(targetEmail))
-                {
-                    await TrySendOrganizerDecisionEmailAsync(targetEmail, targetDisplayName, action == "approve");
-                }
 
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
@@ -1263,8 +1276,8 @@ namespace ImajinationAPI.Controllers
                 {
                     message = action switch
                     {
-                        "approve" => "Organizer approved successfully.",
-                        "deny" => "Organizer denied successfully.",
+                        "approve" => "Account approved successfully.",
+                        "deny" => "Account denied successfully.",
                         "ban" => "User banned successfully.",
                         _ => "User restored successfully."
                     },
@@ -1274,6 +1287,141 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to update user moderation: " + ex.Message });
+            }
+        }
+
+        [HttpPost("users/{userId}/delete")]
+        public async Task<IActionResult> DeleteUserAccount(Guid userId, [FromBody] DeleteUserAccountRequest? req)
+        {
+            try
+            {
+                var confirmation = (req?.confirmation ?? string.Empty).Trim();
+                if (!string.Equals(confirmation, "DELETE", StringComparison.Ordinal))
+                {
+                    return BadRequest(new { message = "Type DELETE to confirm account deletion." });
+                }
+
+                var actorUserId = TryReadActorUserId();
+                if (actorUserId.HasValue && actorUserId.Value == userId)
+                {
+                    return BadRequest(new { message = "Admins cannot delete their own account from this screen." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureUserModerationColumnsAsync(connection);
+                await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await PaymentRefundService.EnsureSchemaAsync(connection);
+                await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+
+                Guid targetUserId = Guid.Empty;
+                string targetEmail = string.Empty;
+                string targetRole = string.Empty;
+                string targetDisplayName = "User";
+
+                const string userLookupSql = @"
+                    SELECT
+                        id,
+                        COALESCE(email, ''),
+                        COALESCE(role, ''),
+                        COALESCE(stagename, ''),
+                        COALESCE(productionname, ''),
+                        COALESCE(firstname, ''),
+                        COALESCE(lastname, '')
+                    FROM users
+                    WHERE id = @id
+                    LIMIT 1;";
+
+                await using (var lookupCmd = new NpgsqlCommand(userLookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@id", userId);
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "User not found." });
+                    }
+
+                    targetUserId = reader.GetGuid(0);
+                    targetEmail = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                    targetRole = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                    var stageName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+                    var productionName = reader.IsDBNull(4) ? string.Empty : reader.GetString(4);
+                    var firstName = reader.IsDBNull(5) ? string.Empty : reader.GetString(5);
+                    var lastName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6);
+                    targetDisplayName = !string.IsNullOrWhiteSpace(productionName)
+                        ? productionName
+                        : !string.IsNullOrWhiteSpace(stageName)
+                            ? stageName
+                            : $"{firstName} {lastName}".Trim();
+
+                    if (string.IsNullOrWhiteSpace(targetDisplayName))
+                    {
+                        targetDisplayName = "User";
+                    }
+                }
+
+                await using var transaction = await connection.BeginTransactionAsync();
+                try
+                {
+                    var organizedEventIds = await GetGuidListAsync(
+                        connection,
+                        transaction,
+                        "SELECT id FROM events WHERE organizer_id = @userId;",
+                        ("@userId", userId));
+
+                    var bookingIds = await GetGuidListAsync(
+                        connection,
+                        transaction,
+                        @"
+                            SELECT id
+                            FROM bookings
+                            WHERE customer_id = @userId
+                               OR target_user_id = @userId
+                               OR event_id = ANY(@eventIds);",
+                        ("@userId", userId),
+                        ("@eventIds", organizedEventIds));
+
+                    var ticketIds = await GetGuidListAsync(
+                        connection,
+                        transaction,
+                        @"
+                            SELECT id
+                            FROM tickets
+                            WHERE customer_id = @userId
+                               OR event_id = ANY(@eventIds);",
+                        ("@userId", userId),
+                        ("@eventIds", organizedEventIds));
+
+                    await DeleteByUserFootprintAsync(connection, transaction, userId, targetEmail, organizedEventIds, bookingIds, ticketIds);
+                    await transaction.CommitAsync();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    actorUserId,
+                    TryReadActorRole() ?? "Admin",
+                    "admin_user_deleted",
+                    "user",
+                    targetUserId,
+                    HttpContext,
+                    $"Admin permanently deleted {targetRole} account {targetDisplayName} and linked records.");
+
+                return Ok(new
+                {
+                    message = "Account and linked records deleted successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to delete account: " + ex.Message });
             }
         }
 
@@ -1363,6 +1511,405 @@ namespace ImajinationAPI.Controllers
         {
             var raw = Request.Headers["X-Actor-Role"].ToString();
             return string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
+        }
+
+        private static async Task DeleteByUserFootprintAsync(
+            NpgsqlConnection connection,
+            NpgsqlTransaction transaction,
+            Guid userId,
+            string email,
+            IReadOnlyCollection<Guid> organizedEventIds,
+            IReadOnlyCollection<Guid> bookingIds,
+            IReadOnlyCollection<Guid> ticketIds)
+        {
+            await RemoveUserFromEventLineupsAsync(connection, transaction, userId);
+
+            if (await TableExistsAsync(connection, transaction, "refund_requests"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM refund_requests
+                    WHERE requester_user_id = @userId
+                       OR beneficiary_user_id = @userId
+                       OR booking_id = ANY(@bookingIds)
+                       OR ticket_id = ANY(@ticketIds);",
+                    ("@userId", userId),
+                    ("@bookingIds", bookingIds),
+                    ("@ticketIds", ticketIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "payment_records"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM payment_records
+                    WHERE user_id = @userId
+                       OR organizer_id = @userId
+                       OR event_id = ANY(@eventIds)
+                       OR booking_id = ANY(@bookingIds)
+                       OR ticket_id = ANY(@ticketIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds),
+                    ("@bookingIds", bookingIds),
+                    ("@ticketIds", ticketIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "booking_messages"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM booking_messages
+                    WHERE sender_id = @userId
+                       OR receiver_id = @userId
+                       OR booking_id = ANY(@bookingIds);",
+                    ("@userId", userId),
+                    ("@bookingIds", bookingIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "booking_contract_history"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM booking_contract_history
+                    WHERE actor_user_id = @userId
+                       OR booking_id = ANY(@bookingIds);",
+                    ("@userId", userId),
+                    ("@bookingIds", bookingIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "booking_contracts"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM booking_contracts
+                    WHERE proposed_by_user_id = @userId
+                       OR accepted_by_user_id = @userId
+                       OR booking_id = ANY(@bookingIds);",
+                    ("@userId", userId),
+                    ("@bookingIds", bookingIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "community_post_likes"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM community_post_likes
+                    WHERE user_id = @userId
+                       OR post_id IN (SELECT id FROM community_posts WHERE user_id = @userId);",
+                    ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "community_posts"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM community_posts WHERE user_id = @userId;", ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "customer_favorites"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM customer_favorites
+                    WHERE customer_id = @userId
+                       OR target_user_id = @userId;",
+                    ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "talent_reviews"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM talent_reviews
+                    WHERE customer_id = @userId
+                       OR target_user_id = @userId;",
+                    ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "user_calendar_blocks"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM user_calendar_blocks WHERE user_id = @userId;", ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "verified_gigs"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM verified_gigs
+                    WHERE user_id = @userId
+                       OR event_id = ANY(@eventIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "event_reviews"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM event_reviews
+                    WHERE customer_id = @userId
+                       OR event_id = ANY(@eventIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "entity_reports"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM entity_reports
+                    WHERE reporter_user_id = @userId
+                       OR (LOWER(COALESCE(target_entity_type, '')) = 'user' AND target_entity_id = @userId)
+                       OR (LOWER(COALESCE(target_entity_type, '')) = 'event' AND target_entity_id = ANY(@eventIds));",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "talent_verification_requests"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM talent_verification_requests WHERE user_id = @userId;", ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "notifications"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM notifications
+                    WHERE user_id = @userId
+                       OR related_id = ANY(@eventIds)
+                       OR related_id = ANY(@bookingIds)
+                       OR related_id = ANY(@ticketIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds),
+                    ("@bookingIds", bookingIds),
+                    ("@ticketIds", ticketIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "event_artists"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM event_artists
+                    WHERE artist_user_id = @userId
+                       OR event_id = ANY(@eventIds)
+                       OR booking_id = ANY(@bookingIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds),
+                    ("@bookingIds", bookingIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "event_sessionists"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM event_sessionists
+                    WHERE sessionist_user_id = @userId
+                       OR event_id = ANY(@eventIds)
+                       OR booking_id = ANY(@bookingIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds),
+                    ("@bookingIds", bookingIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "tickets"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM tickets
+                    WHERE customer_id = @userId
+                       OR event_id = ANY(@eventIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "bookings"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM bookings
+                    WHERE customer_id = @userId
+                       OR target_user_id = @userId
+                       OR event_id = ANY(@eventIds);",
+                    ("@userId", userId),
+                    ("@eventIds", organizedEventIds));
+            }
+
+            if (organizedEventIds.Count > 0 && await TableExistsAsync(connection, transaction, "events"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM events WHERE organizer_id = @userId;", ("@userId", userId));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "user_active_sessions"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM user_active_sessions WHERE user_id = @userId;", ("@userId", userId));
+            }
+
+            if (!string.IsNullOrWhiteSpace(email) && await TableExistsAsync(connection, transaction, "auth_security_state"))
+            {
+                await ExecuteAsync(connection, transaction, "DELETE FROM auth_security_state WHERE LOWER(TRIM(email)) = LOWER(TRIM(@email));", ("@email", email));
+            }
+
+            if (await TableExistsAsync(connection, transaction, "security_audit_logs"))
+            {
+                await ExecuteAsync(connection, transaction, @"
+                    DELETE FROM security_audit_logs
+                    WHERE user_id = @userId
+                       OR target_id = @userId;",
+                    ("@userId", userId));
+            }
+
+            await ExecuteAsync(connection, transaction, "DELETE FROM users WHERE id = @userId;", ("@userId", userId));
+        }
+
+        private static async Task RemoveUserFromEventLineupsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, Guid userId)
+        {
+            if (!await TableExistsAsync(connection, transaction, "events"))
+            {
+                return;
+            }
+
+            var artistColumnExists = await ColumnExistsAsync(connection, transaction, "events", "artist_lineup");
+            var sessionistColumnExists = await ColumnExistsAsync(connection, transaction, "events", "sessionist_lineup");
+
+            if (artistColumnExists)
+            {
+                await RemoveUserFromLineupColumnAsync(connection, transaction, "artist_lineup", userId);
+            }
+
+            if (sessionistColumnExists)
+            {
+                await RemoveUserFromLineupColumnAsync(connection, transaction, "sessionist_lineup", userId);
+            }
+        }
+
+        private static async Task RemoveUserFromLineupColumnAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string columnName, Guid userId)
+        {
+            var selectSql = $@"
+                SELECT id, COALESCE({columnName}, '[]')
+                FROM events
+                WHERE COALESCE({columnName}, '') ILIKE '%' || @userIdText || '%';";
+
+            var updates = new List<(Guid EventId, string Json)>();
+            await using (var cmd = new NpgsqlCommand(selectSql, connection, transaction))
+            {
+                cmd.Parameters.Add("@userIdText", NpgsqlDbType.Text).Value = userId.ToString();
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var eventId = reader.GetGuid(0);
+                    var raw = reader.IsDBNull(1) ? "[]" : reader.GetString(1);
+                    var lineup = DeserializeLineup(raw);
+                    var removedCount = lineup.RemoveAll(item => item.id == userId);
+                    if (removedCount > 0)
+                    {
+                        updates.Add((eventId, JsonSerializer.Serialize(lineup)));
+                    }
+                }
+            }
+
+            if (updates.Count == 0)
+            {
+                return;
+            }
+
+            var updateSql = $"UPDATE events SET {columnName} = @json WHERE id = @eventId;";
+            foreach (var update in updates)
+            {
+                await using var updateCmd = new NpgsqlCommand(updateSql, connection, transaction);
+                updateCmd.Parameters.Add("@json", NpgsqlDbType.Text).Value = update.Json;
+                updateCmd.Parameters.Add("@eventId", NpgsqlDbType.Uuid).Value = update.EventId;
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private static List<AdminLineupItem> DeserializeLineup(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return new List<AdminLineupItem>();
+            }
+
+            try
+            {
+                return JsonSerializer.Deserialize<List<AdminLineupItem>>(raw, LineupJsonOptions) ?? new List<AdminLineupItem>();
+            }
+            catch
+            {
+                return new List<AdminLineupItem>();
+            }
+        }
+
+        private static async Task<bool> TableExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName)
+        {
+            const string sql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = @tableName
+                );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection, transaction);
+            cmd.Parameters.Add("@tableName", NpgsqlDbType.Text).Value = tableName;
+            var result = await cmd.ExecuteScalarAsync();
+            return result is bool exists && exists;
+        }
+
+        private static async Task<bool> ColumnExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string columnName)
+        {
+            const string sql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = @tableName
+                      AND column_name = @columnName
+                );";
+
+            await using var cmd = new NpgsqlCommand(sql, connection, transaction);
+            cmd.Parameters.Add("@tableName", NpgsqlDbType.Text).Value = tableName;
+            cmd.Parameters.Add("@columnName", NpgsqlDbType.Text).Value = columnName;
+            var result = await cmd.ExecuteScalarAsync();
+            return result is bool exists && exists;
+        }
+
+        private static async Task<List<Guid>> GetGuidListAsync(
+            NpgsqlConnection connection,
+            NpgsqlTransaction transaction,
+            string sql,
+            params (string Name, object? Value)[] parameters)
+        {
+            var result = new List<Guid>();
+            await using var cmd = new NpgsqlCommand(sql, connection, transaction);
+            AddParameters(cmd, parameters);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (!reader.IsDBNull(0))
+                {
+                    result.Add(reader.GetGuid(0));
+                }
+            }
+
+            return result;
+        }
+
+        private static async Task ExecuteAsync(
+            NpgsqlConnection connection,
+            NpgsqlTransaction transaction,
+            string sql,
+            params (string Name, object? Value)[] parameters)
+        {
+            await using var cmd = new NpgsqlCommand(sql, connection, transaction);
+            AddParameters(cmd, parameters);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static void AddParameters(NpgsqlCommand cmd, params (string Name, object? Value)[] parameters)
+        {
+            foreach (var (name, value) in parameters)
+            {
+                if (value is IReadOnlyCollection<Guid> guidCollection)
+                {
+                    cmd.Parameters.Add(name, NpgsqlDbType.Array | NpgsqlDbType.Uuid).Value = guidCollection.Count == 0
+                        ? Array.Empty<Guid>()
+                        : guidCollection.ToArray();
+                }
+                else if (value is Guid guidValue)
+                {
+                    cmd.Parameters.Add(name, NpgsqlDbType.Uuid).Value = guidValue;
+                }
+                else if (value is string stringValue)
+                {
+                    cmd.Parameters.Add(name, NpgsqlDbType.Text).Value = stringValue;
+                }
+                else
+                {
+                    cmd.Parameters.AddWithValue(name, value ?? DBNull.Value);
+                }
+            }
         }
 
         private async Task TrySendOrganizerDecisionEmailAsync(string recipientEmail, string displayName, bool approved)
@@ -1492,6 +2039,133 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to load stuck bookings: " + ex.Message });
+            }
+        }
+
+        // Migrate all existing Sessionist accounts to Artist role
+        [HttpPost("migrate/sessionist-to-artist")]
+        public async Task<IActionResult> MigrateSessionistsToArtist()
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                const string countSql = "SELECT COUNT(*) FROM users WHERE role = 'Sessionist';";
+                await using var countCmd = new NpgsqlCommand(countSql, connection);
+                var count = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+
+                if (count == 0)
+                {
+                    return Ok(new { message = "No Sessionist accounts found. Nothing to migrate.", migrated = 0 });
+                }
+
+                const string migrateSql = @"
+                    UPDATE users
+                    SET role = 'Artist'
+                    WHERE role = 'Sessionist';";
+
+                await using var migrateCmd = new NpgsqlCommand(migrateSql, connection);
+                var rows = await migrateCmd.ExecuteNonQueryAsync();
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    TryReadActorUserId(),
+                    "Admin",
+                    "role_migration",
+                    "user",
+                    null,
+                    HttpContext,
+                    $"Admin migrated {rows} Sessionist account(s) to Artist role.");
+
+                return Ok(new { message = $"Migration complete. {rows} Sessionist account(s) converted to Artist.", migrated = rows });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Migration failed: " + ex.Message });
+            }
+        }
+
+        // GET /api/admin/trends?days=90
+        [Authorize]
+        [HttpGet("trends")]
+        public async Task<IActionResult> GetTrends([FromQuery] int days = 90)
+        {
+            var role = TryReadActorRole();
+            if (!string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase)) return Forbid();
+
+            if (days < 7) days = 7;
+            if (days > 365) days = 365;
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                // Daily signups
+                const string signupsSql = @"
+                    SELECT DATE_TRUNC('day', created_at) AS day, COUNT(*) AS count
+                    FROM users
+                    WHERE created_at >= NOW() - (@days || ' days')::interval
+                    GROUP BY day ORDER BY day ASC;";
+                var signups = new List<object>();
+                await using (var cmd = new NpgsqlCommand(signupsSql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@days", days);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        signups.Add(new { day = rdr.GetDateTime(0), count = rdr.GetInt64(1) });
+                }
+
+                // Daily bookings created
+                const string bookingsSql = @"
+                    SELECT DATE_TRUNC('day', created_at) AS day, COUNT(*) AS count
+                    FROM bookings
+                    WHERE created_at >= NOW() - (@days || ' days')::interval
+                    GROUP BY day ORDER BY day ASC;";
+                var bookings = new List<object>();
+                await using (var cmd = new NpgsqlCommand(bookingsSql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@days", days);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        bookings.Add(new { day = rdr.GetDateTime(0), count = rdr.GetInt64(1) });
+                }
+
+                // Daily ticket revenue
+                const string revenueSql = @"
+                    SELECT DATE_TRUNC('day', purchase_date) AS day,
+                           COUNT(*) AS transactions,
+                           COALESCE(SUM(total_price), 0) AS revenue
+                    FROM tickets
+                    WHERE LOWER(COALESCE(payment_status,'')) = 'paid'
+                      AND purchase_date >= NOW() - (@days || ' days')::interval
+                    GROUP BY day ORDER BY day ASC;";
+                var revenue = new List<object>();
+                await using (var cmd = new NpgsqlCommand(revenueSql, connection))
+                {
+                    cmd.Parameters.AddWithValue("@days", days);
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        revenue.Add(new { day = rdr.GetDateTime(0), transactions = rdr.GetInt64(1), revenue = rdr.GetDecimal(2) });
+                }
+
+                // Role breakdown
+                const string roleSql = @"
+                    SELECT role, COUNT(*) FROM users WHERE role IS NOT NULL GROUP BY role ORDER BY COUNT(*) DESC;";
+                var roles = new List<object>();
+                await using (var cmd = new NpgsqlCommand(roleSql, connection))
+                {
+                    await using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        roles.Add(new { role = rdr.GetString(0), count = rdr.GetInt64(1) });
+                }
+
+                return Ok(new { signups, bookings, revenue, roles, days });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load trends: " + ex.Message });
             }
         }
     }

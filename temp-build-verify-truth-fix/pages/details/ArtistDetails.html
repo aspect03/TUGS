@@ -1,0 +1,1231 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Artist Details</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white min-h-screen flex flex-col" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+    <div class="absolute top-[20%] left-[10%] w-[600px] h-[600px] bg-red-600/5 rounded-full blur-[120px]"></div>
+  </div>
+
+  <nav class="fixed top-0 w-full z-50">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+        <div class="h-8 w-28 sm:w-32 flex items-center">
+          <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-8 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+        <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+        <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+        <a href="/pages/browse/Artists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Artists</a>
+        <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
+        <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+      </div>
+      
+      <div class="flex items-center gap-3 relative">
+        <div id="authLoggedOut" class="flex items-center gap-3">
+          <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+          <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors">Get started</a>
+        </div>
+
+        <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+          <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+          </button>
+          <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+              <p class="text-sm font-bold text-white">Notifications</p>
+              <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+            </div>
+            <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+              <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+            </div>
+          </div>
+          <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+            <span id="profileInitial">A</span>
+            <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 opacity-0 pointer-events-none transition-opacity">
+             <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+              <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+              </a>
+            </div>
+            <div class="p-2 border-t border-white/10">
+              <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Ambient background -->
+  <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+    <div class="absolute top-0 left-1/4 w-[700px] h-[400px] bg-red-600/[0.05] blur-[140px] rounded-full"></div>
+    <div class="absolute bottom-0 right-1/4 w-[500px] h-[400px] bg-blue-600/[0.04] blur-[120px] rounded-full"></div>
+  </div>
+
+  <main class="relative z-10 w-full flex-grow pt-20 pb-24">
+    <section class="max-w-6xl mx-auto px-6 pt-8">
+
+      <!-- Back link -->
+      <a href="/pages/browse/Artists.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-8">
+        <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Artists
+      </a>
+
+      <!-- Profile header card -->
+      <div class="relative overflow-hidden bg-white/[0.02] border border-white/[0.07] rounded-2xl p-6 mb-8">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_0%_0%,rgba(239,68,68,0.06),transparent_65%)] pointer-events-none"></div>
+        <div class="relative flex flex-col lg:flex-row gap-6">
+          <!-- Left: photo + info -->
+          <div class="flex flex-col sm:flex-row gap-6 flex-1 min-w-0">
+            <!-- Photo -->
+            <div class="relative flex-shrink-0 w-28 h-28 md:w-36 md:h-36 rounded-2xl overflow-hidden bg-neutral-900 border border-white/[0.08] shadow-2xl">
+              <img id="detailImg" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <div id="artistProfileBadge" class="inline-flex items-center justify-center w-6 h-6 rounded-full border border-white/10 bg-white/5 text-white/40" title="Profile status">
+                  <i data-lucide="shield" class="w-3 h-3"></i>
+                </div>
+                <p id="detailAvailability" class="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">Available</p>
+                <span id="artistVerificationTag" class="hidden px-2.5 py-1 rounded-full border border-amber-400/20 bg-amber-500/10 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Not Yet Verified</span>
+              </div>
+              <h1 id="detailName" class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3 leading-tight">Loading...</h1>
+              <p id="artistProfileStatusLabel" class="text-xs text-white/45 bg-white/[0.04] border border-white/[0.07] px-3 py-1.5 rounded-full inline-block mb-4">Loading...</p>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="favoriteBtn" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/[0.1] bg-white/[0.04] text-xs font-semibold text-white/65 hover:text-white hover:bg-white/[0.08] transition-colors">
+                  <i data-lucide="heart" class="w-3.5 h-3.5"></i> Add to Favorites
+                </button>
+                <button id="reportArtistBtn" type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-white/[0.1] bg-white/[0.04] text-white/45 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors" title="Report Artist">
+                  <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: metrics + book button -->
+          <div class="flex flex-row lg:flex-col gap-3 lg:w-48 flex-shrink-0">
+            <div class="flex gap-3 flex-1 lg:flex-none">
+              <div class="flex-1 bg-gradient-to-br from-amber-500/[0.1] to-transparent border border-amber-500/20 rounded-xl px-3 py-3 text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">Rating</p>
+                <p id="ratingAverage" class="text-xl font-extrabold text-amber-400">0.0</p>
+              </div>
+              <div class="flex-1 bg-gradient-to-br from-red-500/[0.1] to-transparent border border-red-500/20 rounded-xl px-3 py-3 text-center">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-white/35 mb-1">Booking Rate</p>
+                <p id="detailBasePrice" class="text-base font-extrabold text-red-400">Rate not set</p>
+              </div>
+            </div>
+            <button id="bookArtistBtn" type="button" title="Send a booking request"
+              class="lg:w-full px-5 py-3 lg:py-4 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors shadow-[0_0_20px_-8px_rgba(239,68,68,0.7)] disabled:cursor-not-allowed disabled:bg-white/[0.07] disabled:text-white/35 disabled:shadow-none whitespace-nowrap">
+              Book Artist
+            </button>
+          </div>
+        </div>
+
+        <!-- Genres + Spotify row (inside profile card, below) -->
+        <div class="relative mt-5 pt-5 border-t border-white/[0.06] flex flex-wrap items-center gap-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30 mr-1">Genres</p>
+            <div class="flex flex-wrap gap-2" id="detailGenres"></div>
+          </div>
+          <div class="hidden ml-auto" id="spotifyContainer">
+            <a id="detailSpotify" href="#" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
+              <i data-lucide="music" class="w-3.5 h-3.5"></i> Spotify
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main content — full width -->
+      <div class="space-y-6">
+
+          <!-- Stat row -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="bg-gradient-to-br from-blue-500/[0.08] to-transparent border border-blue-500/[0.15] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Favorites</p>
+              <p id="favoriteCount" class="text-2xl font-extrabold text-white">0</p>
+            </div>
+            <div class="bg-gradient-to-br from-purple-500/[0.08] to-transparent border border-purple-500/[0.15] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Reviews</p>
+              <p id="reviewCount" class="text-2xl font-extrabold text-white">0</p>
+            </div>
+            <div id="artistTalentSetupCard" class="hidden sm:col-span-2 bg-gradient-to-br from-white/[0.04] to-transparent border border-white/[0.08] rounded-xl p-4">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-2">Talent Setup</p>
+              <span id="artistTalentCategoryBadge" class="text-sm font-extrabold text-white">Artist</span>
+              <div id="artistMembersWrap" class="hidden mt-3 pt-3 border-t border-white/5">
+                <p class="text-[10px] text-white/30 mb-2">Members</p>
+                <div id="artistMembersList" class="flex flex-wrap gap-1.5"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-white/[0.07] border border-white/[0.09] flex items-center justify-center flex-shrink-0"><i data-lucide="user-round" class="w-3.5 h-3.5 text-white/50"></i></span>
+              <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/50">About The Artist</p>
+            </div>
+            <p id="detailBio" class="text-sm text-white/75 leading-relaxed whitespace-pre-line"></p>
+          </div>
+
+          <!-- Current Gigs -->
+          <div>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="zap" class="w-3.5 h-3.5 text-emerald-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Current Gigs</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Upcoming or active bookings</p>
+              </div>
+            </div>
+            <div id="currentGigsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p class="text-sm text-white/45">Loading events...</p>
+            </div>
+          </div>
+
+          <!-- Past Gigs -->
+          <div>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-slate-500/10 border border-slate-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="history" class="w-3.5 h-3.5 text-slate-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Past Gigs</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Finished event history</p>
+              </div>
+            </div>
+            <div id="pastGigsList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <p class="text-sm text-white/45">Loading gig history...</p>
+            </div>
+          </div>
+
+          <!-- Community Posts -->
+          <div>
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="megaphone" class="w-3.5 h-3.5 text-blue-400"></i></span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Community Posts</p>
+                <p class="text-[10px] text-white/30 mt-0.5">Visible to customers and organizers</p>
+              </div>
+            </div>
+            <div id="artistPostsList" class="space-y-4">
+              <p class="text-sm text-white/45">Loading posts...</p>
+            </div>
+          </div>
+
+          <!-- Reviews -->
+          <div id="artistReviewPanel" class="hidden bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-5">
+              <span class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="star" class="w-3.5 h-3.5 text-amber-400"></i></span>
+              <div>
+                <h3 class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Rate This Artist</h3>
+                <p class="text-[10px] text-white/30 mt-0.5">Customer feedback only</p>
+              </div>
+            </div>
+            <form id="reviewForm" class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Your Rating</label>
+                <select id="reviewRating" class="w-full px-4 py-3 bg-black/30 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50">
+                  <option value="5">5 - Outstanding</option>
+                  <option value="4">4 - Great</option>
+                  <option value="3">3 - Good</option>
+                  <option value="2">2 - Fair</option>
+                  <option value="1">1 - Needs Work</option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Feedback</label>
+                <textarea id="reviewFeedback" rows="4" class="w-full px-4 py-3 bg-black/30 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 resize-none" placeholder="Share what stood out, how they performed, and why you'd recommend them."></textarea>
+              </div>
+              <p id="reviewStatus" class="text-xs text-white/40">Sign in as a Customer to leave a rating.</p>
+              <button id="submitReviewBtn" type="submit" class="w-full py-3 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white/[0.09] transition-colors">Submit Feedback</button>
+            </form>
+          </div>
+
+          <div id="artistReviewsPanel" class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+            <div class="flex items-center gap-2.5 mb-5">
+              <span class="w-7 h-7 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center flex-shrink-0"><i data-lucide="message-square-text" class="w-3.5 h-3.5 text-yellow-400"></i></span>
+              <p class="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Customer Feedback</p>
+            </div>
+            <div id="reviewsList" class="space-y-4">
+              <p class="text-sm text-white/45">Loading feedback...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT — sticky booking sidebar -->
+        <div class="lg:col-span-1">
+          <div class="sticky top-24 space-y-4">
+            <!-- Book button -->
+            <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
+              <button id="bookArtistBtn" type="button" title="Send a booking request" class="w-full py-4 rounded-xl bg-red-600 text-white text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-red-500 transition-colors shadow-[0_0_30px_-12px_rgba(239,68,68,0.6)] disabled:cursor-not-allowed disabled:bg-white/[0.07] disabled:text-white/35 disabled:shadow-none">
+                Book Artist
+              </button>
+              <div class="mt-5">
+                <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 mb-3">Genres</p>
+                <div class="flex flex-wrap gap-2" id="detailGenres"></div>
+              </div>
+            </div>
+            <!-- Spotify -->
+            <div class="hidden" id="spotifyContainer">
+              <a id="detailSpotify" href="#" target="_blank" class="w-full py-3 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl flex items-center justify-center gap-2 text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
+                <i data-lucide="music" class="w-4 h-4"></i> Listen on Spotify
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="bookingModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-xl bg-[#171212] border border-white/10 rounded-[28px] shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-5 border-b border-white/10">
+        <div>
+          <h2 class="text-xl font-bold text-white">Book Artist</h2>
+          <p id="bookingModalSubtitle" class="text-xs text-white/50 mt-1">Send a booking request and continue the details in chat.</p>
+        </div>
+        <button id="closeBookingModalBtn" type="button" class="text-white/50 hover:text-white transition-colors bg-white/5 p-2 rounded-full hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="bookingForm" class="p-6 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Title</label>
+            <input id="bookingEventTitle" type="text" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Date and time</label>
+            <input id="bookingEventDate" type="datetime-local" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+            <p id="bookingDateAvailabilityHint" class="text-[11px] text-white/45">Choose an available booking date.</p>
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">End time</label>
+            <input id="bookingEventEndTime" type="datetime-local" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+          </div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-black/25 p-4 space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60">Multiple Booking Slots</p>
+              <p class="text-xs text-white/45 mt-1">Add up to 5 separate time slots for the same artist request.</p>
+            </div>
+            <button id="addBookingSlotBtn" type="button" class="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-white/10 transition-colors">Add Slot</button>
+          </div>
+          <div id="bookingSlotsList" class="space-y-2"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Service type</label>
+            <select id="bookingServiceType" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+              <option value="Gig">Gig</option>
+              <option value="Recording">Recording</option>
+              <option value="Collab">Collab</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Location</label>
+            <input id="bookingLocation" type="text" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Proposed budget</label>
+            <input id="bookingBudget" type="number" min="0" step="0.01" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500">
+          </div>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Notes / instructions</label>
+          <textarea id="bookingMessage" rows="4" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500 resize-none"></textarea>
+        </div>
+        <div class="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+          <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-300">Service fee</p>
+          <p class="text-xs text-white/70 mt-1">Customers pay the PHP 15.00 booking fee first. Artists also see a platform fee after confirmation so the booking flow stays realistic for a live marketplace.</p>
+        </div>
+        <p id="bookingStatus" class="text-xs text-white/50">Customers and organizers can send booking requests here.</p>
+        <button id="submitBookingBtn" type="submit" class="w-full py-3.5 rounded-xl bg-[#cc292b] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-red-600 transition-colors">
+          Book Now
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    lucide.createIcons();
+    let currentArtistId = null;
+    let currentArtistName = 'Artist';
+    let currentArtistBasePrice = 0;
+    let artistInteractionSummary = null;
+    let currentArtistAvailable = true;
+    let artistBlockedDateSet = new Set();
+    let artistBlockedDateLabels = [];
+    const maxBookingSlots = 5;
+
+    function getBookingCalendarDateKey(value) {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function isArtistBlockedBookingDate(value) {
+      const key = getBookingCalendarDateKey(value);
+      return key ? artistBlockedDateSet.has(key) : false;
+    }
+
+    function updateArtistBookingDateHint(message = '', tone = 'muted') {
+      const hint = document.getElementById('bookingDateAvailabilityHint');
+      if (!hint) return;
+
+      hint.innerText = message || (artistBlockedDateLabels.length
+        ? `Unavailable dates: ${artistBlockedDateLabels.join(', ')}`
+        : 'Choose an available booking date.');
+      hint.className = `text-[11px] ${tone === 'error' ? 'text-red-300' : 'text-white/45'}`;
+    }
+
+    function validateArtistBookingInput(input) {
+      if (!input) return true;
+
+      if (isArtistBlockedBookingDate(input.value)) {
+        input.setCustomValidity(`${currentArtistName} is not available on that date.`);
+        input.classList.add('border-red-500');
+        updateArtistBookingDateHint(`${currentArtistName} is not available on ${new Date(input.value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`, 'error');
+        return false;
+      }
+
+      input.setCustomValidity('');
+      input.classList.remove('border-red-500');
+      updateArtistBookingDateHint();
+      return true;
+    }
+
+    async function loadArtistBlockedDates() {
+      if (!currentArtistId) return;
+
+      try {
+        const response = await fetch(`/api/calendar/Artist/${currentArtistId}`);
+        if (!response.ok) throw new Error('Failed to load artist calendar.');
+        const payload = await response.json().catch(() => ({}));
+        const blocks = Array.isArray(payload.blocks) ? payload.blocks : [];
+
+        artistBlockedDateSet = new Set(
+          blocks
+            .map((block) => getBookingCalendarDateKey(block.blockDate || block.blockedDate))
+            .filter(Boolean)
+        );
+        artistBlockedDateLabels = Array.from(artistBlockedDateSet)
+          .sort()
+          .map((value) => new Date(`${value}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      } catch {
+        artistBlockedDateSet = new Set();
+        artistBlockedDateLabels = [];
+      }
+
+      updateArtistBookingDateHint();
+      validateArtistBookingInput(document.getElementById('bookingEventDate'));
+      document.querySelectorAll('.booking-slot-start').forEach((input) => validateArtistBookingInput(input));
+    }
+
+    function renderBookingSlots() {
+      const container = document.getElementById('bookingSlotsList');
+      if (!container) return;
+      const rows = Array.from(container.querySelectorAll('.booking-slot-row'));
+      rows.forEach((row, index) => {
+        row.querySelector('.booking-slot-label').innerText = `Extra Slot ${index + 2}`;
+      });
+    }
+
+    function addBookingSlotRow(startValue = '', endValue = '') {
+      const container = document.getElementById('bookingSlotsList');
+      if (!container || container.children.length >= maxBookingSlots - 1) return;
+      const row = document.createElement('div');
+      row.className = 'booking-slot-row grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end';
+      row.innerHTML = `
+        <div class="space-y-2">
+          <label class="booking-slot-label block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Extra Slot</label>
+          <input type="datetime-local" value="${startValue}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+        </div>
+        <div class="space-y-2">
+          <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">End time</label>
+          <input type="datetime-local" value="${endValue}" class="booking-slot-end w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+        </div>
+        <button type="button" class="remove-booking-slot flex items-center justify-center w-10 h-[46px] shrink-0 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 transition-colors" title="Remove slot"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+      `;
+      row.querySelector('.remove-booking-slot')?.addEventListener('click', () => {
+        row.remove();
+        renderBookingSlots();
+      });
+      container.appendChild(row);
+      lucide.createIcons();
+      row.querySelector('.booking-slot-start')?.addEventListener('input', (event) => validateArtistBookingInput(event.target));
+      row.querySelector('.booking-slot-start')?.addEventListener('change', (event) => validateArtistBookingInput(event.target));
+      validateArtistBookingInput(row.querySelector('.booking-slot-start'));
+      renderBookingSlots();
+    }
+
+    function collectBookingSlots() {
+      const slots = [];
+      const primaryStart = document.getElementById('bookingEventDate').value;
+      const primaryEnd = document.getElementById('bookingEventEndTime').value;
+      if (primaryStart && primaryEnd) {
+        slots.push({ eventDate: primaryStart, eventEndTime: primaryEnd });
+      }
+
+      document.querySelectorAll('.booking-slot-row').forEach((row) => {
+        const start = row.querySelector('.booking-slot-start')?.value;
+        const end = row.querySelector('.booking-slot-end')?.value;
+        if (start && end) {
+          slots.push({ eventDate: start, eventEndTime: end });
+        }
+      });
+
+      return slots;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Navbar Logic
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
+
+      if (userId && role) {
+        document.getElementById('authLoggedOut').classList.add('hidden');
+        document.getElementById('authLoggedIn').classList.remove('hidden');
+        document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+        document.getElementById('dropdownName').innerText = displayName;
+        document.getElementById('dropdownRole').innerText = role;
+
+        if (storedProfilePicture) {
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = storedProfilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+        else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        
+        // Fetch User Profile Pic in the background only when needed
+        if (role === 'Artist' && userId && !storedProfilePicture) {
+            queueMicrotask(async () => {
+              try {
+                const res = await fetch(`/api/artist/${userId}`);
+                if (res.ok) {
+                  const artist = await res.json();
+                  if (artist.profilePicture) {
+                    const picEl = document.getElementById('navProfilePic');
+                    picEl.src = artist.profilePicture;
+                    picEl.classList.remove('hidden');
+                    document.getElementById('profileInitial').classList.add('hidden');
+                    localStorage.setItem('userProfilePicture', artist.profilePicture);
+                  }
+                }
+              } catch (e) {}
+            });
+        }
+      }
+
+      if (window.initGlobalNavbarNotifications) {
+        window.setTimeout(() => window.initGlobalNavbarNotifications(), 0);
+      }
+
+      // Fetch Artist Data Logic
+      const urlParams = new URLSearchParams(window.location.search);
+      const artistId = urlParams.get('id');
+      if(!artistId) return history.back();
+      currentArtistId = artistId;
+
+      try {
+        const res = await fetch(`/api/artist/${artistId}`);
+        if(!res.ok) throw new Error();
+        const artist = await res.json();
+
+        // Populate Text
+        currentArtistName = artist.displayName;
+        const artistVerificationStatus = String(artist.verificationStatus || '').toLowerCase();
+        const artistVerifiedForBookings = artistVerificationStatus === 'approved';
+        currentArtistAvailable = artist.isAvailable !== false && artistVerifiedForBookings;
+        document.getElementById('detailName').innerText = artist.displayName;
+        document.getElementById('bookingModalSubtitle').innerText = `Book ${artist.displayName}, send the request, and continue in chat.`;
+        document.getElementById('artistProfileBadge').innerHTML = artist.isVerified
+          ? '<i data-lucide="badge-check" class="w-4 h-4"></i>'
+          : '<i data-lucide="shield" class="w-4 h-4"></i>';
+        document.getElementById('artistProfileBadge').className = `mb-3 inline-flex items-center justify-center w-8 h-8 rounded-full border ${artist.isVerified ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-white/10 bg-white/5 text-white/40'}`;
+        document.getElementById('artistProfileBadge').title = artist.isVerified ? 'Verified profile' : (artist.profileCompletionLabel || 'Profile incomplete');
+        document.getElementById('detailAvailability').innerText = currentArtistAvailable
+          ? 'Available'
+          : artistVerifiedForBookings ? 'Not Available' : 'Verification Pending';
+        document.getElementById('detailAvailability').className = `mb-3 text-[10px] font-bold uppercase tracking-[0.18em] ${currentArtistAvailable ? 'text-emerald-400' : 'text-white/50'}`;
+        document.getElementById('artistProfileStatusLabel').innerText = getArtistProfileStatusLabel(artist.verificationStatus, artist.isAvailable !== false);
+        currentArtistBasePrice = Number(artist.basePrice || 0);
+        document.getElementById('detailBasePrice').innerText = currentArtistBasePrice > 0
+          ? new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(currentArtistBasePrice)
+          : 'Rate not set';
+        syncBookingBudgetWithBasePrice(true);
+        document.getElementById('bookArtistBtn').disabled = !currentArtistAvailable;
+        document.getElementById('bookArtistBtn').classList.toggle('opacity-50', !currentArtistAvailable);
+        document.getElementById('bookArtistBtn').title = currentArtistAvailable
+          ? `Send a booking request to ${artist.displayName}`
+          : artistVerifiedForBookings
+            ? `${artist.displayName} is currently unavailable for new bookings.`
+            : `${artist.displayName} cannot be booked until profile verification is approved.`;
+        document.getElementById('bookArtistBtn').innerText = currentArtistAvailable
+          ? 'Book Artist'
+          : artistVerifiedForBookings ? 'Currently Unavailable' : 'Verification Pending';
+        const verificationTag = document.getElementById('artistVerificationTag');
+        verificationTag.classList.toggle('hidden', artistVerifiedForBookings);
+        verificationTag.innerText = artistVerificationStatus === 'pending' ? 'Verification Pending' : 'Not Yet Verified';
+        document.getElementById('detailBio').innerText = artist.bio;
+        renderTalentSetup(artist.talentCategory, artist.memberNames, 'Artist');
+        
+        // Populate Image
+        const imgEl = document.getElementById('detailImg');
+        imgEl.src = artist.profilePicture || 'https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300';
+        imgEl.classList.remove('hidden');
+
+        // Populate Genres 
+        const genresBox = document.getElementById('detailGenres');
+        if (artist.genres) {
+            artist.genres.split(',').forEach(g => {
+                if(g.trim()) {
+                    genresBox.innerHTML += `<span class="px-3 py-1.5 bg-[#0a0a0a] border border-white/5 rounded-lg text-[10px] font-bold tracking-widest uppercase text-white/70 shadow-inner">${g.trim()}</span>`;
+                }
+            });
+        }
+
+        // Spotify Link logic
+        if(artist.spotifyLink) {
+            document.getElementById('detailSpotify').href = artist.spotifyLink;
+            document.getElementById('spotifyContainer').classList.remove('hidden');
+        }
+
+        const timelineGroups = splitEventsByTimeline(artist.relatedEvents || []);
+        renderEventsIntoSection('currentGigsList', timelineGroups.current, 'No current gigs yet.');
+        renderEventsIntoSection('pastGigsList', timelineGroups.past, 'No past gigs yet.');
+        lucide.createIcons();
+        await loadArtistBlockedDates();
+
+        await Promise.allSettled([
+          loadArtistPosts(),
+          loadArtistInteractions()
+        ]);
+
+      } catch(e) {
+        document.getElementById('detailName').innerText = "Artist not found.";
+        document.getElementById('detailBio').innerText = "Make sure the C# server is running and the artist ID is valid.";
+      }
+    });
+
+    function renderTalentSetup(talentCategory, memberNames, roleLabel) {
+      const card = document.getElementById('artistTalentSetupCard');
+      const badge = document.getElementById('artistTalentCategoryBadge');
+      const membersWrap = document.getElementById('artistMembersWrap');
+      const membersList = document.getElementById('artistMembersList');
+      const normalizedMembers = String(memberNames || '')
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean);
+
+      if (!talentCategory && !normalizedMembers.length) {
+        card.classList.add('hidden');
+        return;
+      }
+
+      card.classList.remove('hidden');
+      badge.innerText = talentCategory || roleLabel;
+      membersList.innerHTML = '';
+
+      if (normalizedMembers.length) {
+        membersWrap.classList.remove('hidden');
+        normalizedMembers.forEach(name => {
+          const chip = document.createElement('span');
+          chip.className = 'px-3.5 py-2 bg-[#0a0a0a] border border-white/5 rounded-xl text-[10px] font-bold tracking-widest uppercase text-white/70 shadow-inner';
+          chip.innerText = name;
+          membersList.appendChild(chip);
+        });
+      } else {
+        membersWrap.classList.add('hidden');
+      }
+    }
+
+    const bookingModal = document.getElementById('bookingModal');
+    document.getElementById('bookArtistBtn').addEventListener('click', openBookingModal);
+    document.getElementById('closeBookingModalBtn').addEventListener('click', closeBookingModal);
+    bookingModal.addEventListener('click', (event) => {
+      if (event.target.id === 'bookingModal') closeBookingModal();
+    });
+
+    async function openBookingModal() {
+      const role = localStorage.getItem('userRole');
+      if (role !== 'Customer' && role !== 'Organizer') {
+        await window.systemDialog.alert('Please sign in as a Customer or Organizer to send a booking request.', {
+          title: 'Sign In Required',
+          kicker: 'Booking Access'
+        });
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+      if (!currentArtistAvailable) {
+        await window.systemDialog.alert(document.getElementById('bookArtistBtn').innerText === 'Verification Pending'
+          ? `${currentArtistName} cannot be booked until admin verification is approved.`
+          : `${currentArtistName} is currently marked unavailable for bookings.`, {
+          title: 'Currently Unavailable',
+          kicker: 'Booking Status'
+        });
+        return;
+      }
+
+      const linkedEventTitle = new URLSearchParams(window.location.search).get('eventTitle');
+      if (role === 'Organizer' && linkedEventTitle && !document.getElementById('bookingEventTitle').value) {
+        document.getElementById('bookingEventTitle').value = linkedEventTitle;
+      }
+      syncBookingBudgetWithBasePrice(false);
+      document.getElementById('bookingSlotsList').innerHTML = '';
+      document.getElementById('bookingStatus').innerText = role === 'Organizer'
+        ? `You are sending an organizer booking request to ${currentArtistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
+        : `You are booking ${currentArtistName}. The PHP 15.00 service fee is collected before the artist can review your request.`;
+      await loadArtistBlockedDates();
+      bookingModal.classList.remove('hidden');
+      bookingModal.classList.add('flex');
+    }
+
+    function closeBookingModal() {
+      bookingModal.classList.add('hidden');
+      bookingModal.classList.remove('flex');
+    }
+
+    async function readApiPayload(response) {
+      const text = await response.text().catch(() => '');
+      if (!text) return {};
+
+      try {
+        return JSON.parse(text);
+      } catch {
+        return { message: text };
+      }
+    }
+
+    async function requestBookingCheckout(bookingId, body) {
+      const routes = [
+        `/api/booking/${bookingId}/checkout`,
+        `/api/booking/checkout/${bookingId}`
+      ];
+
+      let lastResponse = null;
+      let lastPayload = {};
+
+      for (const route of routes) {
+        const response = await fetch(route, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const payload = await readApiPayload(response);
+        lastResponse = response;
+        lastPayload = payload;
+
+        if (response.ok) {
+          return { response, payload };
+        }
+
+        if (response.status !== 404) {
+          return { response, payload };
+        }
+      }
+
+      return { response: lastResponse, payload: lastPayload };
+    }
+
+    document.getElementById('bookingForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const submitBtn = document.getElementById('submitBookingBtn');
+      const budgetInput = document.getElementById('bookingBudget');
+      const parsedBudget = parseFloat(budgetInput.value);
+      const finalBudget = Number.isFinite(parsedBudget) && parsedBudget > 0 ? parsedBudget : currentArtistBasePrice;
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Preparing payment...';
+
+      const payload = {
+        customerId: localStorage.getItem('userId'),
+        targetUserId: currentArtistId,
+        eventId: new URLSearchParams(window.location.search).get('eventId') || null,
+        requesterRole: localStorage.getItem('userRole'),
+        targetRole: 'Artist',
+        serviceType: document.getElementById('bookingServiceType').value,
+        eventTitle: document.getElementById('bookingEventTitle').value,
+        eventDate: document.getElementById('bookingEventDate').value,
+        eventEndTime: document.getElementById('bookingEventEndTime').value,
+        bookingSlots: collectBookingSlots(),
+        location: document.getElementById('bookingLocation').value,
+        budget: finalBudget > 0 ? finalBudget : 0,
+        notes: document.getElementById('bookingMessage').value
+      };
+
+      for (const slot of payload.bookingSlots) {
+        if (isArtistBlockedBookingDate(slot.eventDate)) {
+          document.getElementById('bookingStatus').innerText = `${currentArtistName} is not available on ${new Date(slot.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`;
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Book Now';
+          return;
+        }
+        if (new Date(slot.eventEndTime).getTime() <= new Date(slot.eventDate).getTime()) {
+          document.getElementById('bookingStatus').innerText = 'Each booking slot needs an end time after the start time.';
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Book Now';
+          return;
+        }
+      }
+
+      try {
+        const response = await fetch('/api/booking', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await readApiPayload(response);
+        if (!response.ok) throw new Error(data.message || 'Failed to send booking request.');
+
+        const bookingId = data.bookingId;
+        if (!bookingId) throw new Error('Booking was created but no booking ID was returned.');
+
+        if (localStorage.getItem('userRole') === 'Organizer') {
+          document.getElementById('bookingStatus').innerText = 'Booking request created. Opening the chat thread...';
+          window.location.href = `/pages/bookings/messages.html?bookingId=${bookingId}`;
+          return;
+        }
+
+        document.getElementById('bookingStatus').innerText = data.bookingCount > 1
+          ? `Created ${data.bookingCount} booking requests. Redirecting to the first service-fee checkout...`
+          : 'Booking created. Redirecting to the PHP 15.00 service fee checkout...';
+
+        const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}&bookingFeePaid=1`;
+        const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${bookingId}`;
+        const { response: checkoutRes, payload: checkoutData } = await requestBookingCheckout(bookingId, { successUrl, cancelUrl });
+        if (!checkoutRes.ok || !checkoutData.checkoutUrl) {
+          throw new Error(checkoutData.message || checkoutData.details || `Failed to start booking fee payment (${checkoutRes.status}).`);
+        }
+
+        window.location.href = checkoutData.checkoutUrl;
+      } catch (error) {
+        document.getElementById('bookingStatus').innerText = error.message || 'Failed to send booking request.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Book Now';
+      }
+    });
+
+    function syncBookingBudgetWithBasePrice(force = false) {
+      const budgetInput = document.getElementById('bookingBudget');
+      if (!budgetInput) return;
+
+      const hasManualValue = budgetInput.dataset.userEdited === 'true' && Number(budgetInput.value || 0) > 0;
+      if (force || !hasManualValue) {
+        budgetInput.value = currentArtistBasePrice > 0 ? currentArtistBasePrice.toFixed(2) : '';
+      }
+      budgetInput.placeholder = currentArtistBasePrice > 0
+        ? `Starts at PHP ${currentArtistBasePrice.toFixed(2)}`
+        : 'Enter proposed budget';
+    }
+
+    document.getElementById('bookingBudget').addEventListener('input', (event) => {
+      event.target.dataset.userEdited = 'true';
+    });
+    document.getElementById('bookingEventDate')?.addEventListener('input', (event) => validateArtistBookingInput(event.target));
+    document.getElementById('bookingEventDate')?.addEventListener('change', (event) => validateArtistBookingInput(event.target));
+
+    document.getElementById('addBookingSlotBtn')?.addEventListener('click', () => addBookingSlotRow());
+
+    const artistReportReasons = [
+      'Fake or impersonating profile',
+      'Inappropriate content or behavior',
+      'Harassment or threats',
+      'Fraud or scam',
+      'Hate speech or discrimination',
+      'Other'
+    ];
+
+    async function promptForStructuredArtistReport() {
+      const optionsList = artistReportReasons.map((r, i) => `${i + 1}. ${r}`).join('\n');
+      const choice = await window.systemDialog.prompt(
+        `Choose the main reason for this report:\n${optionsList}`,
+        { title: 'Report Artist', kicker: 'Safety Report', placeholder: 'Enter number (1-6)', okText: 'Next' }
+      );
+      if (!choice) return null;
+      const optionIndex = parseInt(choice.trim(), 10) - 1;
+      const normalized = (choice || '').trim().toLowerCase();
+      const reason = artistReportReasons[optionIndex]
+        || artistReportReasons.find(r => r.toLowerCase().startsWith(normalized));
+      if (!reason) {
+        await window.systemDialog.alert('Please choose one of the listed reasons from 1 to 6.', { title: 'Invalid Selection', kicker: 'Safety Report' });
+        return promptForStructuredArtistReport();
+      }
+      const details = await window.systemDialog.prompt(
+        reason === 'Other'
+          ? 'Please describe what happened so the team can review this report.'
+          : 'Add any extra details to help the review team (optional).',
+        { title: 'More Details', kicker: 'Safety Report', placeholder: 'Add details here', okText: 'Submit', multiline: true }
+      );
+      if (details === null) return null;
+      return { reason, details: details || '' };
+    }
+
+    document.getElementById('reportArtistBtn')?.addEventListener('click', async () => {
+      const reporterUserId = localStorage.getItem('userId');
+      if (!reporterUserId) {
+        await window.systemDialog.alert('Please sign in first before sending a report.', {
+          title: 'Sign In Required',
+          kicker: 'Safety Report'
+        });
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      const reportPayload = await promptForStructuredArtistReport();
+      if (!reportPayload) return;
+
+      try {
+        const res = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reporterUserId,
+            targetId: currentArtistId,
+            targetType: 'artist',
+            reason: reportPayload.reason,
+            details: reportPayload.details
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to submit report.');
+        await window.systemDialog.alert(data.message || 'Report submitted successfully.', {
+          title: 'Report Submitted',
+          kicker: 'Safety Report'
+        });
+      } catch (error) {
+        await window.systemDialog.alert(error.message || 'Failed to submit report.', {
+          title: 'Report Failed',
+          kicker: 'Safety Report'
+        });
+      }
+    });
+
+    async function loadArtistInteractions() {
+      const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
+
+      try {
+        const summaryRes = await fetch(`/api/talentinteraction/summary/Artist/${currentArtistId}${customerId ? `?customerId=${customerId}` : ''}`);
+        if (!summaryRes.ok) throw new Error();
+
+        artistInteractionSummary = await summaryRes.json();
+        document.getElementById('ratingAverage').innerText = Number(artistInteractionSummary.averageRating || 0).toFixed(1);
+        document.getElementById('favoriteCount').innerText = artistInteractionSummary.favoriteCount || 0;
+        document.getElementById('reviewCount').innerText = artistInteractionSummary.reviewCount || 0;
+        updateFavoriteButton(!!artistInteractionSummary.isFavorited);
+        updateArtistReviewEligibility(!!artistInteractionSummary.canReview, !!customerId, artistInteractionSummary.reviewEligibilityMessage || '');
+        renderReviews(artistInteractionSummary.reviews || []);
+      } catch (error) {
+        updateArtistReviewEligibility(false, !!customerId, error.message || '');
+        document.getElementById('reviewsList').innerHTML = `<p class="text-sm text-white/50">No feedback yet.</p>`;
+      }
+    }
+
+    async function syncArtistFavoriteStateFromCustomerFavorites() {
+      const customerId = localStorage.getItem('userRole') === 'Customer' ? localStorage.getItem('userId') : '';
+      if (!customerId || !currentArtistId) return;
+
+      try {
+        const res = await fetch(`/api/customer/${customerId}/favorites`);
+        if (!res.ok) return;
+
+        const favorites = await res.json();
+        const isFavorited = Array.isArray(favorites) && favorites.some(item =>
+          String(item.targetUserId || '').toLowerCase() === String(currentArtistId).toLowerCase()
+            && String(item.targetRole || '').toLowerCase() === 'artist');
+
+        updateFavoriteButton(isFavorited);
+      } catch {
+        // Keep the existing button state if the favorites refresh fails.
+      }
+    }
+
+    function updateFavoriteButton(isFavorited) {
+      const favoriteBtn = document.getElementById('favoriteBtn');
+      favoriteBtn.dataset.active = isFavorited ? 'true' : 'false';
+      favoriteBtn.className = `inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors ${isFavorited ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/15' : 'border-white/15 bg-transparent text-white hover:bg-white/5'}`;
+      favoriteBtn.innerHTML = `<i data-lucide="heart" class="w-3.5 h-3.5 ${isFavorited ? 'text-red-400 fill-current' : 'text-white/60'}"></i> ${isFavorited ? 'Saved To Favorites' : 'Add to Favorites'}`;
+      lucide.createIcons();
+    }
+
+    function renderReviews(reviews) {
+      const reviewsList = document.getElementById('reviewsList');
+      if (!reviews.length) {
+        reviewsList.innerHTML = `<p class="text-sm text-white/50">No reviews yet. Be the first customer to leave feedback.</p>`;
+        return;
+      }
+
+      reviewsList.innerHTML = reviews.map(review => `
+        <div class="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <p class="text-sm font-semibold text-white">${review.customerName || 'Customer'}</p>
+              <p class="text-[10px] uppercase tracking-widest text-white/35 mt-1">${new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+            <div class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-yellow-300">
+              ${'★'.repeat(review.rating || 0)}${'☆'.repeat(Math.max(0, 5 - (review.rating || 0)))}
+            </div>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">${review.feedback || 'No written feedback provided.'}</p>
+        </div>
+      `).join('');
+    }
+
+    function updateArtistReviewEligibility(canReview, hasCustomerContext, lockedMessage = '') {
+      const reviewPanel = document.getElementById('artistReviewPanel');
+      const reviewsPanel = document.getElementById('artistReviewsPanel');
+      const ratingInput = document.getElementById('reviewRating');
+      const feedbackInput = document.getElementById('reviewFeedback');
+      const submitBtn = document.getElementById('submitReviewBtn');
+      const reviewStatus = document.getElementById('reviewStatus');
+
+      if (!reviewPanel || !reviewsPanel || !ratingInput || !feedbackInput || !submitBtn || !reviewStatus) return;
+
+      const message = hasCustomerContext
+        ? (lockedMessage || 'Reviews unlock only after your booking with this artist is fully completed and settled.')
+        : 'Sign in as a Customer and complete your booking before reviews become available.';
+
+      reviewPanel.classList.toggle('hidden', !canReview);
+      reviewsPanel.classList.toggle('xl:col-span-5', !canReview);
+      reviewsPanel.classList.toggle('xl:col-span-3', canReview);
+
+      ratingInput.disabled = !canReview;
+      feedbackInput.disabled = !canReview;
+      submitBtn.disabled = !canReview;
+      submitBtn.classList.toggle('opacity-50', !canReview);
+      submitBtn.classList.toggle('cursor-not-allowed', !canReview);
+      reviewStatus.innerText = canReview
+        ? 'Your completed booking is eligible for feedback. You can leave a review now.'
+        : message;
+    }
+
+    document.getElementById('favoriteBtn').addEventListener('click', async () => {
+      const role = localStorage.getItem('userRole');
+      const customerId = localStorage.getItem('userId');
+      if (role !== 'Customer' || !customerId) {
+        await window.systemDialog.alert('Please sign in as a Customer to use favorites.', {
+          title: 'Customer Access Only',
+          kicker: 'Favorites'
+        });
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/talentinteraction/favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            targetUserId: currentArtistId,
+            targetRole: 'Artist'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to update favorites.');
+        updateFavoriteButton(data.isFavorited);
+        localStorage.setItem('customerFavoritesUpdatedAt', String(Date.now()));
+        await loadArtistInteractions();
+      } catch (error) {
+        await window.systemDialog.alert(error.message || 'Failed to update favorites.', {
+          title: 'Favorites Failed',
+          kicker: 'Customer Action'
+        });
+      }
+    });
+
+    document.getElementById('reviewForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const role = localStorage.getItem('userRole');
+      const customerId = localStorage.getItem('userId');
+      const reviewStatus = document.getElementById('reviewStatus');
+      const submitBtn = document.getElementById('submitReviewBtn');
+
+      if (role !== 'Customer' || !customerId) {
+        await window.systemDialog.alert('Please sign in as a Customer to leave feedback.', {
+          title: 'Customer Access Only',
+          kicker: 'Artist Review'
+        });
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      if (!artistInteractionSummary?.canReview) {
+        reviewStatus.innerText = artistInteractionSummary?.reviewEligibilityMessage || 'Reviews unlock only after your booking with this artist is fully completed and settled.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Saving...';
+
+      try {
+        const res = await fetch('/api/talentinteraction/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId,
+            targetUserId: currentArtistId,
+            targetRole: 'Artist',
+            rating: parseInt(document.getElementById('reviewRating').value, 10),
+            feedback: document.getElementById('reviewFeedback').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to save feedback.');
+
+        reviewStatus.innerText = data.message || 'Feedback saved successfully.';
+        document.getElementById('reviewFeedback').value = '';
+        await loadArtistInteractions();
+      } catch (error) {
+        reviewStatus.innerText = error.message || 'Failed to save feedback.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit Feedback';
+      }
+    });
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+    }
+    function getEventStatusBadgeClass(status) {
+      const normalized = String(status || 'Upcoming').trim().toLowerCase();
+      if (normalized === 'finished' || normalized === 'completed') return 'bg-slate-500/15 border border-slate-400/20 text-slate-200';
+      if (normalized === 'draft' || normalized === 'pending') return 'bg-amber-500/15 border border-amber-400/20 text-amber-300';
+      if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
+      return 'bg-emerald-500/15 border border-emerald-400/20 text-emerald-300';
+    }
+    function getArtistProfileStatusLabel(verificationStatus, isAvailable) {
+      const normalized = String(verificationStatus || '').trim().toLowerCase();
+      if (normalized === 'approved') return isAvailable ? 'Verified & Bookable' : 'Verified';
+      if (normalized === 'pending') return 'Verification Pending';
+      if (normalized === 'denied' || normalized === 'rejected') return 'Verification Needs Attention';
+      return 'Not Yet Verified';
+    }
+    function splitEventsByTimeline(events) {
+      const now = Date.now();
+      const current = [];
+      const past = [];
+      (Array.isArray(events) ? events : []).forEach((event) => {
+        const normalizedStatus = String(event?.status || '').trim().toLowerCase();
+        const eventTime = new Date(event?.time || '').getTime();
+        const isPast = normalizedStatus === 'finished'
+          || normalizedStatus === 'completed'
+          || (!Number.isNaN(eventTime) && eventTime < now);
+        if (isPast) {
+          past.push(event);
+        } else {
+          current.push(event);
+        }
+      });
+      return { current, past };
+    }
+    function renderEventsIntoSection(containerId, events, emptyMessage) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      if (!Array.isArray(events) || events.length === 0) {
+        container.innerHTML = `<p class="text-sm text-white/50">${emptyMessage}</p>`;
+        return;
+      }
+
+      container.innerHTML = events.map(event => `
+        <a href="/pages/details/EventDetailPage.html?id=${event.id}" class="block rounded-2xl border border-white/10 bg-black/30 p-4 hover:border-white/20 transition-colors">
+          <p class="text-sm font-bold text-white">${event.title}</p>
+          <p class="mt-2 text-xs text-white/55">${new Date(event.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+          <p class="mt-1 text-xs text-white/45">${event.city ? `${event.city} - ${event.location}` : event.location}</p>
+          <span class="mt-3 inline-flex rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest ${getEventStatusBadgeClass(event.status)}">${event.status}</span>
+        </a>
+      `).join('');
+    }
+    async function loadArtistPosts() {
+      const container = document.getElementById('artistPostsList');
+      if (!container || !currentArtistId) return;
+      try {
+        const res = await fetch(`/api/community/posts/Artist/${currentArtistId}`);
+        if (!res.ok) throw new Error();
+        const posts = await res.json();
+        if (!Array.isArray(posts) || !posts.length) {
+          container.innerHTML = `<p class="text-sm text-white/50">No community posts yet.</p>`;
+          return;
+        }
+
+        container.innerHTML = posts.map(post => `
+          <article class="rounded-2xl border border-white/10 bg-black/30 p-5">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center">
+                ${post.authorProfilePicture ? `<img src="${post.authorProfilePicture}" class="w-full h-full object-cover">` : `<i data-lucide="user-round" class="w-4 h-4 text-white/40"></i>`}
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-white">${post.authorName || currentArtistName}</p>
+                <div class="flex items-center gap-2 text-[10px] uppercase tracking-widest ${post.authorVerified ? 'text-blue-300' : 'text-white/35'}">
+                  ${post.authorVerified ? '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300"><i data-lucide="badge-check" class="w-3 h-3"></i></span>' : '<span class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-white/10 bg-white/5 text-white/35"><i data-lucide="sparkles" class="w-3 h-3"></i></span>'}
+                  <span>${new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+              </div>
+            </div>
+            ${post.content ? `<p class="text-sm text-white/70 leading-relaxed mt-4 whitespace-pre-line">${post.content}</p>` : ''}
+            ${post.imageUrl ? `<img src="${post.imageUrl}" class="mt-4 w-full rounded-2xl border border-white/10 object-cover max-h-[420px] bg-black/40">` : ''}
+          </article>
+        `).join('');
+        lucide.createIcons();
+      } catch (error) {
+        container.innerHTML = `<p class="text-sm text-red-400">Failed to load posts.</p>`;
+      }
+    }
+    function handleLogout() { localStorage.clear(); window.location.href = '/pages/auth/login.html'; }
+  </script>
+</body>
+</html>

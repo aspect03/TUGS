@@ -1,15 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - QR Scanner</title>
+  <title>Tugs! - QR Scanner</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 </head>
 <body class="bg-neutral-950 text-white antialiased min-h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
   
@@ -18,7 +20,7 @@
   <nav class="relative z-50 w-full flex-shrink-0">
     <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
     <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-      <a href="/pages/dashboards/OrganizerDashboard.html" class="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm font-semibold">
+      <a href="/pages/dashboards/ProfileAdmin.html" class="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm font-semibold">
         <i data-lucide="arrow-left" class="w-5 h-5"></i> Back to Dashboard
       </a>
       <span class="tracking-tight font-semibold text-lg text-white uppercase flex items-center gap-2">
@@ -463,9 +465,73 @@
 
     function resumeScanning() {
       document.getElementById('scanResult').classList.add('hidden');
-      isScanning = true; 
+      isScanning = true;
       scannerStatus.innerText = "Tap Start Camera to scan the next ticket.";
     }
+
+    // ── SIGNALR LIVE DASHBOARD CONNECTION ────────────────────────────────────
+    let _signalRConnection = null;
+    let _scanCount = 0;
+    let _saleCount = 0;
+
+    function initSignalR(eventId) {
+      if (_signalRConnection) {
+        _signalRConnection.stop();
+        _signalRConnection = null;
+      }
+
+      _signalRConnection = new signalR.HubConnectionBuilder()
+        .withUrl('/hubs/event-scan')
+        .withAutomaticReconnect([0, 2000, 5000, 10000])
+        .configureLogging(signalR.LogLevel.Warning)
+        .build();
+
+      _signalRConnection.on('TicketScanned', payload => {
+        _scanCount++;
+        updateLiveBadge('scansBadge', _scanCount, 'Scanned');
+        flashBadge('scansBadge');
+      });
+
+      _signalRConnection.on('TicketSold', payload => {
+        _saleCount++;
+        updateLiveBadge('salesBadge', _saleCount, 'Sold');
+        flashBadge('salesBadge');
+      });
+
+      _signalRConnection.start().then(async () => {
+        await _signalRConnection.invoke('JoinEventGroup', eventId);
+        document.getElementById('liveIndicator')?.classList.remove('hidden');
+      }).catch(err => console.warn('[SignalR] Connection failed:', err));
+    }
+
+    function updateLiveBadge(id, count, label) {
+      const el = document.getElementById(id);
+      if (el) { el.innerText = `${count} ${label}`; el.classList.remove('hidden'); }
+    }
+
+    function flashBadge(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add('scale-110');
+      setTimeout(() => el.classList.remove('scale-110'), 300);
+    }
+
+    // Init SignalR when event is selected
+    const origDomReady = document.addEventListener;
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const evId = params.get('eventId');
+      if (evId) initSignalR(evId);
+    });
   </script>
+
+  <!-- Live scan counter badges (shown when SignalR connected) -->
+  <div class="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
+    <div id="liveIndicator" class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+    </div>
+    <div id="scansBadge" class="hidden px-3 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-500/25 text-cyan-300 text-[10px] font-bold transition-transform duration-200"></div>
+    <div id="salesBadge" class="hidden px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/25 text-emerald-300 text-[10px] font-bold transition-transform duration-200"></div>
+  </div>
 </body>
 </html>

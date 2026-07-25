@@ -5,17 +5,28 @@ using NpgsqlTypes;
 using ImajinationAPI.Services;
 using System.Threading;
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ImajinationAPI.Controllers
 {
     public class UpdateArtistProfileDto
     {
+        public string? firstName { get; set; }
+        public string? lastName { get; set; }
+        public string? stageName { get; set; }
         public string? bio { get; set; }
         public string? genres { get; set; }
         public string? spotifyLink { get; set; }
         public string? profilePicture { get; set; } // Base64 string
         public bool? isAvailable { get; set; }
         public decimal? basePrice { get; set; }
+    }
+
+    public class ChangeTalentPasswordDto
+    {
+        public string? currentPassword { get; set; }
+        public string? newPassword { get; set; }
+        public string? otp { get; set; }
     }
 
     public class UpdateAvailabilityDto
@@ -30,17 +41,20 @@ namespace ImajinationAPI.Controllers
         private readonly string _connectionString;
         private readonly UploadScanningService _uploadScanningService;
         private readonly AutomatedVerificationAssessmentService _automatedVerificationAssessmentService;
+        private readonly IMemoryCache _cache;
         private static readonly SemaphoreSlim ArtistSchemaLock = new(1, 1);
         private static volatile bool _artistSchemaEnsured;
 
         public ArtistController(
             IConfiguration configuration,
             UploadScanningService uploadScanningService,
-            AutomatedVerificationAssessmentService automatedVerificationAssessmentService)
+            AutomatedVerificationAssessmentService automatedVerificationAssessmentService,
+            IMemoryCache cache)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _uploadScanningService = uploadScanningService;
             _automatedVerificationAssessmentService = automatedVerificationAssessmentService;
+            _cache = cache;
         }
 
         private Guid? GetActorUserId() =>
@@ -179,7 +193,8 @@ namespace ImajinationAPI.Controllers
                         COALESCE(u.base_price, 0),
                         COALESCE(review_stats.average_rating, 0),
                         COALESCE(review_stats.review_count, 0),
-                        COALESCE(u.verification_status, 'Not Submitted')
+                        COALESCE(u.verification_status, 'Not Submitted'),
+                        u.role
                     FROM users u
                     LEFT JOIN (
                         SELECT
@@ -187,10 +202,10 @@ namespace ImajinationAPI.Controllers
                             ROUND(AVG(rating)::numeric, 1) AS average_rating,
                             COUNT(*) AS review_count
                         FROM talent_reviews
-                        WHERE LOWER(COALESCE(target_role, '')) = 'artist'
+                        WHERE LOWER(COALESCE(target_role, '')) IN ('artist', 'sessionist')
                         GROUP BY target_user_id
                     ) review_stats ON review_stats.target_user_id = u.id
-                    WHERE u.role = 'Artist'";
+                    WHERE u.role IN ('Artist', 'Sessionist')";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.CommandTimeout = 5;
 
@@ -231,7 +246,8 @@ namespace ImajinationAPI.Controllers
                             "",
                             "",
                             stage
-                        ).Percent
+                        ).Percent,
+                        role = reader.IsDBNull(16) ? "Artist" : reader.GetString(16)
                     });
                 }
                 return Ok(artists);
@@ -253,7 +269,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureArtistSchemaOnce(connection);
 
-                string sql = "SELECT stagename, firstname, lastname, profile_picture, bio, genres, spotify_link, COALESCE(is_available, TRUE), COALESCE(is_verified, FALSE), talent_category, member_names, COALESCE(base_price, 0) FROM users WHERE id = @id";
+                string sql = "SELECT stagename, firstname, lastname, COALESCE(email, ''), profile_picture, bio, genres, spotify_link, COALESCE(is_available, TRUE), COALESCE(is_verified, FALSE), talent_category, member_names, COALESCE(base_price, 0) FROM users WHERE id = @id";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", id);
                 cmd.CommandTimeout = 5;
@@ -265,15 +281,16 @@ namespace ImajinationAPI.Controllers
                     string first = reader.IsDBNull(1) ? "" : reader.GetString(1);
                     string last = reader.IsDBNull(2) ? "" : reader.GetString(2);
                     string displayName = !string.IsNullOrEmpty(stage) ? stage : $"{first} {last}".Trim();
-                    string profilePicture = reader.IsDBNull(3) ? "https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300" : reader.GetString(3);
-                    string bio = reader.IsDBNull(4) ? "This artist hasn't written a bio yet." : reader.GetString(4);
-                    string genres = reader.IsDBNull(5) ? "Music" : reader.GetString(5);
-                    string spotifyLink = reader.IsDBNull(6) ? "" : reader.GetString(6);
-                    bool isAvailable = reader.IsDBNull(7) || reader.GetBoolean(7);
-                    bool isVerified = !reader.IsDBNull(8) && reader.GetBoolean(8);
-                    string talentCategory = reader.IsDBNull(9) ? "" : reader.GetString(9);
-                    string memberNames = reader.IsDBNull(10) ? "" : reader.GetString(10);
-                    decimal basePrice = reader.IsDBNull(11) ? 0 : reader.GetDecimal(11);
+                    string email = reader.IsDBNull(3) ? "" : reader.GetString(3);
+                    string profilePicture = reader.IsDBNull(4) ? "https://images.unsplash.com/photo-1549834125-82d3c48159a3?auto=format&fit=crop&q=80&w=300" : reader.GetString(4);
+                    string bio = reader.IsDBNull(5) ? "This artist hasn't written a bio yet." : reader.GetString(5);
+                    string genres = reader.IsDBNull(6) ? "Music" : reader.GetString(6);
+                    string spotifyLink = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                    bool isAvailable = reader.IsDBNull(8) || reader.GetBoolean(8);
+                    bool isVerified = !reader.IsDBNull(9) && reader.GetBoolean(9);
+                    string talentCategory = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                    string memberNames = reader.IsDBNull(11) ? "" : reader.GetString(11);
+                    decimal basePrice = reader.IsDBNull(12) ? 0 : reader.GetDecimal(12);
                     var profileSummary = CommunitySupport.CalculateProfileCompletion("Artist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
                     await reader.CloseAsync();
                     await CommunitySupport.SyncProfileVerificationAsync(connection, id, "Artist", first, last, bio, profilePicture, genres, spotifyLink, "", "", "", stage);
@@ -282,9 +299,21 @@ namespace ImajinationAPI.Controllers
                     bool hasVerificationIdFront = false;
                     bool hasVerificationIdBack = false;
                     bool hasVerificationSelfie = false;
+                    string verificationIdType = string.Empty;
+                    string verificationIdLast4 = string.Empty;
+                    string verificationEvidenceSummary = string.Empty;
+                    string verificationSupportingLinks = string.Empty;
+                    string verificationReferenceName = string.Empty;
+                    string verificationReferenceContact = string.Empty;
 
                     const string verificationAssetsSql = @"
                         SELECT created_at,
+                               COALESCE(id_type, ''),
+                               COALESCE(id_number_last4, ''),
+                               COALESCE(evidence_summary, ''),
+                               COALESCE(supporting_links, ''),
+                               COALESCE(reference_name, ''),
+                               COALESCE(reference_contact, ''),
                                COALESCE(id_image_front, ''),
                                COALESCE(id_image_back, ''),
                                COALESCE(selfie_image, '')
@@ -303,9 +332,15 @@ namespace ImajinationAPI.Controllers
                         if (await verificationAssetsReader.ReadAsync())
                         {
                             verificationAssetSubmittedAt = verificationAssetsReader.IsDBNull(0) ? null : (DateTime?)verificationAssetsReader.GetDateTime(0);
-                            hasVerificationIdFront = !verificationAssetsReader.IsDBNull(1) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(1));
-                            hasVerificationIdBack = !verificationAssetsReader.IsDBNull(2) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(2));
-                            hasVerificationSelfie = !verificationAssetsReader.IsDBNull(3) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(3));
+                            verificationIdType = verificationAssetsReader.IsDBNull(1) ? string.Empty : verificationAssetsReader.GetString(1);
+                            verificationIdLast4 = verificationAssetsReader.IsDBNull(2) ? string.Empty : verificationAssetsReader.GetString(2);
+                            verificationEvidenceSummary = verificationAssetsReader.IsDBNull(3) ? string.Empty : verificationAssetsReader.GetString(3);
+                            verificationSupportingLinks = verificationAssetsReader.IsDBNull(4) ? string.Empty : verificationAssetsReader.GetString(4);
+                            verificationReferenceName = verificationAssetsReader.IsDBNull(5) ? string.Empty : verificationAssetsReader.GetString(5);
+                            verificationReferenceContact = verificationAssetsReader.IsDBNull(6) ? string.Empty : verificationAssetsReader.GetString(6);
+                            hasVerificationIdFront = !verificationAssetsReader.IsDBNull(7) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(7));
+                            hasVerificationIdBack = !verificationAssetsReader.IsDBNull(8) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(8));
+                            hasVerificationSelfie = !verificationAssetsReader.IsDBNull(9) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(9));
                         }
                     }
 
@@ -374,6 +409,10 @@ namespace ImajinationAPI.Controllers
                     return Ok(new
                     {
                         displayName,
+                        firstName = first,
+                        lastName = last,
+                        stageName = stage,
+                        email = canViewPrivateFields ? email : string.Empty,
                         profilePicture,
                         bio,
                         genres,
@@ -382,7 +421,7 @@ namespace ImajinationAPI.Controllers
                         memberNames,
                         basePrice,
                         isAvailable,
-                        isVerified,
+                        isVerified = verification.HasApprovedRequest,
                         verificationStatus = verification.Status,
                         verificationLevel = verification.Level,
                         verificationMethod = canViewPrivateFields ? verification.Method : string.Empty,
@@ -396,6 +435,17 @@ namespace ImajinationAPI.Controllers
                                 idBackSubmitted = hasVerificationIdBack,
                                 selfieSubmitted = hasVerificationSelfie,
                                 submittedAt = verificationAssetSubmittedAt
+                            }
+                            : null,
+                        verificationRequest = canViewPrivateFields
+                            ? new
+                            {
+                                idType = verificationIdType,
+                                idLast4 = verificationIdLast4,
+                                evidenceSummary = verificationEvidenceSummary,
+                                supportingLinks = verificationSupportingLinks,
+                                referenceName = verificationReferenceName,
+                                referenceContact = verificationReferenceContact
                             }
                             : null,
                         profileCompletionPercent = profileSummary.Percent,
@@ -430,6 +480,9 @@ namespace ImajinationAPI.Controllers
                 await EnsureArtistSchemaOnce(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
+                var sanitizedFirstName = SecuritySupport.SanitizePlainText(req.firstName, 80, false);
+                var sanitizedLastName = SecuritySupport.SanitizePlainText(req.lastName, 80, false);
+                var sanitizedStageName = SecuritySupport.SanitizePlainText(req.stageName, 120, false);
                 var sanitizedBio = SecuritySupport.SanitizePlainText(req.bio, 2500, true);
                 var sanitizedGenres = SecuritySupport.SanitizePlainText(req.genres, 400, false);
                 var sanitizedSpotifyLink = SecuritySupport.SanitizeUrl(req.spotifyLink);
@@ -444,8 +497,16 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = pictureScan.Message });
                 }
 
+                if (string.IsNullOrWhiteSpace(sanitizedFirstName) || string.IsNullOrWhiteSpace(sanitizedLastName))
+                {
+                    return BadRequest(new { message = "First name and last name are required." });
+                }
+
                 string sql = @"
                     UPDATE users SET 
+                        firstname = @firstName,
+                        lastname = @lastName,
+                        stagename = @stageName,
                         bio = @bio, 
                         genres = @genres, 
                         spotify_link = @spotify, 
@@ -457,6 +518,9 @@ namespace ImajinationAPI.Controllers
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.CommandTimeout = 5;
                 cmd.Parameters.AddWithValue("@id", id);
+                cmd.Parameters.AddWithValue("@firstName", sanitizedFirstName);
+                cmd.Parameters.AddWithValue("@lastName", sanitizedLastName);
+                cmd.Parameters.AddWithValue("@stageName", string.IsNullOrWhiteSpace(sanitizedStageName) ? DBNull.Value : sanitizedStageName);
                 cmd.Parameters.AddWithValue("@bio", string.IsNullOrWhiteSpace(sanitizedBio) ? DBNull.Value : sanitizedBio);
                 cmd.Parameters.AddWithValue("@genres", string.IsNullOrWhiteSpace(sanitizedGenres) ? DBNull.Value : sanitizedGenres);
                 cmd.Parameters.AddWithValue("@spotify", string.IsNullOrWhiteSpace(sanitizedSpotifyLink) ? DBNull.Value : sanitizedSpotifyLink);
@@ -529,6 +593,10 @@ namespace ImajinationAPI.Controllers
                 return Ok(new
                 {
                     message = "Profile updated successfully!",
+                    displayName = string.IsNullOrWhiteSpace(stage) ? $"{first} {last}".Trim() : stage,
+                    firstName = first,
+                    lastName = last,
+                    stageName = stage,
                     isAvailable,
                     profilePicture,
                     basePrice,
@@ -543,6 +611,101 @@ namespace ImajinationAPI.Controllers
             catch (Exception)
             {
                 return StatusCode(500, new { message = "Failed to load artist profile." });
+            }
+        }
+
+        [Authorize(Roles = "Artist")]
+        [HttpPost("{id}/change-password")]
+        public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangeTalentPasswordDto req)
+        {
+            try
+            {
+                if (!CanAccessOwnArtistRecord(id))
+                {
+                    return Forbid();
+                }
+
+                if (string.IsNullOrWhiteSpace(req.currentPassword) || string.IsNullOrWhiteSpace(req.newPassword) || string.IsNullOrWhiteSpace(req.otp))
+                {
+                    return BadRequest(new { message = "Current password, new password, and OTP are required." });
+                }
+
+                if (!IsStrongPassword(req.newPassword))
+                {
+                    return BadRequest(new { message = "New password must be at least 8 characters and include uppercase, lowercase, number, and special character." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string sql = @"
+                    SELECT COALESCE(email, ''),
+                           COALESCE(passwordhash, '')
+                    FROM users
+                    WHERE id = @id AND role = 'Artist';";
+
+                string email = "";
+                string passwordHash = "";
+                await using (var cmd = new NpgsqlCommand(sql, connection))
+                {
+                    cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        return NotFound(new { message = "Artist not found." });
+                    }
+
+                    email = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                    passwordHash = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                }
+
+                var normalizedEmail = NormalizeEmail(email);
+                if (string.IsNullOrWhiteSpace(normalizedEmail))
+                {
+                    return BadRequest(new { message = "Artist email is required before changing password." });
+                }
+
+                if (!_cache.TryGetValue(normalizedEmail, out string? savedOtp) || string.IsNullOrWhiteSpace(savedOtp))
+                {
+                    return BadRequest(new { message = "OTP expired or not requested. Request a new code first." });
+                }
+
+                if (!string.Equals(savedOtp, req.otp.Trim(), StringComparison.Ordinal))
+                {
+                    return BadRequest(new { message = "Invalid OTP code." });
+                }
+
+                if (!BCrypt.Net.BCrypt.Verify(req.currentPassword, passwordHash))
+                {
+                    return BadRequest(new { message = "Current password is incorrect." });
+                }
+
+                var nextPasswordHash = BCrypt.Net.BCrypt.HashPassword(req.newPassword);
+                const string updateSql = "UPDATE users SET passwordhash = @passwordHash WHERE id = @id AND role = 'Artist';";
+                await using (var updateCmd = new NpgsqlCommand(updateSql, connection))
+                {
+                    updateCmd.Parameters.Add("@passwordHash", NpgsqlDbType.Text).Value = nextPasswordHash;
+                    updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = id;
+                    await updateCmd.ExecuteNonQueryAsync();
+                }
+
+                _cache.Remove(normalizedEmail);
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    id,
+                    "Artist",
+                    "password_changed",
+                    "user",
+                    id,
+                    HttpContext,
+                    "Artist changed password with OTP verification.");
+
+                return Ok(new { message = "Password changed successfully." });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { message = "Failed to change password right now." });
             }
         }
 
@@ -805,6 +968,24 @@ namespace ImajinationAPI.Controllers
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static string NormalizeEmail(string? email)
+        {
+            return (email ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private static bool IsStrongPassword(string? password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
+            {
+                return false;
+            }
+
+            return password.Any(char.IsUpper)
+                && password.Any(char.IsLower)
+                && password.Any(char.IsDigit)
+                && password.Any(ch => !char.IsLetterOrDigit(ch));
         }
     }
 }

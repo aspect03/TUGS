@@ -1,0 +1,157 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Authentication</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  <div class="pointer-events-none fixed inset-0 z-0">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_60%)]"></div>
+    <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black"></div>
+  </div>
+
+  <nav class="relative z-10 w-full h-16 flex items-center justify-center border-b border-white/10 bg-black/30 backdrop-blur-md">
+    <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+      <div class="h-9 w-32 sm:h-10 sm:w-36 flex items-center">
+        <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
+      </div>
+    </a>
+  </nav>
+
+  <main class="relative z-10 w-full">
+    <section class="max-w-6xl mx-auto px-6 py-8 md:py-10">
+      <div class="flex items-end justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Choose your signup role</h2>
+          <p class="mt-2 text-sm sm:text-base text-white/65 max-w-2xl">
+            Browse gigs, host events, offer talent, or build an artist presence with the right account type from the start.
+          </p>
+          <div id="google-signup-banner" class="hidden mt-4 rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100">
+            Your Google account is ready. Choose a role to finish creating your Imajination account.
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+              <i data-lucide="user" class="h-5 w-5 text-red-500"></i>
+            </div>
+            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Audience</span>
+          </div>
+          <div class="mt-5 flex flex-1 flex-col">
+            <h3 class="text-xl font-semibold tracking-tight">Customer</h3>
+            <p class="mt-2 text-sm text-white/70 leading-relaxed">
+              Browse events, buy tickets, follow favorites, and keep your bookings and receipts in one place.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-white/70">
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Fast registration and secure login</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Ticket purchase status and receipts</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Booking chat and notifications</li>
+            </ul>
+          </div>
+          <a href="/pages/auth/signup customer.html" class="role-signup-link mt-6 inline-flex w-full items-center justify-center rounded-xl bg-red-600/90 px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-red-500 text-center">
+            Get Started
+          </a>
+        </article>
+
+        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+              <i data-lucide="building-2" class="h-5 w-5 text-red-500"></i>
+            </div>
+            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Hosts</span>
+          </div>
+          <div class="mt-5 flex flex-1 flex-col">
+            <h3 class="text-xl font-semibold tracking-tight">Organizer</h3>
+            <p class="mt-2 text-sm text-white/70 leading-relaxed">
+              Launch events, manage ticket inventory, coordinate lineups, and monitor performance from one dashboard.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-white/70">
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Booking management and scheduling</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Ticket sales and availability overview</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Performance reports and analytics</li>
+            </ul>
+          </div>
+          <a href="/pages/auth/signup organizer.html" class="role-signup-link mt-6 inline-flex w-full items-center justify-center rounded-xl bg-red-600/90 px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-red-500 text-center">
+            Get Started
+          </a>
+        </article>
+
+        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+              <i data-lucide="music" class="h-5 w-5 text-red-500"></i>
+            </div>
+            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Talents</span>
+          </div>
+          <div class="mt-5 flex flex-1 flex-col">
+            <h3 class="text-xl font-semibold tracking-tight">Sessionist</h3>
+            <p class="mt-2 text-sm text-white/70 leading-relaxed">
+              Build a bookable talent profile, manage schedules, and stay in touch with organizers and clients.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-white/70">
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Catalog and discovery presence</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Status updates and confirmations</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Schedule and client history tracking</li>
+            </ul>
+          </div>
+          <a href="/pages/auth/sessionist.html" class="role-signup-link mt-6 inline-flex w-full items-center justify-center rounded-xl bg-red-600/90 px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-red-500 text-center">
+            Get Started
+          </a>
+        </article>
+
+        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+              <i data-lucide="brush" class="h-5 w-5 text-red-500"></i>
+            </div>
+            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Creators</span>
+          </div>
+          <div class="mt-5 flex flex-1 flex-col">
+            <h3 class="text-xl font-semibold tracking-tight">Artist</h3>
+            <p class="mt-2 text-sm text-white/70 leading-relaxed">
+              Showcase your public profile, post updates, receive inquiries, and build credibility with your audience.
+            </p>
+            <ul class="mt-5 space-y-2 text-sm text-white/70">
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Profile and portfolio presence</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Inquiry chat and confirmations</li>
+              <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 text-white/70"></i>Reviews and verified gig credibility</li>
+            </ul>
+          </div>
+          <a href="/pages/auth/artist.html" class="role-signup-link mt-6 inline-flex w-full items-center justify-center rounded-xl bg-red-600/90 px-3 py-2.5 text-[13px] font-semibold text-white hover:bg-red-500 text-center">
+            Get Started
+          </a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    const googleSignupPayload = sessionStorage.getItem('pendingGoogleSignup');
+    const fromGoogle = new URLSearchParams(window.location.search).get('from') === 'google';
+    const googleBanner = document.getElementById('google-signup-banner');
+
+    if (googleSignupPayload && fromGoogle) {
+      if (googleBanner) {
+        googleBanner.classList.remove('hidden');
+      }
+
+      document.querySelectorAll('.role-signup-link').forEach((link) => {
+        const url = new URL(link.getAttribute('href'), window.location.origin);
+        url.searchParams.set('from', 'google');
+        link.setAttribute('href', url.pathname + url.search);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -32,7 +32,7 @@ namespace ImajinationAPI.Controllers
 
     public static class CommunitySupport
     {
-        private const int DefaultListDataUrlLimit = 120_000;
+        private const int DefaultListDataUrlLimit = 4_000_000;
 
         public static async Task EnsureCommunitySchemaAsync(NpgsqlConnection connection)
         {

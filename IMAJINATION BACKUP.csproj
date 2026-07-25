@@ -5,22 +5,42 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>IMAJINATION_BACKUP</RootNamespace>
+    <!-- Skip copying static files to bin/ on local builds — Program.cs serves them directly from ContentRootPath -->
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Dev-only: shave off everything that slows local iteration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugType>portable</DebugType>
+    <Optimize>false</Optimize>
+    <TieredPGO>false</TieredPGO>
+    <UseSharedCompilation>true</UseSharedCompilation>
+    <!-- Suppress pre-existing nullable/obsolete warnings — not errors, just noise that delays compilation -->
+    <NoWarn>CS8618;CS8600;CS8604;CS8602;CS0618;CS0169;CS1591</NoWarn>
+    <!-- Don't emit XML doc or source-link mapping in debug builds -->
+    <DebugSymbols>true</DebugSymbols>
+    <EmbedAllSources>false</EmbedAllSources>
+    <SourceLink></SourceLink>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.11" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.11" />
+    <!-- Microsoft.AspNetCore.OpenApi removed — never called, was just adding compile time -->
     <PackageReference Include="Npgsql" Version="10.0.1" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="QuestPDF" Version="2024.10.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="pages\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="assets\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>

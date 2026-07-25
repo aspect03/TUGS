@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Event Details</title>
+  <title>Tugs! - Event Details</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -41,7 +42,7 @@
       <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
@@ -49,7 +50,6 @@
           <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
           <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
           <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
-          <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
           <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
         </div>
 
@@ -193,12 +193,27 @@
                   <i data-lucide="shield-alert" class="w-4 h-4"></i>
                 </button>
                 
-                <div id="pricingPhaseBadgeDetail" class="inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider mx-auto mb-4">
+                <div id="pricingPhaseBadgeDetail" class="inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider mx-auto mb-2">
                   Calculating Phase...
                 </div>
 
+                <div id="detailSaleBanner" class="hidden mb-4 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg mx-auto w-full">
+                  <div class="flex items-center justify-between flex-wrap gap-1.5">
+                    <div class="flex items-center gap-1.5">
+                      <i data-lucide="tag" class="w-3 h-3 text-emerald-400 shrink-0"></i>
+                      <span id="detailSaleBannerLabel" class="text-emerald-300 text-[10px] font-bold uppercase tracking-wider"></span>
+                    </div>
+                    <div id="detailSaleCountdown" class="hidden items-center gap-1 text-[10px] text-white/50">
+                      <i data-lucide="clock" class="w-3 h-3 shrink-0"></i>
+                      <span>Ends in</span>
+                      <span id="detailSaleCountdownTimer" class="font-mono font-bold text-emerald-300 tabular-nums"></span>
+                    </div>
+                  </div>
+                </div>
+
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/60">Tickets From</p>
-                <p id="detailPrice" class="mt-1 text-4xl font-extrabold text-white tracking-tight">PHP 0</p>
+                <p id="detailPriceOriginal" class="text-sm font-medium text-white/35 line-through hidden"></p>
+                <p id="detailPrice" class="mt-0.5 text-4xl font-extrabold text-white tracking-tight">PHP 0</p>
                 
                 <div class="mt-6 mb-4 p-4 rounded-xl bg-black/40 border border-white/5 text-left">
                   <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3 border-b border-white/10 pb-2">Available Tiers</p>
@@ -214,6 +229,26 @@
                 <button id="bookBtn" class="w-full py-3.5 bg-red-600 text-white text-xs font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-red-500 transition-colors shadow-[0_10px_20px_-10px_rgba(239,68,68,0.6)]">
                   Book Ticket
                 </button>
+
+                <!-- Waitlist panel (shown when sold out) -->
+                <div id="waitlistPanel" class="hidden mt-3 rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-4 space-y-3">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+                    <div>
+                      <p class="text-xs font-bold text-amber-300 uppercase tracking-wider">Sold Out — Join Waitlist</p>
+                      <p id="waitlistCount" class="text-[11px] text-white/40 mt-0.5"></p>
+                    </div>
+                  </div>
+                  <div id="waitlistActions">
+                    <div class="flex gap-2 items-center">
+                      <select id="waitlistQty" class="px-3 py-2 bg-black/40 border border-white/[0.08] rounded-xl text-sm text-white outline-none w-20">
+                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                      </select>
+                      <button id="joinWaitlistBtn" class="flex-1 py-2 rounded-xl bg-amber-500/80 text-black text-xs font-bold uppercase tracking-wider hover:bg-amber-400 transition-colors">Join Waitlist</button>
+                    </div>
+                  </div>
+                  <p id="waitlistStatus" class="text-xs text-white/50 hidden"></p>
+                </div>
               </div>
             </aside>
           </div>
@@ -292,6 +327,15 @@
     let currentEventId = null;
     let currentEventTitle = 'Event';
 
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const firstName = (localStorage.getItem('userFirstName') || '').trim();
       const username = (localStorage.getItem('username') || '').trim();
@@ -319,9 +363,8 @@
         const dashLink = document.getElementById('dashboardLink');
         const profilePageLink = document.getElementById('profilePageLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
-        else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
         if (role === 'Customer' && profilePageLink) {
           profilePageLink.href = '/pages/dashboards/CustomerDashboard.html?view=settings';
           profilePageLink.classList.remove('hidden');
@@ -410,7 +453,8 @@
         organizerName: item.organizerName || 'Unknown Organizer',
         organizerProfilePicture: item.organizerProfilePicture || '',
         organizerBio: item.organizerBio || '',
-        organizerVerified: !!item.organizerVerified
+        organizerVerified: !!item.organizerVerified,
+        tiers: Array.isArray(item.tiers) ? item.tiers : []
       };
     }
 
@@ -438,11 +482,30 @@
       }
 
       lineupContainer.innerHTML = artistLineup.map(item => {
-        const targetPage = `/pages/details/ArtistDetails.html?id=${item.id}`;
+        const artistId = String(item?.id || '').trim();
+        const hasInternalProfile = artistId && artistId !== '00000000-0000-0000-0000-000000000000';
+        const profilePic = item?.profilePicture || '';
+        const avatarHtml = profilePic
+          ? `<img src="${profilePic}" alt="${item.displayName}" class="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" onerror="this.style.display='none'">`
+          : `<span class="w-7 h-7 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center text-[10px] font-bold text-red-300 shrink-0">${(item.displayName || '?').charAt(0).toUpperCase()}</span>`;
+        const chipContent = `
+          ${avatarHtml}
+          <span class="text-xs font-semibold text-white">${item.displayName}</span>
+          <span class="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-red-500/15 border-red-500/30 text-red-300">Artist</span>
+        `;
+
+        if (!hasInternalProfile) {
+          return `
+            <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 opacity-95 cursor-default">
+              ${chipContent}
+            </span>
+          `;
+        }
+
+        const targetPage = `/pages/details/ArtistDetails.html?id=${artistId}`;
         return `
           <a href="${targetPage}" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors">
-            <span class="text-xs font-semibold text-white">${item.displayName}</span>
-            <span class="rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest bg-red-500/15 border-red-500/30 text-red-300">Artist</span>
+            ${chipContent}
           </a>
         `;
       }).join('');
@@ -475,7 +538,7 @@
         markup += `<span class="px-3 py-1 bg-amber-500/12 border border-amber-400/25 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-amber-100">Artist: ${name}</span>`;
       });
 
-      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0) {
+      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0 && !ev.saleExhausted) {
         const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
         markup += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
       }
@@ -539,6 +602,78 @@
       };
     }
 
+    // ── Single shared tier rendering function used by both rendering paths ──
+    function renderTiersInContainer(container, tiers, ev, applySaleFn, mult, priceCellFn, totalSlots) {
+      if (!container) return;
+      try {
+        const safeTiers = Array.isArray(tiers) ? tiers.filter(t => t && t.name) : [];
+
+        if (safeTiers.length > 0) {
+          // New tier system — render each tier card
+          container.innerHTML = safeTiers.map((tier, idx) => {
+            const baseP  = Number(tier.price || 0);
+            const dispP  = (baseP * mult).toFixed(2);
+            const tSlots = Number(tier.totalSlots || 0);
+            const tSold  = Number(tier.slotsSold  || 0);
+            const tLeft  = Math.max(0, tSlots - tSold);
+            const color  = tier.color || '#e53e3e';
+            const soldOut = tSlots > 0 && tSold >= tSlots;
+            const avail  = soldOut
+              ? '<span style="color:#f87171;font-size:10px;font-weight:700;text-transform:uppercase">Sold Out</span>'
+              : (tLeft <= 10 && tSlots > 0)
+                ? `<span style="color:#fbbf24;font-size:10px;font-weight:700;text-transform:uppercase">Only ${tLeft} left</span>`
+                : tSlots > 0
+                  ? `<span style="color:rgba(255,255,255,.35);font-size:10px">${tLeft} available</span>`
+                  : '';
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;${idx>0?'border-top:1px solid rgba(255,255,255,.07)':''}">
+              <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+                <div>
+                  <div style="font-weight:600;font-size:14px;color:rgba(255,255,255,.85)">${escapeHtml(tier.name)}</div>
+                  <div>${avail}</div>
+                </div>
+              </div>
+              <div style="flex-shrink:0;text-align:right;font-weight:700;font-size:14px;color:#4ade80">PHP ${dispP}</div>
+            </div>`;
+          }).join('');
+        } else {
+          // Legacy / no-tier fallback — always show at least General Admission
+          const basePrice = Number(ev.price || ev.basePrice || 0);
+          const dispPrice = (basePrice * mult).toFixed(2);
+          const slotsText = totalSlots > 0 ? `<span style="color:rgba(255,255,255,.35);font-size:10px">${Math.max(0, totalSlots - (parseInt(ev.ticketsSold)||0))} available</span>` : '';
+
+          let rows = `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+              <div>
+                <div style="font-weight:600;font-size:14px;color:rgba(255,255,255,.85)">General Admission</div>
+                <div>${slotsText}</div>
+              </div>
+            </div>
+            <div style="flex-shrink:0;text-align:right;font-weight:700;font-size:14px;color:#4ade80">PHP ${dispPrice}</div>
+          </div>`;
+
+          // Also show legacy named tier if present
+          if (ev.tierName && ev.tierPrice) {
+            const tp = (Number(ev.tierPrice) * mult).toFixed(2);
+            rows += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
+              <div style="font-weight:600;font-size:14px;color:#fbbf24">${escapeHtml(ev.tierName)}</div>
+              <div style="font-weight:700;font-size:14px;color:#4ade80">PHP ${tp}</div>
+            </div>`;
+          }
+
+          container.innerHTML = rows;
+        }
+      } catch(err) {
+        console.error('[TierRender] Error:', err);
+        const basePrice = Number(ev.price || ev.basePrice || 0);
+        container.innerHTML = `<div style="display:flex;justify-content:space-between;padding:8px 0">
+          <span style="color:rgba(255,255,255,.85);font-weight:600">General Admission</span>
+          <span style="color:#4ade80;font-weight:700">PHP ${(basePrice * (mult||1)).toFixed(2)}</span>
+        </div>`;
+      }
+    }
+
     function renderEventDetails(ev, eventId) {
       currentEventId = eventId;
       currentEventTitle = ev.title || 'Event';
@@ -592,7 +727,7 @@
            if(g.trim()) tagsContainer.innerHTML += `<span class="px-3 py-1 bg-[#cc292b]/20 border border-[#cc292b]/50 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-red-400">${g.trim()}</span>`;
         });
       }
-      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0) {
+      if (ev.saleName && ev.saleType && Number(ev.saleValue || 0) > 0 && !ev.saleExhausted) {
         const saleSuffix = String(ev.saleType).toLowerCase() === 'percent' ? `${ev.saleValue}% off` : `PHP ${Number(ev.saleValue).toFixed(0)} off`;
         tagsContainer.innerHTML += `<span class="px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">${ev.saleName} • ${saleSuffix}</span>`;
       }
@@ -626,63 +761,96 @@
       topBadge.classList.remove('hidden');
       topBadge.className = `inline-block px-3 py-1 border rounded-md text-[10px] font-extrabold uppercase tracking-wider ${badgeClasses}`;
 
-      let totalSlots = parseInt(ev.totalSlots);
-      if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = 100;
+      const now2 = new Date();
+      const saleActive = (() => {
+        if (!ev.saleValue || Number(ev.saleValue) <= 0) return false;
+        if (ev.saleExhausted) return false;  // promo limit fully used up
+        if (ev.saleStartsAt && new Date(ev.saleStartsAt) > now2) return false;
+        if (ev.saleEndsAt && new Date(ev.saleEndsAt) < now2) return false;
+        return true;
+      })();
+      if (saleActive) {
+        const saleSuffix = String(ev.saleType || '').toLowerCase() === 'percent'
+          ? `${Number(ev.saleValue).toFixed(0)}% OFF`
+          : `PHP ${Number(ev.saleValue).toFixed(0)} OFF`;
+        const promoRemaining = ev.saleQuantityLimit
+          ? Math.max(0, ev.saleQuantityLimit - (ev.saleQuantityUsed || 0))
+          : null;
+        const promoLabel = promoRemaining !== null
+          ? `${ev.saleName || 'Sale'} • ${saleSuffix} • ${promoRemaining} promo ticket${promoRemaining === 1 ? '' : 's'} left`
+          : `${ev.saleName || 'Sale'} • ${saleSuffix}`;
+        document.getElementById('detailSaleBannerLabel').innerText = promoLabel;
+        document.getElementById('detailSaleBanner').classList.remove('hidden');
+        if (ev.saleEndsAt) {
+          const endsAt = new Date(ev.saleEndsAt);
+          const countdownWrap = document.getElementById('detailSaleCountdown');
+          const timerEl = document.getElementById('detailSaleCountdownTimer');
+          countdownWrap.classList.remove('hidden');
+          countdownWrap.classList.add('flex');
+          const tick = () => {
+            const msLeft = endsAt - new Date();
+            if (msLeft <= 0) { timerEl.innerText = 'Ended'; clearInterval(saleDetailTimer); return; }
+            const h = Math.floor(msLeft / 3600000);
+            const m = Math.floor((msLeft % 3600000) / 60000);
+            const s = Math.floor((msLeft % 60000) / 1000);
+            timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          };
+          tick();
+          const saleDetailTimer = setInterval(tick, 1000);
+        }
+      }
 
-      let extraSlotsTotal = 0;
+      const applySale = (price) => {
+        if (!saleActive) return price;
+        const val = Number(ev.saleValue);
+        const type = String(ev.saleType || '').trim().toLowerCase();
+        if (type === 'percent') return Math.max(0, price - (price * (val / 100)));
+        if (type === 'amount') return Math.max(0, price - val);
+        return price;
+      };
+      const tierPriceCell = (displayPrice, origPrice) => {
+        if (saleActive && Math.abs(parseFloat(origPrice) - parseFloat(displayPrice)) > 0.001) {
+          return `<div class="text-right leading-tight">
+            <span class="text-white/35 text-xs line-through block">PHP ${origPrice}</span>
+            <span class="font-bold text-emerald-400">PHP ${displayPrice}</span>
+          </div>`;
+        }
+        return `<span class="font-bold text-emerald-400">PHP ${displayPrice}</span>`;
+      };
+
+      // Use sum of tier slots when new tier data is present
+      const evTiers = Array.isArray(ev.tiers) ? ev.tiers.filter(t => t) : [];
+      let totalSlots = evTiers.length > 0
+        ? evTiers.reduce((s, t) => s + (Number(t.totalSlots)||0), 0)
+        : parseInt(ev.totalSlots);
+      if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = parseInt(ev.totalSlots) || parseInt(ev.slots) || 0;
+
       const tiersContainer = document.getElementById('availableTiersList');
       tiersContainer.innerHTML = '';
-      let additionalTiersHTML = '';
 
-      if (ev.tierName && ev.tierPrice) {
-         const finalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
-         const tSlots = parseInt(ev.tierSlots) || 0;
-         extraSlotsTotal += tSlots;
-         additionalTiersHTML += `
-          <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
-            <span class="text-yellow-500/90 font-medium">${ev.tierName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
-            <span class="font-bold text-emerald-400">PHP ${finalTierPrice}</span>
-          </div>
-        `;
-      }
+      const finalBasePrice = (applySale(ev.price) * multiplier).toFixed(2);
+      const originalBasePrice = (ev.price * multiplier).toFixed(2);
 
-      if (ev.bundles) {
-          const parts = ev.bundles.split('|');
-          parts.forEach(part => {
-              const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
-              if (match) {
-                  const parsedName = match[1].trim();
-                  const parsedPrice = parseFloat(match[2]);
-                  const tSlots = parseInt(match[3]);
-                  extraSlotsTotal += tSlots;
-                  const finalParsedPrice = (parsedPrice * multiplier).toFixed(2);
-
-                  additionalTiersHTML += `
-                    <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
-                      <span class="text-purple-400/90 font-medium">${parsedName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
-                      <span class="font-bold text-emerald-400">PHP ${finalParsedPrice}</span>
-                    </div>
-                  `;
-              }
-          });
-      }
-
-      let genAdSlots = totalSlots - extraSlotsTotal;
-      if (genAdSlots < 0) genAdSlots = 0;
-
-      const finalBasePrice = (ev.price * multiplier).toFixed(2);
       document.getElementById('detailPrice').innerText = "PHP " + finalBasePrice;
+      const origPriceEl = document.getElementById('detailPriceOriginal');
+      if (saleActive && Math.abs(parseFloat(originalBasePrice) - parseFloat(finalBasePrice)) > 0.001) {
+        origPriceEl.innerText = "PHP " + originalBasePrice;
+        origPriceEl.classList.remove('hidden');
+      } else {
+        origPriceEl.classList.add('hidden');
+      }
 
-      tiersContainer.innerHTML = `
-        <div class="flex justify-between items-center text-sm py-1.5">
-          <span class="text-white/80">General Admission <span class="text-[10px] text-white/40 ml-1 font-normal">(${genAdSlots} allocated)</span></span>
-          <span class="font-bold text-emerald-400">PHP ${finalBasePrice}</span>
-        </div>
-      ` + additionalTiersHTML;
+      // ── Render tiers ──────────────────────────────────────────────────────
+      renderTiersInContainer(tiersContainer, evTiers, ev, applySale, multiplier, tierPriceCell, totalSlots);
 
-      const soldTickets = parseInt(ev.ticketsSold) || 0;
-      const remaining = totalSlots - soldTickets;
-      document.getElementById('detailAvailable').innerText = `${remaining} / ${totalSlots} left`;
+      const evTiersRef = Array.isArray(ev.tiers) ? ev.tiers.filter(t => t) : [];
+      const soldTickets = evTiersRef.length > 0
+        ? evTiersRef.reduce((s, t) => s + (Number(t.slotsSold)||0), 0)
+        : parseInt(ev.ticketsSold) || 0;
+      const remaining = totalSlots > 0 ? totalSlots - soldTickets : null;
+      document.getElementById('detailAvailable').innerText = remaining !== null
+        ? `${Math.max(0, remaining)} / ${totalSlots} left`
+        : 'Available';
 
       const urgencyText = document.getElementById('urgencyText');
       urgencyText.classList.add('hidden');
@@ -698,23 +866,19 @@
         bookBtn.innerText = "Event Finished";
         bookBtn.disabled = true;
         bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
-      } else if (remaining <= 0) {
+      } else if (remaining !== null && remaining <= 0) {
         document.getElementById('detailAvailable').innerText = "SOLD OUT";
         bookBtn.innerText = "Sold Out";
         bookBtn.disabled = true;
         bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
+        // Show waitlist option
+        loadWaitlistState(eventId);
       } else if (remaining <= 10) {
          urgencyText.classList.remove('hidden');
       }
 
       const signedInRole = localStorage.getItem('userRole');
       const signedInUserId = localStorage.getItem('userId');
-      if (signedInRole === 'Artist' || signedInRole === 'Sessionist' || signedInRole === 'Organizer') {
-        bookBtn.innerText = signedInRole === 'Organizer' ? 'Organizers Cannot Buy Tickets' : 'Not Available for Your Account';
-        bookBtn.disabled = true;
-        bookBtn.classList.remove('bg-red-600');
-        bookBtn.classList.add('bg-neutral-600');
-      }
 
       bookBtn.onclick = () => {
         if (!localStorage.getItem('userFirstName')) {
@@ -739,14 +903,36 @@
         return document.getElementById('errorState').classList.remove('hidden');
       }
 
+      // Render from cache immediately for perceived speed (static info only — no slot counts)
+      let hasRenderedFromCache = false;
       if (cachedEvent) {
-        renderEventDetails(cachedEvent, eventId);
+        try {
+          renderEventDetails(cachedEvent, eventId);
+          hasRenderedFromCache = true;
+        } catch(cacheErr) {
+          console.warn('[EventDetail] Cache render failed, will wait for fresh data.', cacheErr);
+        }
       }
 
       try {
-        const res = await fetchWithTimeout(`/api/event/${eventId}`);
-        if(!res.ok) throw new Error("Not found");
+        // Cache-bust both requests so slot counts are always live
+        const bust = `_=${Date.now()}`;
+        const [res, tiersRes] = await Promise.all([
+          fetchWithTimeout(`/api/event/${eventId}?${bust}`, {}, 10000),
+          fetch(`/api/event/${eventId}/tiers?${bust}`, { cache: 'no-store' }).catch(() => null)
+        ]);
+        if(!res.ok) throw new Error(`Server returned ${res.status}`);
         const ev = await res.json();
+
+        // Tiers endpoint always wins — it returns live slots_sold from the DB
+        const tiersFromEndpoint = tiersRes?.ok
+          ? await tiersRes.json().catch(() => [])
+          : [];
+        const mainTiers = Array.isArray(ev.tiers) ? ev.tiers : [];
+        ev.tiers = (Array.isArray(tiersFromEndpoint) && tiersFromEndpoint.length > 0)
+          ? tiersFromEndpoint
+          : mainTiers;
+
         writeCachedEvent(eventId, ev);
         renderEventDetails(ev, eventId);
         return;
@@ -804,77 +990,43 @@
         // ==============================================================
         // CAPACITY & TIER MATH FIX
         // ==============================================================
-        let totalSlots = parseInt(ev.totalSlots);
-        if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = 100; // Fallback
+        const evTiers2 = Array.isArray(ev.tiers) ? ev.tiers.filter(t => t) : [];
+        let totalSlots = evTiers2.length > 0
+          ? evTiers2.reduce((s, t) => s + (Number(t.totalSlots)||0), 0)
+          : parseInt(ev.totalSlots);
+        if (isNaN(totalSlots) || totalSlots <= 0) totalSlots = parseInt(ev.totalSlots) || parseInt(ev.slots) || 0;
 
-        let extraSlotsTotal = 0;
-        const tiersContainer = document.getElementById('availableTiersList');
-        tiersContainer.innerHTML = '';
-        
-        let additionalTiersHTML = '';
+        const tiersContainer2 = document.getElementById('availableTiersList');
+        const finalBasePrice2 = (ev.price * multiplier).toFixed(2);
+        document.getElementById('detailPrice').innerText = "PHP " + finalBasePrice2;
+        // Reuse the shared render function (applySale not available here, use basePrice2 directly)
+        renderTiersInContainer(tiersContainer2, evTiers2, ev,
+          (p) => p - (ev.price - parseFloat(finalBasePrice2)),  // approximate inline sale
+          multiplier,
+          (d, o) => `<span class="font-bold text-emerald-400">PHP ${d}</span>`,
+          totalSlots);
 
-        if (ev.tierName && ev.tierPrice) {
-           const finalTierPrice = (ev.tierPrice * multiplier).toFixed(2);
-           const tSlots = parseInt(ev.tierSlots) || 0;
-           extraSlotsTotal += tSlots;
-           additionalTiersHTML += `
-            <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
-              <span class="text-yellow-500/90 font-medium">${ev.tierName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
-              <span class="font-bold text-emerald-400">PHP ${finalTierPrice}</span>
-            </div>
-          `;
-        }
+        const evTiersRef2 = Array.isArray(ev.tiers) ? ev.tiers.filter(t => t) : [];
+        const soldTickets2 = evTiersRef2.length > 0
+          ? evTiersRef2.reduce((s, t) => s + (Number(t.slotsSold)||0), 0)
+          : parseInt(ev.ticketsSold) || 0;
+        const remaining2 = totalSlots > 0 ? totalSlots - soldTickets2 : null;
+        document.getElementById('detailAvailable').innerText = remaining2 !== null
+          ? `${Math.max(0, remaining2)} / ${totalSlots} left`
+          : 'Available';
 
-        if (ev.bundles) {
-            const parts = ev.bundles.split('|');
-            parts.forEach(part => {
-                const match = part.match(/\[Tier\]\s*(.*?):\s*P([0-9.]+)\s*\((\d+)\s*slots\)/i);
-                if (match) {
-                    const parsedName = match[1].trim();
-                    const parsedPrice = parseFloat(match[2]);
-                    const tSlots = parseInt(match[3]);
-                    extraSlotsTotal += tSlots;
-                    const finalParsedPrice = (parsedPrice * multiplier).toFixed(2);
-                    
-                    additionalTiersHTML += `
-                      <div class="flex justify-between items-center text-sm py-1.5 border-t border-white/5">
-                        <span class="text-purple-400/90 font-medium">${parsedName} <span class="text-[10px] text-white/40 ml-1 font-normal">(${tSlots} allocated)</span></span>
-                        <span class="font-bold text-emerald-400">PHP ${finalParsedPrice}</span>
-                      </div>
-                    `;
-                }
-            });
-        }
-
-        let genAdSlots = totalSlots - extraSlotsTotal;
-        if (genAdSlots < 0) genAdSlots = 0;
-
-        const finalBasePrice = (ev.price * multiplier).toFixed(2);
-        document.getElementById('detailPrice').innerText = "PHP " + finalBasePrice;
-
-        tiersContainer.innerHTML = `
-          <div class="flex justify-between items-center text-sm py-1.5">
-            <span class="text-white/80">General Admission <span class="text-[10px] text-white/40 ml-1 font-normal">(${genAdSlots} allocated)</span></span>
-            <span class="font-bold text-emerald-400">PHP ${finalBasePrice}</span>
-          </div>
-        ` + additionalTiersHTML;
-
-        const soldTickets = parseInt(ev.ticketsSold) || 0;
-        const remaining = totalSlots - soldTickets;
-        document.getElementById('detailAvailable').innerText = `${remaining} / ${totalSlots} left`;
-        
         const bookBtn = document.getElementById('bookBtn');
-        if (ev.status === 'Finished' || hoursUntilEvent < -24) { 
+        if (ev.status === 'Finished' || hoursUntilEvent < -24) {
           document.getElementById('detailAvailable').innerText = "Event Ended";
           bookBtn.innerText = "Event Finished";
           bookBtn.disabled = true;
           bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
-        } else if (remaining <= 0) {
+        } else if (remaining2 !== null && remaining2 <= 0) {
           document.getElementById('detailAvailable').innerText = "SOLD OUT";
           bookBtn.innerText = "Sold Out";
           bookBtn.disabled = true;
           bookBtn.classList.replace('bg-red-600', 'bg-neutral-600');
-        } else if (remaining <= 10) {
+        } else if (remaining2 !== null && remaining2 <= 10) {
            document.getElementById('urgencyText').classList.remove('hidden');
         }
 
@@ -889,7 +1041,8 @@
 
       } catch(e) {
         document.getElementById('loadingState').classList.add('hidden');
-        if (cachedEvent) return;
+        // Suppress error overlay when content is already visible from cache
+        if (hasRenderedFromCache || !document.getElementById('eventContent')?.classList.contains('hidden')) return;
         document.getElementById('errorState').classList.remove('hidden');
       }
     }
@@ -1076,8 +1229,78 @@
         });
       }
     });
+
+    // ── WAITLIST ───────────────────────────────────────────────────────────
+    async function loadWaitlistState(eventId) {
+      const panel = document.getElementById('waitlistPanel');
+      const countEl = document.getElementById('waitlistCount');
+      const statusEl = document.getElementById('waitlistStatus');
+      const actionsEl = document.getElementById('waitlistActions');
+      const joinBtn = document.getElementById('joinWaitlistBtn');
+      if (!panel) return;
+
+      const userId = localStorage.getItem('userId');
+      if (!userId) {
+        panel.classList.remove('hidden');
+        countEl.innerText = 'Sign in to join the waitlist.';
+        actionsEl.classList.add('hidden');
+        lucide.createIcons();
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/waitlist/event/${eventId}?customerId=${userId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        panel.classList.remove('hidden');
+        const total = data.total || 0;
+        countEl.innerText = total > 0 ? `${total} person${total !== 1 ? 's' : ''} on the waitlist` : 'Be the first on the waitlist!';
+
+        if (data.isOnWaitlist) {
+          actionsEl.innerHTML = `<p class="text-xs text-amber-300 font-bold">You're #${data.position} on the waitlist. We'll notify you when a spot opens.</p>
+            <button onclick="leaveWaitlist('${eventId}')" class="mt-2 w-full py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs text-white/50 hover:text-white transition-colors uppercase tracking-wider font-bold">Leave Waitlist</button>`;
+        } else {
+          joinBtn?.removeEventListener('click', _waitlistJoinHandler);
+          _waitlistJoinHandler = () => joinWaitlist(eventId);
+          joinBtn?.addEventListener('click', _waitlistJoinHandler);
+        }
+        lucide.createIcons();
+      } catch(e) {}
+    }
+
+    let _waitlistJoinHandler = null;
+
+    async function joinWaitlist(eventId) {
+      const userId = localStorage.getItem('userId');
+      if (!userId) { window.location.href = '/pages/auth/login.html'; return; }
+      const qty = parseInt(document.getElementById('waitlistQty')?.value) || 1;
+      const btn = document.getElementById('joinWaitlistBtn');
+      if (btn) { btn.disabled = true; btn.innerText = 'Joining…'; }
+      try {
+        const res = await fetch('/api/waitlist/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId: userId, eventId, quantity: qty })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message);
+        await loadWaitlistState(eventId);
+      } catch(err) {
+        const statusEl = document.getElementById('waitlistStatus');
+        if (statusEl) { statusEl.innerText = err.message || 'Failed to join waitlist.'; statusEl.classList.remove('hidden'); }
+        if (btn) { btn.disabled = false; btn.innerText = 'Join Waitlist'; }
+      }
+    }
+
+    async function leaveWaitlist(eventId) {
+      const userId = localStorage.getItem('userId');
+      if (!userId) return;
+      try {
+        await fetch(`/api/waitlist/leave/${eventId}/${userId}`, { method: 'DELETE' });
+        await loadWaitlistState(eventId);
+      } catch(e) {}
+    }
   </script>
 </body>
 </html>
-
 

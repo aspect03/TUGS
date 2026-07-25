@@ -1,0 +1,19 @@
+﻿{
+  "name": "Tugs!",
+  "short_name": "Tugs!",
+  "description": "Book artists, sessionists, and discover live events in the Philippines.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e53e3e",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/assets/images/logo.png", "sizes": "any", "type": "image/png", "purpose": "any" }
+  ],
+  "categories": ["entertainment", "music", "lifestyle"],
+  "shortcuts": [
+    { "name": "Browse Artists", "url": "/pages/browse/Artists.html" },
+    { "name": "Upcoming Events", "url": "/pages/browse/Events.html" },
+    { "name": "My Dashboard", "url": "/pages/dashboards/CustomerDashboard.html" }
+  ]
+}

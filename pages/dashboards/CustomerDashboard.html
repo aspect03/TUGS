@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Customer Dashboard</title>
+  <title>Tugs! - Customer Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
@@ -41,7 +42,7 @@
       
       <a href="/" class="flex items-center group">
         <div class="h-8 w-28 sm:w-32 flex items-center">
-          <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
         </div>
       </a>
 
@@ -49,7 +50,6 @@
         <a href="/" class="hover:text-white transition-colors">Home</a>
         <a href="/pages/browse/Events.html" class="hover:text-white transition-colors">Events</a>
         <a href="/pages/browse/Artists.html" class="hover:text-white transition-colors">Artists</a>
-        <a href="/pages/browse/Sessionists.html" class="hover:text-white transition-colors">Sessionists</a>
         <a href="/pages/browse/Community.html" class="hover:text-white transition-colors">Community</a>
       </div>
 
@@ -418,7 +418,7 @@
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
         <div class="text-center mb-6 border-b border-gray-300 pb-6 border-dashed">
-          <h2 class="font-extrabold text-2xl tracking-tight mb-1">IMAJINATION</h2>
+          <h2 class="font-extrabold text-2xl tracking-tight mb-1">TUGS!</h2>
           <p class="text-xs text-gray-500">Official E-Ticket</p>
         </div>
 
@@ -447,6 +447,7 @@
           <div class="flex justify-between items-start"><p>Phase:</p><p id="rPhase" class="font-bold text-right">Pre-Sale</p></div>
           <div class="flex justify-between items-start"><p>Subtotal:</p><p id="rSubtotal" class="font-bold text-right">₱0.00</p></div>
           <div class="flex justify-between items-start"><p>Service Fee:</p><p id="rServiceFee" class="font-bold text-right">₱0.00</p></div>
+          <div class="flex justify-between items-start"><p>Platform Fee:</p><p id="rPlatformFee" class="font-bold text-right">₱0.00</p></div>
           <div class="flex justify-between items-start"><p>Payment:</p><p id="rMethod" class="font-bold uppercase text-right">GCash</p></div>
           <div class="flex justify-between items-start"><p>Date Bought:</p><p id="rDate" class="font-bold text-[10px] text-right">Date</p></div>
         </div>
@@ -951,8 +952,8 @@
         <button type="button" data-index="${index}" class="customer-bell-item w-full text-left p-3 bg-black/30 border ${notification.isRead ? 'border-white/5' : 'border-red-500/20'} rounded-xl hover:border-white/20 transition-colors">
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${notification.title || 'Notification'}</p>
-              <p class="text-xs text-white/55 mt-1">${notification.message || ''}</p>
+              <p class="text-sm font-semibold ${notification.isRead ? 'text-white/80' : 'text-white'}">${escapeHtml(notification.title || 'Notification')}</p>
+              <p class="text-xs text-white/55 mt-1">${escapeHtml(notification.message || '')}</p>
             </div>
             <span class="text-[10px] uppercase tracking-widest ${notification.isRead ? 'text-white/35' : 'text-red-300'}">${notification.isRead ? 'Read' : 'New'}</span>
           </div>
@@ -1306,7 +1307,8 @@
         gcash: 'GCash',
         paymaya: 'PayMaya',
         maya: 'PayMaya',
-        card: 'Card'
+        card: 'Card',
+        awaitingpayment: 'Unpaid'
       };
       return map[value.toLowerCase()] || value;
     }
@@ -1584,17 +1586,32 @@
         return;
       }
 
-      try {
-        const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
-        const data = await res.json();
+      // Poll with back-off: 8 attempts (1s, 2s, 2s, 3s, 3s, 4s, 4s, 5s) = ~24s total
+      const delays = [1000, 2000, 2000, 3000, 3000, 4000, 4000, 5000];
 
-        if (res.ok) {
-          await showSystemAlert(data.message || 'Ticket payment checked.', 'Payment Checked');
-        } else {
-          await showSystemAlert(data.message || 'Could not confirm ticket payment yet.', 'Payment Pending');
+      try {
+        let confirmed = false;
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          const res = await fetch(`/api/ticket/${ticketId}/payment/confirm`, { method: 'POST' });
+          const data = await res.json().catch(() => ({}));
+
+          if (res.ok && data.paymentMethod && data.paymentMethod !== 'AwaitingPayment') {
+            confirmed = true;
+            await showSystemAlert('Your ticket payment has been confirmed! Your ticket is ready.', 'Payment Confirmed');
+            loadCustomerTickets();
+            break;
+          }
+
+          if (attempt < delays.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, delays[attempt]));
+          }
+        }
+
+        if (!confirmed) {
+          await showSystemAlert('Payment is processing — your ticket will update shortly. Please refresh the page in a moment.', 'Payment Processing');
         }
       } catch (error) {
-        await showSystemAlert('Could not verify ticket payment right now.', 'Verification Error');
+        await showSystemAlert('Could not verify ticket payment right now. Please refresh the page.', 'Verification Error');
       } finally {
         const cleanUrl = `${window.location.origin}${window.location.pathname}`;
         window.history.replaceState({}, document.title, cleanUrl);
@@ -1850,11 +1867,12 @@
           const isFullyUsed = quantity > 0 && usedQuantity >= quantity;
           const hasScannedUnits = usedQuantity > 0;
           const isExpired = remainingQuantity > 0 && (t.eventStatus === 'Finished' || eventPassed24Hrs);
-          const isUpcoming = remainingQuantity > 0 && !isExpired;
-          
+          const isAwaitingPayment = String(t.paymentMethod || '').toLowerCase() === 'awaitingpayment';
+          const isUpcoming = remainingQuantity > 0 && !isExpired && !isAwaitingPayment;
+
           if(isUpcoming) activeTicketsCount += remainingQuantity;
-          
-          return { ...t, quantity, usedQuantity, remainingQuantity, isUsed: isFullyUsed, hasScannedUnits, originalIndex, isExpired, isUpcoming };
+
+          return { ...t, quantity, usedQuantity, remainingQuantity, isUsed: isFullyUsed, hasScannedUnits, originalIndex, isExpired, isUpcoming, isAwaitingPayment };
       });
 
       // Update Dashboard Top Stat
@@ -1890,10 +1908,13 @@
         let statusBadge = '';
         let opacityClass = '';
         const refundStatus = String(t.refundStatus || '');
-        const canRefundTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isUsed && !t.hasScannedUnits && !t.isExpired;
-        const canOpenQrTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending';
+        const canRefundTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isUsed && !t.hasScannedUnits && !t.isExpired && !t.isAwaitingPayment;
+        const canOpenQrTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isAwaitingPayment;
 
-        if (refundStatus === 'Refunded') {
+        if (t.isAwaitingPayment) {
+            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Awaiting Payment</span>`;
+            opacityClass = 'opacity-50';
+        } else if (refundStatus === 'Refunded') {
             statusBadge = `<span class="px-2 py-0.5 bg-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded">Refunded</span>`;
             opacityClass = 'opacity-60 grayscale';
         } else if (refundStatus === 'Refund Pending') {
@@ -1912,32 +1933,54 @@
             statusBadge = `<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded">Valid Ticket</span>`;
         }
         
+        const qrLabel = t.isUsed || t.isExpired || !canOpenQrTicket ? 'View Stub' : 'View QR';
         ticketMarkup.push(`
-          <div onclick="window.location.href='/pages/details/EventDetailPage.html?id=${t.eventId || ''}'" class="cursor-pointer bg-black/40 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/20 transition-colors ${opacityClass}">
-            <div>
-              <div class="flex items-center gap-2 mb-2">
+          <div class="rounded-2xl border ${t.isExpired ? 'border-white/[0.05] bg-white/[0.01]' : 'border-white/[0.08] bg-white/[0.03]'} hover:border-white/[0.14] transition-all duration-200 overflow-hidden ${opacityClass}">
+            <!-- Top row: status + tier + price -->
+            <div class="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-white/[0.06]">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
                 ${statusBadge}
-                <span class="text-[10px] font-bold uppercase tracking-widest text-red-500">${t.tierName} (Qty: ${t.quantity}${t.hasScannedUnits ? ` • Used: ${t.usedQuantity}` : ''})</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-red-400/80">${t.tierName}</span>
+                <span class="text-[10px] text-white/30 font-medium">· ${t.quantity} ticket${t.quantity !== 1 ? 's' : ''}${t.hasScannedUnits ? ` · ${t.usedQuantity} scanned` : ''}</span>
               </div>
-              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" class="text-lg font-bold text-white mb-2 hover:text-red-300 transition-colors inline-flex">${t.eventTitle}</a>
-              <div class="space-y-1 text-xs text-white/60">
-                <p class="flex items-center gap-2"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${t.location}</p>
-                <p class="flex items-center gap-2"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${evDate}</p>
+              <span class="text-base font-bold text-white flex-shrink-0">₱${t.totalPrice.toFixed(2)}</span>
+            </div>
+
+            <!-- Middle: event info -->
+            <div class="px-5 py-3 cursor-pointer" onclick="window.location.href='/pages/details/EventDetailPage.html?id=${t.eventId || ''}'">
+              <p class="text-sm font-bold text-white hover:text-red-300 transition-colors leading-snug mb-2">${t.eventTitle}</p>
+              <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/45">
+                <span class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3 h-3 flex-shrink-0"></i>${t.location}</span>
+                <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3 flex-shrink-0"></i>${evDate}</span>
               </div>
             </div>
-            <div class="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-2">
-              <span class="text-lg font-bold text-white border-b border-white/10 pb-1">₱${t.totalPrice.toFixed(2)}</span>
-              <div class="flex items-center gap-2">
-              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" onclick="event.stopPropagation()" class="text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2.5 rounded-xl transition-colors border border-white/10 whitespace-nowrap">
-                Open Event
+
+            <!-- Bottom: action buttons -->
+            <div class="flex flex-wrap items-center gap-2 px-5 pb-4">
+              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" onclick="event.stopPropagation()"
+                 class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white/60 hover:text-white hover:bg-white/[0.09] text-[10px] font-bold uppercase tracking-wider transition-colors">
+                <i data-lucide="external-link" class="w-3 h-3"></i>Event
               </a>
-              <button onclick="event.stopPropagation(); showReceipt(${t.originalIndex}, ${t.isExpired})" class="text-[10px] font-bold uppercase tracking-widest ${canOpenQrTicket ? 'text-white/70 hover:text-white bg-white/5 hover:bg-white/10 border-white/10' : 'text-white/30 bg-white/5 border-white/5'} px-4 py-2.5 rounded-xl transition-colors border whitespace-nowrap">
-                ${t.isUsed || t.isExpired || !canOpenQrTicket ? 'View Stub' : 'View QR Ticket'}
+              <button onclick="event.stopPropagation(); showReceipt(${t.originalIndex}, ${t.isExpired})"
+                      class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors
+                             ${canOpenQrTicket ? 'bg-red-600/80 hover:bg-red-500 text-white border border-red-500/30' : 'bg-white/[0.04] border border-white/[0.07] text-white/40 cursor-default'}">
+                <i data-lucide="${t.isUsed || t.isExpired || !canOpenQrTicket ? 'receipt-text' : 'qr-code'}" class="w-3 h-3"></i>${qrLabel}
               </button>
-              ${canRefundTicket
-                ? `<button onclick="event.stopPropagation(); requestTicketRefund('${t.ticketId}')" class="text-[10px] font-bold uppercase tracking-widest text-sky-300 hover:text-white bg-sky-500/10 hover:bg-sky-500/20 px-4 py-2.5 rounded-xl transition-colors border border-sky-500/20 whitespace-nowrap">Refund Ticket</button>`
-                : ''}
-              </div>
+              ${canOpenQrTicket ? `
+              <a href="/api/ticket/${t.ticketId}/download" target="_blank" onclick="event.stopPropagation()"
+                 class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:text-white hover:bg-emerald-500/25 text-[10px] font-bold uppercase tracking-wider transition-colors">
+                <i data-lucide="download" class="w-3 h-3"></i>PDF
+              </a>` : ''}
+              ${canOpenQrTicket && !t.isUsed ? `
+              <button onclick="event.stopPropagation(); openTransferModal('${t.ticketId}')"
+                      class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 hover:text-white hover:bg-violet-500/25 text-[10px] font-bold uppercase tracking-wider transition-colors">
+                <i data-lucide="send" class="w-3 h-3"></i>Transfer
+              </button>` : ''}
+              ${canRefundTicket ? `
+              <button onclick="event.stopPropagation(); requestTicketRefund('${t.ticketId}')"
+                      class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-300 hover:text-white hover:bg-sky-500/25 text-[10px] font-bold uppercase tracking-wider transition-colors">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>Refund
+              </button>` : ''}
             </div>
           </div>
         `);
@@ -1949,7 +1992,8 @@
 
     // Receipt Modal Logic
     function buildTicketQrPayload(ticketId, unitNumber) {
-      return `${window.location.origin}/ticket-pass?ticketId=${encodeURIComponent(ticketId)}&unit=${unitNumber}`;
+      // Compact pipe format — scanner's ParseTicketScan handles it directly
+      return `${ticketId}|${unitNumber}`;
     }
 
     function syncReceiptUnitView() {
@@ -1965,6 +2009,7 @@
       const refundStatus = String(t.refundStatus || '');
       const isRefundedTicket = refundStatus === 'Refunded';
       const isRefundPendingTicket = refundStatus === 'Refund Pending';
+      const isAwaitingPayment = String(t.paymentMethod || '').toLowerCase() === 'awaitingpayment';
       const overlay = document.getElementById('qrOverlay');
       const overlayText = document.getElementById('qrOverlayText');
       const warningDiv = document.getElementById('usedWarning');
@@ -1977,11 +2022,11 @@
       const nextBtn = document.getElementById('ticketUnitNextBtn');
 
       document.getElementById('rId').innerText = `${t.ticketId.split('-')[0].toUpperCase()}-${String(activeReceiptUnitNumber).padStart(2, '0')}`;
-      if (isRefundedTicket || isRefundPendingTicket) {
+      if (isRefundedTicket || isRefundPendingTicket || isAwaitingPayment) {
         qrImage.removeAttribute('src');
         qrImage.classList.add('hidden');
       } else {
-        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(buildTicketQrPayload(t.ticketId, activeReceiptUnitNumber))}`;
+        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(buildTicketQrPayload(t.ticketId, activeReceiptUnitNumber))}`;
         qrImage.classList.remove('hidden');
       }
 
@@ -1997,7 +2042,13 @@
       prevBtn.classList.toggle('opacity-40', prevBtn.disabled);
       nextBtn.classList.toggle('opacity-40', nextBtn.disabled);
 
-      if (isRefundedTicket) {
+      if (isAwaitingPayment) {
+        overlay.classList.remove('hidden');
+        overlayText.innerText = "UNPAID";
+        warningDiv.classList.remove('hidden');
+        warningText.innerText = "PAYMENT NOT YET CONFIRMED. PLEASE REFRESH OR COMPLETE YOUR PAYMENT.";
+        instruction.innerText = "This ticket is not yet valid. Complete payment to activate it.";
+      } else if (isRefundedTicket) {
         overlay.classList.remove('hidden');
         overlayText.innerText = "REFUNDED";
         warningDiv.classList.remove('hidden');
@@ -2052,6 +2103,7 @@
       document.getElementById('rPhase').innerText = `${t.pricingPhase || 'Pre-Sale'}${Number(t.pricingPhasePercentage || 0) > 0 ? ` (+${t.pricingPhasePercentage}%)` : ''}`;
       document.getElementById('rSubtotal').innerText = `₱${Number(t.subtotal || t.totalPrice || 0).toFixed(2)}`;
       document.getElementById('rServiceFee').innerText = `₱${Number(t.serviceFee || 0).toFixed(2)}`;
+      document.getElementById('rPlatformFee').innerText = `₱${Number(t.platformFee ?? (t.quantity * 10) ?? 0).toFixed(2)}`;
       document.getElementById('rMethod').innerText = formatPaymentMethod(t.paymentMethod || '');
       document.getElementById('rDate').innerText = pDate;
       document.getElementById('rTotal').innerText = `₱${t.totalPrice.toFixed(2)}`;
@@ -2081,6 +2133,91 @@
       modal.classList.add('hidden');
       modal.classList.remove('flex');
     }
+
+    // ── TICKET TRANSFER ──────────────────────────────────────────────────────
+    function openTransferModal(ticketId) {
+      const modal = document.getElementById('transferModal');
+      document.getElementById('transferTicketId').value = ticketId;
+      document.getElementById('transferEmail').value = '';
+      document.getElementById('transferStatus').innerText = '';
+      document.getElementById('transferStatus').className = 'text-xs mt-2 hidden';
+      document.getElementById('transferSubmitBtn').disabled = false;
+      document.getElementById('transferSubmitBtn').innerText = 'Send Transfer Link';
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    // Transfer modal listeners — deferred because the modal HTML is below this script tag
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('transferModal')?.addEventListener('click', e => {
+        if (e.target === document.getElementById('transferModal')) {
+          document.getElementById('transferModal').classList.add('hidden');
+          document.getElementById('transferModal').classList.remove('flex');
+        }
+      });
+      document.getElementById('closeTransferModalBtn')?.addEventListener('click', () => {
+        document.getElementById('transferModal').classList.add('hidden');
+        document.getElementById('transferModal').classList.remove('flex');
+      });
+    });
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('transferForm')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const ticketId = document.getElementById('transferTicketId').value;
+        const email = document.getElementById('transferEmail').value.trim();
+        const btn = document.getElementById('transferSubmitBtn');
+        const statusEl = document.getElementById('transferStatus');
+        btn.disabled = true;
+        btn.innerText = 'Sending…';
+        try {
+          const res = await fetch('/api/ticket-transfer/initiate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId, recipientEmail: email })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message);
+          statusEl.innerText = '✓ ' + (data.message || 'Transfer link sent!');
+          statusEl.className = 'text-xs mt-2 text-emerald-400';
+          statusEl.classList.remove('hidden');
+          btn.innerText = 'Sent!';
+        } catch(err) {
+          statusEl.innerText = err.message || 'Failed to initiate transfer.';
+          statusEl.className = 'text-xs mt-2 text-red-400';
+          statusEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerText = 'Send Transfer Link';
+        }
+      });
+    });
   </script>
+
+  <!-- Ticket Transfer Modal -->
+  <div id="transferModal" class="hidden fixed inset-0 z-[70] items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="w-full max-w-sm rounded-2xl border border-white/[0.09] bg-neutral-950 shadow-2xl overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+        <div class="flex items-center gap-3">
+          <span class="flex items-center justify-center w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/25"><i data-lucide="send" class="w-4 h-4 text-purple-400"></i></span>
+          <h2 class="text-base font-bold text-white">Transfer Ticket</h2>
+        </div>
+        <button id="closeTransferModalBtn" type="button" class="w-8 h-8 flex items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white transition-all">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form id="transferForm" class="p-6 space-y-4">
+        <input type="hidden" id="transferTicketId">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-[0.18em] text-white/40 mb-2">Recipient Email</label>
+          <input id="transferEmail" type="email" required placeholder="friend@email.com"
+            class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-purple-500/50 transition-all">
+          <p class="text-[11px] text-white/35 mt-1.5">They'll receive a link to accept. It expires in 24 hours.</p>
+        </div>
+        <p id="transferStatus" class="text-xs mt-2 hidden"></p>
+        <button id="transferSubmitBtn" type="submit" class="w-full py-3 rounded-xl bg-purple-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-purple-500 transition-colors">
+          Send Transfer Link
+        </button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

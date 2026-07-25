@@ -1,0 +1,471 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - QR Scanner</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body class="bg-neutral-950 text-white antialiased min-h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
+  
+  <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
+
+  <nav class="relative z-50 w-full flex-shrink-0">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="/pages/dashboards/OrganizerDashboard.html" class="flex items-center gap-2 text-white/50 hover:text-white transition-colors text-sm font-semibold">
+        <i data-lucide="arrow-left" class="w-5 h-5"></i> Back to Dashboard
+      </a>
+      <span class="tracking-tight font-semibold text-lg text-white uppercase flex items-center gap-2">
+        <i data-lucide="scan" class="w-5 h-5 text-red-500"></i> ENTRANCE SCANNER
+      </span>
+    </div>
+  </nav>
+
+  <main class="relative z-10 flex-1 max-w-3xl mx-auto w-full px-6 py-12 flex flex-col items-center">
+    
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-extrabold text-white mb-2">Scan Digital Tickets</h1>
+      <p class="text-white/50 text-sm">Point the camera at the customer's QR code or upload an image. The system will automatically verify and update the database.</p>
+      <div id="scannerEventBadge" class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs uppercase tracking-widest text-white/70 hidden"></div>
+    </div>
+
+    <div id="cameraHelpBox" class="w-full max-w-md mb-5 hidden rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-left">
+      <p class="text-xs font-bold uppercase tracking-[0.28em] text-amber-300">Camera Access Help</p>
+      <p id="cameraHelpText" class="mt-2 text-sm leading-6 text-amber-100/90"></p>
+    </div>
+
+    <div class="w-full max-w-md bg-neutral-900 border border-white/10 rounded-3xl p-4 shadow-2xl relative overflow-hidden">
+      <div id="reader" class="rounded-2xl overflow-hidden bg-black w-full aspect-square flex items-center justify-center text-white/30">
+        Camera loading...
+      </div>
+    </div>
+
+    <div class="mt-4 w-full max-w-md flex flex-col sm:flex-row gap-3">
+      <button id="startScannerBtn" class="flex-1 px-4 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-500 transition-colors">
+        Start Camera
+      </button>
+      <label class="flex-1 px-4 py-3 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors text-center cursor-pointer">
+        Upload QR Image
+        <input id="qrImageInput" type="file" accept="image/*" class="hidden">
+      </label>
+    </div>
+
+    <p id="scannerStatus" class="mt-4 text-xs text-white/50 uppercase tracking-wider text-center">
+      Tap Start Camera to begin scanning.
+    </p>
+
+    <div id="scanResult" class="mt-8 w-full max-w-md hidden">
+      <div id="resultBox" class="p-6 rounded-2xl border flex flex-col items-center text-center shadow-lg transition-all duration-300">
+        <i id="resultIcon" data-lucide="check-circle" class="w-12 h-12 mb-3"></i>
+        <h2 id="resultTitle" class="text-2xl font-bold mb-1 uppercase tracking-wider">SUCCESS!</h2>
+        <p id="resultMsg" class="text-sm font-semibold opacity-90">Ticket Validated.</p>
+        <p id="resultDetails" class="text-xs mt-2 opacity-70"></p>
+        <button onclick="resumeScanning()" class="mt-6 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-lg">
+          Scan Next Ticket
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>lucide.createIcons();</script>
+  <script>
+    let html5QrCode;
+    let currentCameraId = null;
+    let scannerActive = false;
+    let isScanning = true;
+    let selectedEventId = null;
+    let selectedEventTitle = '';
+    let cameraWarningShown = false;
+    let mediaWarmupStream = null;
+    let scannerStartInFlight = false;
+    const scannerStatus = document.getElementById('scannerStatus');
+    const cameraHelpBox = document.getElementById('cameraHelpBox');
+    const cameraHelpText = document.getElementById('cameraHelpText');
+    const html5QrCodeConfig = {
+      fps: 12,
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.72);
+        return { width: edge, height: edge };
+      },
+      aspectRatio: 1,
+      formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      rememberLastUsedCamera: true
+    };
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if(localStorage.getItem('userRole') !== 'Organizer') {
+        await window.systemDialog.alert('Please sign in as an organizer before opening the ticket scanner.', {
+          title: 'Organizer Access Needed',
+          kicker: 'Scanner Access'
+        });
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      selectedEventId = params.get('eventId');
+      selectedEventTitle = params.get('eventTitle') || 'Selected Event';
+
+      const badge = document.getElementById('scannerEventBadge');
+      if (selectedEventId) {
+        badge.classList.remove('hidden');
+        badge.innerHTML = `<i data-lucide="calendar-days" class="w-3.5 h-3.5 text-red-400"></i> ${selectedEventTitle}`;
+        lucide.createIcons();
+      } else {
+        scannerStatus.innerText = "Open the scanner from a specific event before scanning tickets.";
+        document.getElementById('startScannerBtn').disabled = true;
+        document.getElementById('startScannerBtn').classList.add('opacity-60', 'cursor-not-allowed');
+      }
+
+      html5QrCode = new Html5Qrcode("reader");
+
+      document.getElementById('startScannerBtn').addEventListener('click', startScanner);
+      document.getElementById('qrImageInput').addEventListener('change', handleImageUpload);
+
+      if (selectedEventId) {
+        if (canUseCameraScanner()) {
+          scannerStatus.innerText = "Tap Start Camera to allow camera access.";
+        } else {
+          showCameraHelp('This browser is using a non-secure page. Camera scanning usually needs HTTPS or localhost. You can still upload a QR image for now, or open this page through an HTTPS ngrok link.');
+          scannerStatus.innerText = "Camera needs HTTPS or localhost on most browsers.";
+        }
+      }
+    });
+
+    function canUseCameraScanner() {
+      const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      return !!navigator.mediaDevices?.getUserMedia && (window.isSecureContext || isLocalHost);
+    }
+
+    function showCameraHelp(message) {
+      cameraHelpText.textContent = message;
+      cameraHelpBox.classList.remove('hidden');
+    }
+
+    function hideCameraHelp() {
+      cameraHelpBox.classList.add('hidden');
+      cameraHelpText.textContent = '';
+    }
+
+    function setCameraDebug(message, details = {}) {
+      return;
+    }
+
+    function clearCameraDebug() {
+      return;
+    }
+
+    function describeCameraError(error) {
+      const errorName = error?.name || '';
+      const errorMessage = String(error?.message || '').toLowerCase();
+
+      if (!canUseCameraScanner()) {
+        return 'This page is not running on HTTPS or localhost, so the browser is blocking camera access. Use an HTTPS ngrok link or upload the QR image instead.';
+      }
+      if (errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError') {
+        return 'Camera permission was denied. Allow camera access in the browser settings, then tap Start Camera again.';
+      }
+      if (errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError') {
+        return 'No camera was found on this device. Try another device or upload a QR image instead.';
+      }
+      if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+        return 'The camera is currently busy in another app or browser tab. Close other camera apps, then try again.';
+      }
+      if (errorName === 'OverconstrainedError') {
+        return 'The preferred camera could not be opened. Try again and the scanner will fall back to another available camera.';
+      }
+      if (errorName === 'SecurityError' || errorMessage.includes('secure context')) {
+        return 'Camera access is blocked because this page is not secure enough for browser camera permissions. Open the scanner over HTTPS or localhost.';
+      }
+
+      return 'Camera access failed. Allow camera permission, then try again. You can also upload a QR image as a fallback.';
+    }
+
+    function stopWarmupStream() {
+      if (!mediaWarmupStream) return;
+      mediaWarmupStream.getTracks().forEach(track => track.stop());
+      mediaWarmupStream = null;
+    }
+
+    function wait(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function resetScannerInstance() {
+      if (html5QrCode) {
+        try {
+          if (scannerActive) {
+            await html5QrCode.stop();
+          }
+        } catch (error) {
+          // Ignore stop failures while resetting.
+        }
+
+        try {
+          await html5QrCode.clear();
+        } catch (error) {
+          // Some browsers throw here after a failed start; recreate anyway.
+        }
+      }
+
+      scannerActive = false;
+      html5QrCode = new Html5Qrcode("reader");
+    }
+
+    async function createFreshScannerInstance() {
+      await resetScannerInstance();
+      await wait(200);
+    }
+
+    async function warmupCameraAccess() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera API not supported on this device.');
+      }
+
+      stopWarmupStream();
+
+      try {
+        mediaWarmupStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        return true;
+      } catch (primaryError) {
+        mediaWarmupStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        return true;
+      } finally {
+        stopWarmupStream();
+        await wait(600);
+      }
+    }
+
+    async function tryStartScannerWithFallbacks() {
+      const attempts = [
+        { facingMode: { ideal: 'environment' } },
+        { facingMode: 'environment' },
+        currentCameraId ? { deviceId: { exact: currentCameraId } } : null,
+        currentCameraId ? { deviceId: currentCameraId } : null
+      ].filter(Boolean);
+
+      let lastError = null;
+      for (const cameraConfig of attempts) {
+        try {
+          await createFreshScannerInstance();
+          await html5QrCode.start(
+            cameraConfig,
+            html5QrCodeConfig,
+            onScanSuccess,
+            onScanFailure
+          );
+          return;
+        } catch (error) {
+          lastError = error;
+          if (String(error?.message || '').toLowerCase().includes('transition')) {
+            await wait(300);
+          }
+        }
+      }
+
+      throw lastError || new Error('Unable to start the camera.');
+    }
+
+    async function startScanner() {
+      if (!selectedEventId) return;
+      if (scannerActive || scannerStartInFlight) return;
+
+      if (!canUseCameraScanner()) {
+        const guidance = 'This browser is blocking camera access because the page is not running on HTTPS or localhost. Use an HTTPS ngrok link for live scanning, or upload the QR image instead.';
+        scannerStatus.innerText = "Camera needs HTTPS or localhost.";
+        showCameraHelp(guidance);
+        if (!cameraWarningShown) {
+          cameraWarningShown = true;
+          await window.systemDialog.alert(guidance, {
+            title: 'Camera Access Blocked',
+            kicker: 'Secure Scanner'
+          });
+        }
+        return;
+      }
+
+      try {
+        scannerStartInFlight = true;
+        hideCameraHelp();
+        clearCameraDebug();
+        await resetScannerInstance();
+        scannerStatus.innerText = "Requesting camera access...";
+        setCameraDebug('Warm-up camera request started.', {
+          secureContext: window.isSecureContext,
+          host: window.location.host,
+          userAgent: navigator.userAgent
+        });
+        await warmupCameraAccess();
+        setCameraDebug('Warm-up camera request succeeded.');
+
+        scannerStatus.innerText = "Looking for available cameras...";
+        const cameras = await Html5Qrcode.getCameras();
+        if (!cameras || cameras.length === 0) {
+          scannerStatus.innerText = "No camera found on this device.";
+          showCameraHelp('No camera was detected on this device. You can still verify a ticket by uploading a QR screenshot or photo.');
+          setCameraDebug('Camera enumeration returned no devices.');
+          return;
+        }
+
+        const preferredCamera =
+          cameras.find(camera => /back|rear|environment/i.test(camera.label)) ||
+          cameras[0];
+
+        currentCameraId = preferredCamera.id;
+        scannerStatus.innerText = `Using camera: ${preferredCamera.label || 'Camera'}`;
+        setCameraDebug('Scanner is attempting to start.', {
+          selectedCameraId: currentCameraId,
+          selectedCameraLabel: preferredCamera.label || 'Camera',
+          availableCameras: cameras.map(camera => ({
+            id: camera.id,
+            label: camera.label || 'Camera'
+          }))
+        });
+        await tryStartScannerWithFallbacks();
+
+        scannerActive = true;
+        document.getElementById('startScannerBtn').innerText = "Camera Active";
+        document.getElementById('startScannerBtn').disabled = true;
+        document.getElementById('startScannerBtn').classList.add('opacity-60', 'cursor-not-allowed');
+        setCameraDebug('Scanner started successfully.', {
+          selectedCameraId: currentCameraId
+        });
+      } catch (error) {
+        const friendlyMessage = describeCameraError(error);
+        scannerStatus.innerText = friendlyMessage;
+        showCameraHelp(friendlyMessage);
+        setCameraDebug('Scanner start failed.', {
+          name: error?.name || 'UnknownError',
+          message: error?.message || String(error || ''),
+          stack: error?.stack || ''
+        });
+        document.getElementById('startScannerBtn').innerText = "Try Camera Again";
+        document.getElementById('startScannerBtn').disabled = false;
+        document.getElementById('startScannerBtn').classList.remove('opacity-60', 'cursor-not-allowed');
+      } finally {
+        scannerStartInFlight = false;
+      }
+    }
+
+    async function stopScanner() {
+      if (!html5QrCode || !scannerActive) return;
+
+      try {
+        await html5QrCode.stop();
+        await html5QrCode.clear();
+      } catch (error) {
+        // Ignore stop errors so the scanner can recover gracefully.
+      } finally {
+        scannerActive = false;
+        document.getElementById('startScannerBtn').innerText = "Start Camera";
+        document.getElementById('startScannerBtn').disabled = false;
+        document.getElementById('startScannerBtn').classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function handleImageUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file || !html5QrCode) return;
+
+      try {
+        scannerStatus.innerText = "Scanning uploaded image...";
+        const decodedText = await html5QrCode.scanFile(file, true);
+        await onScanSuccess(decodedText);
+      } catch (error) {
+        scannerStatus.innerText = "No QR code detected in the uploaded image.";
+      } finally {
+        event.target.value = "";
+      }
+    }
+
+    async function onScanSuccess(decodedText) {
+      if(!isScanning) return; 
+      isScanning = false; 
+      scannerStatus.innerText = "QR detected. Verifying ticket...";
+      await stopScanner();
+
+      const resultContainer = document.getElementById('scanResult');
+      const resultBox = document.getElementById('resultBox');
+      const resultIcon = document.getElementById('resultIcon');
+      const resultTitle = document.getElementById('resultTitle');
+      const resultMsg = document.getElementById('resultMsg');
+      const resultDetails = document.getElementById('resultDetails');
+      
+      resultContainer.classList.remove('hidden');
+      resultTitle.innerText = "VERIFYING...";
+      resultMsg.innerText = "Checking database...";
+      resultDetails.innerText = "";
+      resultBox.className = "p-6 rounded-2xl border flex flex-col items-center text-center shadow-lg bg-yellow-500/10 border-yellow-500/50 text-yellow-500 animate-pulse";
+
+      try {
+        const normalizedTicketPreview = extractTicketPreview(decodedText);
+        resultDetails.innerText = normalizedTicketPreview ? `Ticket ID: ${normalizedTicketPreview}` : "Reading QR payload...";
+
+        const res = await fetch(`/api/ticket/scan?eventId=${encodeURIComponent(selectedEventId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketValue: decodedText })
+        });
+        const data = await res.json();
+
+        resultBox.classList.remove('animate-pulse');
+
+        if(res.ok) {
+          resultBox.className = "p-6 rounded-2xl border flex flex-col items-center text-center shadow-lg bg-green-500/10 border-green-500 text-green-400";
+          resultTitle.innerText = "TICKET VALID";
+          resultMsg.innerText = data.message;
+          resultDetails.innerText = data.details || "";
+          resultIcon.setAttribute('data-lucide', 'check-circle');
+          scannerStatus.innerText = "Ticket verified successfully.";
+        } else {
+          resultBox.className = "p-6 rounded-2xl border flex flex-col items-center text-center shadow-lg bg-red-500/10 border-red-500 text-red-500";
+          resultTitle.innerText = "REJECTED";
+          resultMsg.innerText = data.message;
+          resultDetails.innerText = data.details || "";
+          resultIcon.setAttribute('data-lucide', 'alert-triangle');
+          scannerStatus.innerText = "QR was read, but the ticket was rejected.";
+        }
+      } catch(e) {
+        resultBox.classList.remove('animate-pulse');
+        resultBox.className = "p-6 rounded-2xl border flex flex-col items-center text-center shadow-lg bg-neutral-500/10 border-neutral-500 text-neutral-400";
+        resultTitle.innerText = "ERROR";
+        resultMsg.innerText = "Could not connect to database.";
+        resultIcon.setAttribute('data-lucide', 'x-circle');
+        scannerStatus.innerText = "Ticket read failed because the server could not be reached.";
+      }
+      lucide.createIcons();
+    }
+
+    function extractTicketPreview(rawValue) {
+      if (!rawValue) return '';
+      const trimmed = String(rawValue).trim();
+      const guidMatch = trimmed.match(/[0-9a-fA-F]{8}\-(?:[0-9a-fA-F]{4}\-){3}[0-9a-fA-F]{12}/);
+      return guidMatch ? guidMatch[0] : trimmed.slice(0, 64);
+    }
+
+    function onScanFailure(error) {
+      // Silently ignore background errors while it searches for a QR code
+    }
+
+    function resumeScanning() {
+      document.getElementById('scanResult').classList.add('hidden');
+      isScanning = true; 
+      scannerStatus.innerText = "Tap Start Camera to scan the next ticket.";
+    }
+  </script>
+</body>
+</html>

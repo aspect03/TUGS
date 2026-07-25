@@ -1,0 +1,537 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Explore Events</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    select {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em;
+    }
+    #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link {
+      display: inline-flex;
+      align-items: center;
+      height: 4rem;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-nav-link.active {
+      color: white;
+      border-bottom-color: rgba(239, 68, 68, 0.95);
+    }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.15),rgba(0,0,0,0)_60%)]"></div>
+  </div>
+
+  <nav class="fixed top-0 w-full z-50">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      
+      <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
+        <div class="h-8 w-28 sm:w-32 flex items-center">
+          <img src="/assets/images/logo.png" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+        </div>
+      </a>
+
+      <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+        <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+        <a href="/pages/browse/Events.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Events</a>
+        <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+        <a href="/pages/browse/Sessionists.html" class="detail-nav-link hover:text-white/90 transition-colors">Sessionists</a>
+        <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+      </div>
+      
+        <div class="flex items-center gap-3 relative">
+          <div id="authLoggedOut" class="flex items-center gap-3">
+          <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+          <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors shadow-[0_10px_30px_-12px_rgba(239,68,68,0.65)]">Get started</a>
+        </div>
+
+          <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+            <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+            </button>
+            <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+                <p class="text-sm font-bold text-white">Notifications</p>
+                <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+              </div>
+              <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+                <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+              </div>
+            </div>
+            <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden cursor-pointer">
+              <span id="profileInitial">A</span>
+              <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+          
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+              <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+              </a>
+            </div>
+            <div class="p-2 border-t border-white/10">
+              <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="relative z-10 w-full pb-24 mt-24">
+    <section class="max-w-7xl mx-auto px-6">
+      
+      <div class="mb-10">
+        <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Discover</p>
+        <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Metro Manila Gigs</h2>
+        <p class="text-sm text-white/55 mt-2">Find upcoming indie gigs and events near you.</p>
+      </div>
+
+      <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-8">
+        <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+          <div class="relative flex-1 min-w-[160px]">
+            <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
+            <input type="text" id="searchInput" placeholder="Search events..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white focus:outline-none focus:border-red-500/40 transition-colors">
+          </div>
+          <select id="filterGenre" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+            <option value="">Genre</option>
+            <option value="indie pop">Indie Pop</option>
+            <option value="rock">Rock</option>
+            <option value="acoustic">Acoustic</option>
+            <option value="r&b">R&B</option>
+            <option value="electronic">Electronic</option>
+          </select>
+          <select id="filterType" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+            <option value="">Event Type</option>
+            <option value="festival">Festival</option>
+            <option value="live gig">Live Gig</option>
+            <option value="listening party">Listening Party</option>
+          </select>
+          <select id="filterPrice" class="w-full sm:w-auto px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40 appearance-none cursor-pointer">
+            <option value="">Price Range</option>
+            <option value="0-500">Under ₱500</option>
+            <option value="500-1000">₱500 – ₱1,000</option>
+            <option value="1000+">₱1,000+</option>
+          </select>
+          <div class="flex items-center gap-2 sm:ml-auto">
+            <button id="clearFiltersBtn" class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-bold uppercase tracking-wider text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">Clear</button>
+            <button id="applyFiltersBtn" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors shadow-lg">Apply</button>
+          </div>
+        </div>
+      </div>
+      
+      <div id="eventsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+
+    function initializeEventsNavbarIdentity() {
+      const firstName = (localStorage.getItem('userFirstName') || '').trim();
+      const username = (localStorage.getItem('username') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const storedProfilePicture = localStorage.getItem('userProfilePicture');
+      const displayName = (localStorage.getItem('userDisplayName') || '').trim() || firstName || username || role || 'User';
+
+      if (!(userId && role)) return;
+
+      document.getElementById('authLoggedOut').classList.add('hidden');
+      document.getElementById('authLoggedIn').classList.remove('hidden');
+      document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
+      document.getElementById('dropdownName').innerText = displayName;
+      document.getElementById('dropdownRole').innerText = role;
+
+      if (storedProfilePicture) {
+        const picEl = document.getElementById('navProfilePic');
+        picEl.src = storedProfilePicture;
+        picEl.classList.remove('hidden');
+        document.getElementById('profileInitial').classList.add('hidden');
+      }
+
+      const dashLink = document.getElementById('dashboardLink');
+      if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+      else if(role === 'Organizer') dashLink.href = '/pages/dashboards/OrganizerDashboard.html';
+      else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+      else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
+      else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
+
+      const endpoint = role === 'Artist'
+        ? 'artist'
+        : role === 'Sessionist'
+          ? 'sessionist'
+          : role === 'Customer'
+            ? 'customer'
+            : '';
+
+      if (!endpoint) return;
+
+      fetch(`/api/${endpoint}/${userId}`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((profile) => {
+          if (!profile?.profilePicture) return;
+          const picEl = document.getElementById('navProfilePic');
+          picEl.src = profile.profilePicture;
+          picEl.classList.remove('hidden');
+          document.getElementById('profileInitial').classList.add('hidden');
+          localStorage.setItem('userProfilePicture', profile.profilePicture);
+        })
+        .catch(() => {});
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeEventsNavbarIdentity();
+      fetchEvents();
+      if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
+    });
+
+    function canCurrentUserBuyEvent(ev) {
+      const role = (localStorage.getItem('userRole') || '').trim().toLowerCase();
+      const userId = (localStorage.getItem('userId') || '').trim().toLowerCase();
+      const organizerId = String(ev.organizerId || '').trim().toLowerCase();
+      if (role !== 'organizer') return true;
+      if (!userId || !organizerId) return true;
+      return userId !== organizerId;
+    }
+
+    const profileBtn = document.getElementById('profileBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    if (profileBtn) {
+      profileBtn.addEventListener('click', () => profileDropdown.classList.toggle('show'));
+      document.addEventListener('click', (e) => {
+        if (!profileBtn.contains(e.target) && !profileDropdown.contains(e.target)) profileDropdown.classList.remove('show');
+      });
+    }
+
+    function handleLogout() { localStorage.clear(); window.location.reload(); }
+
+    let allEvents = []; 
+    const eventsCacheKey = 'eventsPageCacheV2';
+    const eventsCacheTtlMs = 2 * 60 * 1000;
+    const eventDetailCachePrefix = 'eventDetailCacheV1:';
+    let applyEventFiltersFrame = 0;
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        return await fetch(url, { ...options, signal: controller.signal });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function isUpcomingEvent(ev) {
+      if (!ev || !ev.time) return false;
+      const eventDate = new Date(ev.time);
+      if (Number.isNaN(eventDate.getTime())) return false;
+      return eventDate >= new Date(new Date().toDateString());
+    }
+
+    function readCachedEvents() {
+      try {
+        const raw = sessionStorage.getItem(eventsCacheKey);
+        if (!raw) return null;
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items) || typeof parsed.savedAt !== 'number') return null;
+        if (Date.now() - parsed.savedAt > eventsCacheTtlMs) return null;
+
+        return parsed.items.filter(isUpcomingEvent);
+      } catch {
+        return null;
+      }
+    }
+
+    function writeCachedEvents(events) {
+      try {
+        sessionStorage.setItem(eventsCacheKey, JSON.stringify({
+          savedAt: Date.now(),
+          items: events
+        }));
+      } catch {
+        // Ignore cache errors and keep the page usable.
+      }
+    }
+
+    function renderLoadingCards() {
+      const grid = document.getElementById('eventsGrid');
+      grid.innerHTML = Array.from({ length: 6 }, () => `
+        <article class="overflow-hidden rounded-3xl border border-white/10 bg-white/5 animate-pulse">
+          <div class="aspect-[4/3] bg-white/5"></div>
+          <div class="p-6 space-y-4">
+            <div class="h-3 w-24 rounded-full bg-white/10"></div>
+            <div class="h-8 w-3/4 rounded-xl bg-white/10"></div>
+            <div class="h-4 w-2/3 rounded-full bg-white/10"></div>
+            <div class="pt-4 flex gap-3">
+              <div class="h-11 flex-1 rounded-xl bg-white/10"></div>
+              <div class="h-11 w-28 rounded-xl bg-white/10"></div>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    function renderUnavailableState() {
+      const grid = document.getElementById('eventsGrid');
+      grid.innerHTML = `
+        <div class="col-span-1 md:col-span-2 lg:col-span-3 rounded-3xl border border-white/10 bg-white/5 px-6 py-12 text-center backdrop-blur-sm">
+          <p class="text-white text-xl font-semibold tracking-tight">Events are taking a little longer to load.</p>
+          <p class="mt-3 text-sm text-white/60">Please try again in a moment. Your page is ready and we’ll keep the layout clean while the data catches up.</p>
+          <button id="retryEventsBtn" class="mt-6 inline-flex items-center justify-center rounded-xl bg-[#cc292b] px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-red-600 transition-colors">
+            Try Again
+          </button>
+        </div>
+      `;
+
+      document.getElementById('retryEventsBtn')?.addEventListener('click', () => {
+        renderLoadingCards();
+        fetchEvents();
+      });
+    }
+
+    function persistEventPreviewById(eventId) {
+      const eventToCache = allEvents.find(ev => ev.id === eventId && isUpcomingEvent(ev));
+      if (!eventToCache) return;
+
+      try {
+        sessionStorage.setItem(`${eventDetailCachePrefix}${eventId}`, JSON.stringify({
+          savedAt: Date.now(),
+          item: {
+            id: eventToCache.id,
+            title: eventToCache.title || 'Untitled Event',
+            artists: eventToCache.artists || 'Lineup details are loading...',
+            description: eventToCache.description || 'Full event details are still loading.',
+            time: eventToCache.time,
+            city: eventToCache.city || '',
+            location: eventToCache.location || 'TBA',
+            posterUrl: eventToCache.posterUrl || 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=1600',
+            price: eventToCache.price || 0,
+            totalSlots: eventToCache.totalSlots || 0,
+            ticketsSold: eventToCache.ticketsSold || 0,
+            status: eventToCache.status || 'Upcoming',
+            eventType: eventToCache.eventType || 'Live Gig',
+            genres: eventToCache.genres || '',
+            tierName: eventToCache.tierName || null,
+            tierPrice: eventToCache.tierPrice || null,
+            tierSlots: eventToCache.tierSlots || null,
+            bundles: eventToCache.bundles || null,
+            artistLineup: Array.isArray(eventToCache.artistLineup) ? eventToCache.artistLineup : [],
+            sessionistLineup: Array.isArray(eventToCache.sessionistLineup) ? eventToCache.sessionistLineup : [],
+            organizerName: eventToCache.organizerName || 'Unknown Organizer',
+            organizerProfilePicture: eventToCache.organizerProfilePicture || '',
+            organizerVerified: !!eventToCache.organizerVerified
+          }
+        }));
+      } catch {
+        // Ignore cache errors and keep navigation working.
+      }
+    }
+
+    async function fetchEvents() {
+      const grid = document.getElementById('eventsGrid');
+      const cachedEvents = readCachedEvents();
+
+      if (cachedEvents && cachedEvents.length > 0) {
+        allEvents = cachedEvents;
+        renderEvents(cachedEvents);
+      } else {
+        renderLoadingCards();
+      }
+
+      try {
+        const response = await fetchWithTimeout('/api/event/all');
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to load events.');
+        }
+
+        allEvents = (await response.json()).filter(isUpcomingEvent);
+        writeCachedEvents(allEvents);
+        if (allEvents.length === 0) return grid.innerHTML = `<p class="text-white/50 col-span-3 py-10 text-center">No upcoming events found.</p>`;
+        renderEvents(allEvents);
+      } catch (error) {
+        if (cachedEvents && cachedEvents.length > 0) {
+          return;
+        }
+
+        renderUnavailableState();
+      }
+    }
+
+    function renderEvents(eventsToRender) {
+      const grid = document.getElementById('eventsGrid');
+      grid.innerHTML = ''; 
+      if (eventsToRender.length === 0) return grid.innerHTML = `<p class="text-white/50 col-span-3 py-10 text-center text-lg mt-8">No events match your filters.</p>`;
+
+        eventsToRender.forEach(ev => {
+          const formattedDate = new Date(ev.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const primaryGenre = ev.genres ? ev.genres.split(',')[0].trim().toUpperCase() : 'MUSIC';
+          const eType = ev.eventType || 'Live Gig';
+          const displayLoc = ev.city ? `${ev.city} - ${ev.location}` : ev.location;
+          const eventUrl = `/pages/details/EventDetailPage.html?id=${ev.id}`;
+          const canBuy = canCurrentUserBuyEvent(ev);
+          const actionMarkup = canBuy
+            ? `<a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex items-center justify-center px-4 py-3 rounded-xl bg-[#cc292b] text-white text-xs font-semibold uppercase tracking-[0.14em] hover:bg-red-600 transition-colors cursor-pointer">Buy Ticket</a>`
+            : `<span class="inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white/35 text-xs font-semibold uppercase tracking-[0.14em] cursor-not-allowed">Your Event</span>`;
+
+          const now = new Date();
+          const cardSaleActive = (() => {
+            if (!ev.saleValue || Number(ev.saleValue) <= 0) return false;
+            if (ev.saleStartsAt && new Date(ev.saleStartsAt) > now) return false;
+            if (ev.saleEndsAt && new Date(ev.saleEndsAt) < now) return false;
+            return true;
+          })();
+          const saleDisplayPrice = (() => {
+            if (!cardSaleActive) return ev.price;
+            const val = Number(ev.saleValue);
+            const type = String(ev.saleType || '').toLowerCase().trim();
+            if (type === 'percent') return Math.max(0, ev.price - (ev.price * (val / 100)));
+            if (type === 'amount') return Math.max(0, ev.price - val);
+            return ev.price;
+          })();
+
+          const priceBadgeMarkup = cardSaleActive
+            ? `<div class="absolute top-4 right-4 flex flex-col items-end gap-1">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-black/60 backdrop-blur-md border border-white/15 text-white/40 line-through">PHP ${Number(ev.price).toFixed(2)}</span>
+                <span class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-lg">PHP ${Number(saleDisplayPrice).toFixed(2)}</span>
+              </div>`
+            : `<div class="absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-[#cc292b] text-white shadow-lg">PHP ${ev.price}</div>`;
+
+          const countdownMarkup = (cardSaleActive && ev.saleEndsAt)
+            ? `<div class="absolute bottom-4 right-4 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 backdrop-blur-md border border-emerald-500/30 text-[10px] text-emerald-300 font-mono font-bold" data-sale-ends="${ev.saleEndsAt}"><span class="sale-card-timer">--:--:--</span></div>`
+            : '';
+
+          grid.innerHTML += `
+            <article class="group relative flex flex-col bg-white/5 rounded-3xl border border-white/10 overflow-hidden hover:border-white/20 transition-colors cursor-pointer" data-event-id="${ev.id}" onclick="window.location.href='${eventUrl}'">
+              <div class="relative aspect-[4/3] overflow-hidden bg-white/5">
+              <img src="${ev.posterUrl}" loading="lazy" decoding="async" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=1200'" class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20"></div>
+              ${priceBadgeMarkup}
+              <div class="absolute top-4 left-4 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] bg-black/60 backdrop-blur-md border border-white/15 text-white">${eType}</div>
+              <div class="absolute bottom-4 left-4 text-[10px] font-bold uppercase tracking-wider text-white/70 drop-shadow-md">${primaryGenre}</div>
+              ${countdownMarkup}
+            </div>
+            <div class="p-6 flex flex-col flex-1">
+              <div class="flex items-center gap-2 text-white/70 mb-3 text-xs font-medium uppercase tracking-[0.14em]">
+                <i data-lucide="calendar" class="w-4 h-4"></i> ${formattedDate}
+              </div>
+              <h3 class="text-2xl font-semibold tracking-tight text-white mb-2">${ev.title}</h3>
+              <div class="flex items-center gap-2 text-white/50 text-xs mb-2 uppercase tracking-[0.14em]">
+                <i data-lucide="badge-info" class="w-3.5 h-3.5"></i> ${ev.organizerName || 'Unknown Organizer'}
+              </div>
+              <div class="flex items-center gap-2 text-white/60 text-sm mb-6">
+                <i data-lucide="map-pin" class="w-4 h-4"></i> ${displayLoc}
+              </div>
+                <div class="mt-auto flex gap-3">
+                  <a href="${eventUrl}" data-event-id="${ev.id}" onclick="event.stopPropagation()" class="event-detail-link inline-flex flex-1 items-center justify-center py-3 px-4 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold uppercase tracking-[0.14em] text-white hover:bg-white/10 hover:border-white/20 transition-colors cursor-pointer">Details</a>
+                  ${actionMarkup}
+                </div>
+              </div>
+            </article>
+          `;
+        });
+      lucide.createIcons();
+      startCardCountdowns();
+    }
+
+    let _cardCountdownInterval = null;
+    function startCardCountdowns() {
+      if (_cardCountdownInterval) clearInterval(_cardCountdownInterval);
+      const tick = () => {
+        document.querySelectorAll('[data-sale-ends]').forEach(el => {
+          const endsAt = new Date(el.getAttribute('data-sale-ends'));
+          const msLeft = endsAt - new Date();
+          const timerEl = el.querySelector('.sale-card-timer');
+          if (!timerEl) return;
+          if (msLeft <= 0) { timerEl.innerText = 'Ended'; return; }
+          const h = Math.floor(msLeft / 3600000);
+          const m = Math.floor((msLeft % 3600000) / 60000);
+          const s = Math.floor((msLeft % 60000) / 1000);
+          timerEl.innerText = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        });
+      };
+      tick();
+      _cardCountdownInterval = setInterval(tick, 1000);
+    }
+
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const priceRange = document.getElementById('filterPrice').value;
+      const genre = document.getElementById('filterGenre').value.toLowerCase();
+      const type = document.getElementById('filterType').value.toLowerCase();
+      
+      const filteredEvents = allEvents.filter(ev => {
+        const matchesText = ev.title.toLowerCase().includes(searchTerm) || ev.location.toLowerCase().includes(searchTerm) || (ev.city && ev.city.toLowerCase().includes(searchTerm));
+        const matchesGenre = genre === '' || (ev.genres && ev.genres.toLowerCase().includes(genre));
+        const matchesType = type === '' || (ev.eventType && ev.eventType.toLowerCase().includes(type));
+                            
+        let matchesPrice = true;
+        if (priceRange === '0-500') matchesPrice = ev.price < 500;
+        else if (priceRange === '500-1000') matchesPrice = ev.price >= 500 && ev.price <= 1000;
+        else if (priceRange === '1000+') matchesPrice = ev.price > 1000;
+
+        return matchesText && matchesPrice && matchesGenre && matchesType;
+      });
+      
+      renderEvents(filteredEvents);
+    });
+
+    document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterGenre').value = '';
+      document.getElementById('filterType').value = '';
+      document.getElementById('filterPrice').value = '';
+      renderEvents(allEvents);
+    });
+
+    function scheduleEventFilters() {
+      if (applyEventFiltersFrame) cancelAnimationFrame(applyEventFiltersFrame);
+      applyEventFiltersFrame = requestAnimationFrame(() => {
+        applyEventFiltersFrame = 0;
+        document.getElementById('applyFiltersBtn').click();
+      });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', scheduleEventFilters);
+    document.getElementById('filterGenre').addEventListener('change', scheduleEventFilters);
+    document.getElementById('filterType').addEventListener('change', scheduleEventFilters);
+    document.getElementById('filterPrice').addEventListener('change', scheduleEventFilters);
+
+    document.addEventListener('click', (event) => {
+      const detailLink = event.target.closest('.event-detail-link');
+      if (!detailLink) return;
+
+      const eventId = detailLink.getAttribute('data-event-id');
+      if (eventId) {
+        persistEventPreviewById(eventId);
+      }
+    });
+  </script>
+</body>
+</html>

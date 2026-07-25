@@ -1,11 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imajination - Sessionist Details</title>
+  <title>Tugs! - Sessionist Details</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="/assets/css/style.css"> 
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script> 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -39,15 +40,14 @@
       <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
         <a href="/" class="flex items-center group">
           <div class="h-8 w-28 sm:w-32 flex items-center">
-            <img src="/assets/images/logo.png" alt="Imajination logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+            <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
           </div>
         </a>
 
         <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
           <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
           <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
-          <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
-          <a href="/pages/browse/Sessionists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Sessionists</a>
+          <a href="/pages/browse/Artists.html" class="detail-nav-link active text-white hover:text-white/90 transition-colors">Artists</a>
           <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
         </div>
 
@@ -76,9 +76,14 @@
               <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
             </button>
             <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 opacity-0 pointer-events-none transition-opacity">
-              <div class="px-4 py-3 border-b border-white/10">
-                <p id="dropdownName" class="text-sm font-semibold text-white truncate">User</p>
-                <p id="dropdownRole" class="text-[10px] uppercase tracking-widest text-white/40 mt-1">Account</p>
+              <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+                <p id="dropdownName" class="text-sm font-bold text-white truncate">User</p>
+                <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Account</p>
+              </div>
+              <div class="p-2 flex flex-col gap-1">
+                <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+                </a>
               </div>
               <div class="p-2 border-t border-white/10">
                 <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out</button>
@@ -100,8 +105,8 @@
     <div class="relative overflow-hidden border-b border-white/[0.06] pt-28 pb-10 mb-8">
       <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_30%_0%,rgba(6,182,212,0.06),transparent_70%)] pointer-events-none"></div>
       <section class="max-w-6xl mx-auto px-6">
-        <a href="/pages/browse/Sessionists.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-8">
-          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Sessionists
+        <a href="/pages/browse/Artists.html" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.07] transition-colors text-xs font-medium mb-8">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Artists
         </a>
         <div class="flex flex-col sm:flex-row gap-7 items-start">
           <!-- Photo -->
@@ -280,8 +285,8 @@
               </div>
             </div>
             <div class="hidden" id="portfolioContainer">
-              <a id="detailSpotify" href="#" target="_blank" class="flex items-center justify-center gap-2 w-full py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs font-semibold text-white/70 hover:text-white hover:bg-white/[0.07] transition-colors">
-                <i data-lucide="external-link" class="w-3.5 h-3.5"></i> View Portfolio
+              <a id="detailSpotify" href="#" target="_blank" class="flex items-center justify-center gap-2 w-full py-3 bg-[#1db954]/10 border border-[#1db954]/20 rounded-xl text-[#1db954] hover:bg-[#1db954]/20 transition-colors text-[10px] font-bold uppercase tracking-widest">
+                <i data-lucide="music" class="w-3.5 h-3.5"></i> Listen on Spotify
               </a>
             </div>
 
@@ -408,6 +413,14 @@
     function validateSessionistBookingInput(input) {
       if (!input) return true;
 
+      // Reject past dates
+      if (input.value && new Date(input.value) < new Date()) {
+        input.setCustomValidity('Booking date cannot be in the past.');
+        input.classList.add('border-red-500');
+        updateSessionistBookingDateHint('Please choose a future date and time.', 'error');
+        return false;
+      }
+
       if (isSessionistBlockedBookingDate(input.value)) {
         input.setCustomValidity(`${currentSessionistName} is not available on that date.`);
         input.classList.add('border-red-500');
@@ -462,10 +475,11 @@
       if (!container || container.children.length >= maxBookingSlots - 1) return;
       const row = document.createElement('div');
       row.className = 'booking-slot-row grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end';
+      const slotNowIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
       row.innerHTML = `
         <div class="space-y-2">
           <label class="booking-slot-label block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">Extra Slot</label>
-          <input type="datetime-local" value="${startValue}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
+          <input type="datetime-local" value="${startValue}" min="${slotNowIso}" class="booking-slot-start w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none [color-scheme:dark]">
         </div>
         <div class="space-y-2">
           <label class="block text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">End time</label>
@@ -526,6 +540,14 @@
             picEl.src = storedProfilePicture;
             picEl.classList.remove('hidden');
             document.getElementById('profileInitial').classList.add('hidden');
+        }
+
+        const dashLink = document.getElementById('dashboardLink');
+        if (dashLink) {
+          if (role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
+          else if (role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+          else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+          else if (role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
         }
 
         if (userId) {
@@ -595,7 +617,7 @@
         const verificationTag = document.getElementById('sessionistVerificationTag');
         verificationTag.classList.toggle('hidden', sessionistVerifiedForBookings);
         verificationTag.innerText = sessionistVerificationStatus === 'pending' ? 'Verification Pending' : 'Not Yet Verified';
-        document.getElementById('detailBio').innerText = `"${data.bio}"`;
+        document.getElementById('detailBio').innerText = data.bio;
         renderTalentSetup(data.talentCategory, data.memberNames, 'Sessionist');
         
         if (data.profilePicture) {
@@ -615,7 +637,6 @@
 
         if(data.spotifyLink) {
             document.getElementById('detailSpotify').href = data.spotifyLink;
-            document.getElementById('detailSpotify').innerText = data.spotifyLink;
             document.getElementById('portfolioContainer').classList.remove('hidden');
         }
 
@@ -677,14 +698,20 @@
     async function openBookingModal() {
       const role = localStorage.getItem('userRole');
       if (role !== 'Customer' && role !== 'Organizer') {
-        alert('Please sign in as a Customer or Organizer to send a booking request.');
+        await window.systemDialog.alert('Please sign in as a Customer or Organizer to send a booking request.', {
+          title: 'Sign In Required',
+          kicker: 'Booking Access'
+        });
         window.location.href = '/pages/auth/login.html';
         return;
       }
       if (!currentSessionistAvailable) {
-        alert(document.getElementById('bookSessionistBtn').innerText === 'Verification Pending'
+        await window.systemDialog.alert(document.getElementById('bookSessionistBtn').innerText === 'Verification Pending'
           ? `${currentSessionistName} cannot be booked until admin verification is approved.`
-          : `${currentSessionistName} is currently marked unavailable for bookings.`);
+          : `${currentSessionistName} is currently marked unavailable for bookings.`, {
+          title: 'Currently Unavailable',
+          kicker: 'Booking Status'
+        });
         return;
       }
 
@@ -697,6 +724,12 @@
       document.getElementById('bookingStatus').innerText = role === 'Organizer'
         ? `You are sending an organizer booking request to ${currentSessionistName}${linkedEventTitle ? ` for ${linkedEventTitle}` : ''}.`
         : `You are booking ${currentSessionistName}. The PHP 15.00 service fee is collected before the sessionist can review your request.`;
+
+      const nowIso = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+        .toISOString().slice(0, 16);
+      document.getElementById('bookingEventDate').min = nowIso;
+      document.getElementById('bookingEventEndTime').min = nowIso;
+
       await loadSessionistBlockedDates();
       bookingModal.classList.remove('hidden');
       bookingModal.classList.add('flex');
@@ -1051,7 +1084,10 @@
       const submitBtn = document.getElementById('submitReviewBtn');
 
       if (role !== 'Customer' || !customerId) {
-        alert('Please sign in as a Customer to leave feedback.');
+        await window.systemDialog.alert('Please sign in as a Customer to leave feedback.', {
+          title: 'Customer Access Only',
+          kicker: 'Sessionist Review'
+        });
         window.location.href = '/pages/auth/login.html';
         return;
       }

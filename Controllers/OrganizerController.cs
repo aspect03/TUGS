@@ -91,9 +91,21 @@ namespace ImajinationAPI.Controllers
                 bool hasVerificationIdFront = false;
                 bool hasVerificationIdBack = false;
                 bool hasVerificationSelfie = false;
+                string verificationIdType = string.Empty;
+                string verificationIdLast4 = string.Empty;
+                string verificationEvidenceSummary = string.Empty;
+                string verificationSupportingLinks = string.Empty;
+                string verificationReferenceName = string.Empty;
+                string verificationReferenceContact = string.Empty;
 
                 const string verificationAssetsSql = @"
                     SELECT created_at,
+                           COALESCE(id_type, ''),
+                           COALESCE(id_number_last4, ''),
+                           COALESCE(evidence_summary, ''),
+                           COALESCE(supporting_links, ''),
+                           COALESCE(reference_name, ''),
+                           COALESCE(reference_contact, ''),
                            COALESCE(id_image_front, ''),
                            COALESCE(id_image_back, ''),
                            COALESCE(selfie_image, '')
@@ -111,9 +123,15 @@ namespace ImajinationAPI.Controllers
                     if (await verificationAssetsReader.ReadAsync())
                     {
                         verificationAssetSubmittedAt = verificationAssetsReader.IsDBNull(0) ? null : (DateTime?)verificationAssetsReader.GetDateTime(0);
-                        hasVerificationIdFront = !verificationAssetsReader.IsDBNull(1) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(1));
-                        hasVerificationIdBack = !verificationAssetsReader.IsDBNull(2) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(2));
-                        hasVerificationSelfie = !verificationAssetsReader.IsDBNull(3) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(3));
+                        verificationIdType = verificationAssetsReader.IsDBNull(1) ? string.Empty : verificationAssetsReader.GetString(1);
+                        verificationIdLast4 = verificationAssetsReader.IsDBNull(2) ? string.Empty : verificationAssetsReader.GetString(2);
+                        verificationEvidenceSummary = verificationAssetsReader.IsDBNull(3) ? string.Empty : verificationAssetsReader.GetString(3);
+                        verificationSupportingLinks = verificationAssetsReader.IsDBNull(4) ? string.Empty : verificationAssetsReader.GetString(4);
+                        verificationReferenceName = verificationAssetsReader.IsDBNull(5) ? string.Empty : verificationAssetsReader.GetString(5);
+                        verificationReferenceContact = verificationAssetsReader.IsDBNull(6) ? string.Empty : verificationAssetsReader.GetString(6);
+                        hasVerificationIdFront = !verificationAssetsReader.IsDBNull(7) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(7));
+                        hasVerificationIdBack = !verificationAssetsReader.IsDBNull(8) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(8));
+                        hasVerificationSelfie = !verificationAssetsReader.IsDBNull(9) && !string.IsNullOrWhiteSpace(verificationAssetsReader.GetString(9));
                     }
                 }
 
@@ -183,7 +201,7 @@ namespace ImajinationAPI.Controllers
                     contactNumber = canViewPrivateFields ? contactNumber : "",
                     address = canViewPrivateFields ? address : "",
                     bio,
-                    isVerified = isVerified || (profileSummary.IsVerified && verification.HasApprovedRequest),
+                    isVerified = verification.HasApprovedRequest,
                     profileCompletionPercent = profileSummary.Percent,
                     profileCompletionLabel = profileSummary.Label,
                     verificationStatus = verification.Status,
@@ -199,6 +217,17 @@ namespace ImajinationAPI.Controllers
                             idBackSubmitted = hasVerificationIdBack,
                             selfieSubmitted = hasVerificationSelfie,
                             submittedAt = verificationAssetSubmittedAt
+                        }
+                        : null,
+                    verificationRequest = canViewPrivateFields
+                        ? new
+                        {
+                            idType = verificationIdType,
+                            idLast4 = verificationIdLast4,
+                            evidenceSummary = verificationEvidenceSummary,
+                            supportingLinks = verificationSupportingLinks,
+                            referenceName = verificationReferenceName,
+                            referenceContact = verificationReferenceContact
                         }
                         : null,
                     averageRating = Math.Round(averageRating, 1),
