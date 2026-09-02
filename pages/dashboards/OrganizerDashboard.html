@@ -13,6 +13,7 @@
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/mfa-settings.js"></script>
+  <script src="/assets/js/push-notifications.js"></script>
   <style>
     @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -671,6 +672,7 @@
           </div>
         </section>
 
+
         <section data-view-panel="settings" class="dashboard-view hidden">
           <div class="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
             <div class="bg-white/5 border border-white/10 rounded-3xl p-6 backdrop-blur-sm">
@@ -801,6 +803,19 @@
                 <div class="space-y-3">
                   <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Multi-Factor Authentication</h3>
                   <div id="organizerMfaSettings"></div>
+                </div>
+                <div id="organizerPushNotificationsPanel" class="space-y-3">
+                  <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Push Notifications</h3>
+                  <div class="rounded-2xl border border-white/10 bg-black/30 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p class="text-sm font-semibold text-white">Booking, attendee, and payout alerts</p>
+                      <p data-push-status class="text-xs text-white/45 mt-1">Checking notification support...</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" data-push-enable class="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Enable</button>
+                      <button type="button" data-push-disable class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-colors">Disable</button>
+                    </div>
+                  </div>
                 </div>
                 <div class="space-y-3">
                   <h3 class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] border-b border-white/10 pb-3">Password Recovery</h3>
@@ -944,6 +959,17 @@
             <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Date & Time *</label>
             <input type="datetime-local" id="eventTime" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm outline-none text-white [color-scheme:dark]">
             <p id="eventTimeLockHint" class="hidden text-[10px] text-amber-300">When editing an event, the date stays locked. You can still adjust the time.</p>
+          </div>
+
+          <div class="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Schedule Days</label>
+                <p class="text-[10px] text-white/40 mt-1">Add every show day for multi-day events. Leave empty to use the main date and time.</p>
+              </div>
+              <button type="button" id="addScheduleDayBtn" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-white hover:bg-white/10 transition-colors">Add Day</button>
+            </div>
+            <div id="eventScheduleDaysContainer" class="space-y-3"></div>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1315,6 +1341,7 @@
 
     function getEventStatusBadgeClass(status) {
       const normalized = String(status || 'Upcoming').trim().toLowerCase();
+      if (normalized === 'archived') return 'bg-zinc-500/15 border border-zinc-400/20 text-zinc-300';
       if (normalized === 'finished' || normalized === 'completed') return 'bg-slate-500/15 border border-slate-400/20 text-slate-200';
       if (normalized === 'draft' || normalized === 'pending') return 'bg-amber-500/15 border border-amber-400/20 text-amber-300';
       if (normalized.includes('cancel') || normalized === 'suspended' || normalized === 'flagged') return 'bg-red-500/15 border border-red-400/20 text-red-300';
@@ -1601,6 +1628,7 @@
           loadOrganizerCommunityPosts(userId)
         ]);
         window.initDashboardMfaSettings?.({ containerId: 'organizerMfaSettings', title: 'Organizer MFA' });
+        window.initPushNotificationControls?.('organizerPushNotificationsPanel');
         const organizerForgotPasswordLink = document.getElementById('organizerForgotPasswordLink');
         if (organizerForgotPasswordLink) {
           const savedEmail = (localStorage.getItem('userEmail') || '').trim();
@@ -2575,7 +2603,7 @@
     }
 
     function buildTicketQrPayload(ticketId, unitNumber) {
-      return `${window.location.origin}/ticket-pass?ticketId=${encodeURIComponent(ticketId)}&unit=${unitNumber}`;
+      return `/api/ticket/${encodeURIComponent(ticketId)}/qr-image?unit=${encodeURIComponent(unitNumber)}`;
     }
 
     function syncAttendeeQrModal() {
@@ -2586,7 +2614,7 @@
       const nextBtn = document.getElementById('attendeeQrNextBtn');
       const currentUnitUsed = usedTicketUnits.includes(activeUnit);
 
-      dom.setSrc('attendeeQrImage', `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(buildTicketQrPayload(ticketId, activeUnit))}`);
+      dom.setSrc('attendeeQrImage', buildTicketQrPayload(ticketId, activeUnit));
       dom.setText('attendeeQrSubtitle', quantity > 1
         ? `${attendeeName}'s ticket ${activeUnit} of ${quantity}${currentUnitUsed ? ' (already used)' : ''}`
         : `${attendeeName}'s ticket`);
@@ -3403,6 +3431,7 @@
       
       const dtc = document.getElementById('dynamicTiersContainer');
       if(dtc) dtc.innerHTML = ''; 
+      resetScheduleDays();
       
         applySelectedLineup('Artist', []);
         applySelectedLineup('Sessionist', []);
@@ -3485,6 +3514,65 @@
       });
     }
 
+    function toDateInputValue(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
+      return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 10);
+    }
+
+    function timeSpanToInput(value) {
+      if (!value) return '';
+      const text = String(value);
+      const match = text.match(/^(\d{1,2}):(\d{2})/);
+      return match ? `${match[1].padStart(2, '0')}:${match[2]}` : '';
+    }
+
+    function addScheduleDayRow(day = {}) {
+      const container = document.getElementById('eventScheduleDaysContainer');
+      if (!container) return;
+      const row = document.createElement('div');
+      row.className = 'schedule-day-row grid grid-cols-1 md:grid-cols-[1fr_120px_120px_1fr_auto] gap-2 rounded-xl border border-white/10 bg-black/30 p-3';
+      row.innerHTML = `
+        <input type="date" class="schedule-day-date w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs outline-none text-white [color-scheme:dark]" value="${escapeHtml(toDateInputValue(day.dayDate))}">
+        <input type="time" class="schedule-day-start w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs outline-none text-white [color-scheme:dark]" value="${escapeHtml(timeSpanToInput(day.startTime))}">
+        <input type="time" class="schedule-day-end w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs outline-none text-white [color-scheme:dark]" value="${escapeHtml(timeSpanToInput(day.endTime))}">
+        <input type="text" class="schedule-day-label w-full px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs outline-none text-white" placeholder="Label (Day 1, Finals...)" value="${escapeHtml(day.label || '')}">
+        <button type="button" class="remove-schedule-day-btn px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-red-300 hover:border-red-500/30 text-xs font-semibold">Remove</button>
+      `;
+      row.querySelector('.remove-schedule-day-btn')?.addEventListener('click', () => row.remove());
+      container.appendChild(row);
+    }
+
+    function resetScheduleDays(days = []) {
+      const container = document.getElementById('eventScheduleDaysContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      (Array.isArray(days) ? days : []).forEach(day => addScheduleDayRow(day));
+    }
+
+    function collectScheduleDays() {
+      return Array.from(document.querySelectorAll('.schedule-day-row')).map((row, index) => {
+        const date = row.querySelector('.schedule-day-date')?.value;
+        if (!date) return null;
+        return {
+          dayDate: date,
+          startTime: row.querySelector('.schedule-day-start')?.value || null,
+          endTime: row.querySelector('.schedule-day-end')?.value || null,
+          label: row.querySelector('.schedule-day-label')?.value?.trim() || null,
+          sortOrder: index
+        };
+      }).filter(Boolean);
+    }
+
+    document.getElementById('addScheduleDayBtn')?.addEventListener('click', () => {
+      const mainTime = document.getElementById('eventTime')?.value || '';
+      addScheduleDayRow({
+        dayDate: mainTime ? mainTime.slice(0, 10) : '',
+        startTime: mainTime ? mainTime.slice(11, 16) : ''
+      });
+    });
+
     async function loadEvents(orgId) {
       const container = document.getElementById('eventsListContainer');
       const managementContainer = document.getElementById('eventsManagementContainer');
@@ -3511,18 +3599,21 @@
           const eventDate = isNaN(d) ? 'TBA' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             const rawStatus = (ev.status || '').trim();
             const isFinished = rawStatus === 'Finished';
+            const isArchived = rawStatus === 'Archived';
             const isDraft = rawStatus.toLowerCase() === 'draft';
-            const isLocked = isFinished || isDraft;
+            const isLocked = isFinished || isArchived || isDraft;
             
             const finishedAnalytics = isFinished
               ? `<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"><div class="rounded-xl border border-white/10 bg-white/5 px-3 py-3"><p class="text-[10px] uppercase tracking-widest text-white/45">Purchased Tickets</p><p class="mt-1 text-lg font-bold text-white">${ev.ticketsSold ?? 0}</p></div><div class="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-3"><p class="text-[10px] uppercase tracking-widest text-emerald-300/70">Attended / Used</p><p class="mt-1 text-lg font-bold text-emerald-300">${ev.attendedTickets ?? 0}</p></div></div>`
               : '';
             
-            const statusBadge = `<span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${getEventStatusBadgeClass(isFinished ? 'Finished' : (isDraft ? 'Draft' : 'Upcoming'))}">${isFinished ? 'Finished' : (isDraft ? 'Draft' : 'Upcoming')}</span>`;
+            const displayStatus = isArchived ? 'Archived' : (isFinished ? 'Finished' : (isDraft ? 'Draft' : 'Upcoming'));
+            const statusBadge = `<span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded ${getEventStatusBadgeClass(displayStatus)}">${displayStatus}</span>`;
             
             const analyticsBtn = `<button type="button" onclick="event.stopPropagation(); openEventAnalytics('${ev.id}')" title="Open Event Analytics" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i></button>`;
             const finishBtn = isLocked ? '' : `<button onclick="event.stopPropagation(); finishEvent('${ev.id}')" title="Mark as Finished" class="event-action-btn w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex items-center justify-center hover:bg-emerald-500/20 transition-colors"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i></button>`;
-            const editBtn = isFinished ? '' : `<button onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit Event" class="event-action-btn w-7 h-7 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center hover:bg-blue-500/20 transition-colors"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>`;
+            const archiveBtn = isFinished ? `<button onclick="event.stopPropagation(); archiveEvent('${ev.id}')" title="Archive Event" class="event-action-btn w-7 h-7 bg-slate-500/10 border border-slate-500/20 text-slate-300 rounded-lg flex items-center justify-center hover:bg-slate-500/20 transition-colors"><i data-lucide="archive" class="w-3.5 h-3.5"></i></button>` : '';
+            const editBtn = (isFinished || isArchived) ? '' : `<button onclick="event.stopPropagation(); openEditModal('${ev.id}')" title="Edit Event" class="event-action-btn w-7 h-7 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg flex items-center justify-center hover:bg-blue-500/20 transition-colors"><i data-lucide="edit" class="w-3.5 h-3.5"></i></button>`;
             const lineupBtn = `<button onclick="event.stopPropagation(); openManageLineupModal('${ev.id}')" title="Manage Lineup" class="event-action-btn w-7 h-7 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg flex items-center justify-center hover:bg-amber-500/20 transition-colors"><i data-lucide="list-music" class="w-3.5 h-3.5"></i></button>`;
             const scanBtn = isLocked ? '' : `<button type="button" data-event-scanner data-event-id="${ev.id}" data-event-title="${escapeHtml(ev.title || 'Untitled Event')}" onclick="event.stopPropagation(); openEventScanner(this.dataset.eventId, this.dataset.eventTitle)" title="Scan Tickets" class="event-action-btn w-7 h-7 bg-white/10 border border-white/15 text-white rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"><i data-lucide="scan-line" class="w-3.5 h-3.5"></i></button>`;
             const deleteBtn = `<button onclick="event.stopPropagation(); deleteEvent('${ev.id}')" title="Delete Event" class="event-action-btn w-7 h-7 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg flex items-center justify-center hover:bg-red-500/20 transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>`;
@@ -3543,7 +3634,7 @@
                         <h3 class="text-lg font-bold text-white leading-tight truncate">${ev.title || 'Untitled Event'}</h3>
                       </div>
                       <div class="flex items-center gap-1.5 flex-shrink-0" onclick="event.stopPropagation()">
-                        ${analyticsBtn}${scanBtn}${lineupBtn}${finishBtn}${editBtn}${deleteBtn}
+                        ${analyticsBtn}${scanBtn}${lineupBtn}${finishBtn}${archiveBtn}${editBtn}${deleteBtn}
                       </div>
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -3599,7 +3690,8 @@
     function openEventScanner(eventId, eventTitle) {
       const params = new URLSearchParams({
         eventId,
-        eventTitle: eventTitle || 'Untitled Event'
+        eventTitle: eventTitle || 'Untitled Event',
+        v: Date.now().toString()
       });
       window.location.href = `/pages/tools/dashboardscanner.html?${params.toString()}`;
     }
@@ -3888,6 +3980,35 @@
       } catch(e) {}
     }
 
+    async function archiveEvent(eventId) {
+      const shouldArchive = await window.systemDialog.confirm("Move this finished event to Archived?", {
+        title: 'Archive Event',
+        kicker: 'Event Archive',
+        okText: 'Archive'
+      });
+      if (!shouldArchive) return;
+
+      try {
+        const res = await fetch(`/api/event/${eventId}/archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organizerId: orgId })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to archive event.');
+        await refreshOrganizerData();
+        await window.systemDialog.alert(data.message || 'Event archived.', {
+          title: 'Event Archived',
+          kicker: 'Event Archive'
+        });
+      } catch (error) {
+        await window.systemDialog.alert(error.message || 'Failed to archive event.', {
+          title: 'Archive Error',
+          kicker: 'Event Archive'
+        });
+      }
+    }
+
       async function openEditModal(eventId) {
         resetModal(); editingEventId = eventId;
         dom.setText('modalMainTitle', "Edit Event"); dom.setText('publishEventBtn', "Update Event");
@@ -3925,6 +4046,7 @@
         const saleEnd = ev.saleEndsAt ? new Date(ev.saleEndsAt) : null;
         if(saleStart && !isNaN(saleStart)) dom.setVal('eventSaleStartsAt', new Date(saleStart.getTime() - (saleStart.getTimezoneOffset() * 60000)).toISOString().slice(0,16));
         if(saleEnd && !isNaN(saleEnd)) dom.setVal('eventSaleEndsAt', new Date(saleEnd.getTime() - (saleEnd.getTimezoneOffset() * 60000)).toISOString().slice(0,16));
+        resetScheduleDays(ev.scheduleDays || []);
 
           if(ev.posterUrl) { dom.setSrc('posterPreview', ev.posterUrl); dom.hide('posterPlaceholder'); base64ImageString = ev.posterUrl; }
 
@@ -3981,6 +4103,7 @@
             saleValue: parseFloat(document.getElementById('eventSaleValue')?.value) || null,
             saleStartsAt: document.getElementById('eventSaleStartsAt')?.value || null,
             saleEndsAt: document.getElementById('eventSaleEndsAt')?.value || null,
+            scheduleDays: collectScheduleDays(),
             artistLineup: selectedArtists, sessionistLineup: selectedSessionists,
             status: isDraft ? 'Draft' : 'Upcoming'
           };

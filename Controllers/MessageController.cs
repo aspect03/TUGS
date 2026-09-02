@@ -11,6 +11,9 @@ namespace ImajinationAPI.Controllers
     {
         public Guid senderId { get; set; }
         public string? message { get; set; }
+        public string? attachmentDataUrl { get; set; }
+        public string? attachmentName { get; set; }
+        public string? attachmentType { get; set; }
     }
 
     [Route("api/[controller]")]
@@ -44,7 +47,7 @@ namespace ImajinationAPI.Controllers
             return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == targetUserId);
         }
 
-        private async Task<(bool Found, Guid CustomerId, Guid TargetUserId, string ServiceFeeStatus, string PaymentStatus, string Status, DateTime? EventDate, DateTime? EventEndTime, DateTime? UpdatedAt)> GetBookingAccessAsync(
+        private async Task<(bool Found, Guid CustomerId, Guid TargetUserId, string ServiceFeeStatus, string PaymentStatus, string Status, DateTime? EventDate, DateTime? EventEndTime, DateTime? UpdatedAt, DateTime? ConversationClosedAt)> GetBookingAccessAsync(
             NpgsqlConnection connection,
             Guid bookingId)
         {
@@ -56,7 +59,8 @@ namespace ImajinationAPI.Controllers
                        COALESCE(status, 'Pending'),
                        event_date,
                        event_end_time,
-                       updated_at
+                       updated_at,
+                       conversation_closed_at
                 FROM bookings
                 WHERE id = @bookingId";
 
@@ -66,7 +70,7 @@ namespace ImajinationAPI.Controllers
             await using var reader = await bookingCmd.ExecuteReaderAsync();
             if (!await reader.ReadAsync())
             {
-                return (false, Guid.Empty, Guid.Empty, string.Empty, string.Empty, string.Empty, null, null, null);
+                return (false, Guid.Empty, Guid.Empty, string.Empty, string.Empty, string.Empty, null, null, null, null);
             }
 
             return (
@@ -78,7 +82,8 @@ namespace ImajinationAPI.Controllers
                 reader.IsDBNull(4) ? "Pending" : reader.GetString(4),
                 reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5),
                 reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
-                reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7));
+                reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7),
+                reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8));
         }
 
         private static bool IsCancelledConversationClosed(string bookingStatus, DateTime? bookingUpdatedAtUtc)
@@ -95,6 +100,9 @@ namespace ImajinationAPI.Controllers
 
             return bookingUpdatedAtUtc.Value.AddDays(1) <= DateTime.UtcNow;
         }
+
+        private static bool IsConversationExplicitlyClosed(DateTime? conversationClosedAt) =>
+            conversationClosedAt.HasValue;
 
         [HttpGet("conversations/{userId}")]
         public async Task<IActionResult> GetConversations(Guid userId)
@@ -233,7 +241,7 @@ namespace ImajinationAPI.Controllers
                 }
 
                 const string sql = @"
-                    SELECT id, sender_id, receiver_id, message_text, created_at
+                    SELECT id, sender_id, receiver_id, message_text, created_at, attachment_data_url, attachment_name, attachment_type
                     FROM booking_messages
                     WHERE booking_id = @bookingId
                     ORDER BY created_at ASC;";
@@ -250,7 +258,10 @@ namespace ImajinationAPI.Controllers
                         senderId = reader.GetGuid(1),
                         receiverId = reader.GetGuid(2),
                         message = _messageProtection.Unprotect(reader.IsDBNull(3) ? "" : reader.GetString(3)),
-                        createdAt = reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4)
+                        createdAt = reader.IsDBNull(4) ? DateTime.UtcNow : reader.GetDateTime(4),
+                        attachmentDataUrl = reader.IsDBNull(5) ? null : reader.GetString(5),
+                        attachmentName = reader.IsDBNull(6) ? null : reader.GetString(6),
+                        attachmentType = reader.IsDBNull(7) ? null : reader.GetString(7)
                     });
                 }
 
@@ -268,9 +279,10 @@ namespace ImajinationAPI.Controllers
             try
             {
                 var actorUserId = GetActorUserId();
-                if (!actorUserId.HasValue || string.IsNullOrWhiteSpace(req.message))
+                var hasAttachment = !string.IsNullOrWhiteSpace(req.attachmentDataUrl);
+                if (!actorUserId.HasValue || (string.IsNullOrWhiteSpace(req.message) && !hasAttachment))
                 {
-                    return BadRequest(new { message = "Sender and message are required." });
+                    return BadRequest(new { message = "Sender and message or attachment are required." });
                 }
 
                 await using var connection = new NpgsqlConnection(_connectionString);
@@ -307,15 +319,27 @@ namespace ImajinationAPI.Controllers
                     return StatusCode(403, new { message = "This cancelled booking thread is already closed." });
                 }
 
+                if (IsConversationExplicitlyClosed(bookingAccess.ConversationClosedAt))
+                {
+                    return StatusCode(403, new { message = "This booking conversation is closed." });
+                }
+
                 var senderId = actorUserId.Value;
                 var receiverId = senderId == bookingAccess.CustomerId ? bookingAccess.TargetUserId : bookingAccess.CustomerId;
                 var createdAt = DateTime.UtcNow;
                 var messageId = Guid.NewGuid();
-                var cleanMessage = req.message!.Trim();
+                var cleanMessage = (req.message ?? string.Empty).Trim();
+                var attachmentError = ValidateAttachment(req.attachmentDataUrl, req.attachmentType);
+                if (attachmentError is not null)
+                {
+                    return BadRequest(new { message = attachmentError });
+                }
+                var cleanAttachmentName = SecuritySupport.SanitizePlainText(req.attachmentName, 180, false);
+                var cleanAttachmentType = SecuritySupport.SanitizePlainText(req.attachmentType, 80, false);
 
                 const string sql = @"
-                    INSERT INTO booking_messages (id, booking_id, sender_id, receiver_id, message_text, created_at)
-                    VALUES (@id, @bookingId, @senderId, @receiverId, @messageText, @createdAt);";
+                    INSERT INTO booking_messages (id, booking_id, sender_id, receiver_id, message_text, created_at, attachment_data_url, attachment_name, attachment_type)
+                    VALUES (@id, @bookingId, @senderId, @receiverId, @messageText, @createdAt, @attachmentDataUrl, @attachmentName, @attachmentType);";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = messageId;
@@ -324,6 +348,9 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.Add("@receiverId", NpgsqlDbType.Uuid).Value = receiverId;
                 cmd.Parameters.Add("@messageText", NpgsqlDbType.Text).Value = _messageProtection.Protect(cleanMessage);
                 cmd.Parameters.Add("@createdAt", NpgsqlDbType.TimestampTz).Value = createdAt;
+                cmd.Parameters.Add("@attachmentDataUrl", NpgsqlDbType.Text).Value = (object?)req.attachmentDataUrl ?? DBNull.Value;
+                cmd.Parameters.Add("@attachmentName", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(cleanAttachmentName) ? DBNull.Value : cleanAttachmentName;
+                cmd.Parameters.Add("@attachmentType", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(cleanAttachmentType) ? DBNull.Value : cleanAttachmentType;
                 await cmd.ExecuteNonQueryAsync();
 
                 var messagePayload = new
@@ -332,7 +359,10 @@ namespace ImajinationAPI.Controllers
                     senderId,
                     receiverId,
                     message = cleanMessage,
-                    createdAt
+                    createdAt,
+                    attachmentDataUrl = req.attachmentDataUrl,
+                    attachmentName = cleanAttachmentName,
+                    attachmentType = cleanAttachmentType
                 };
 
                 await _messageStream.PublishAsync(bookingId, new
@@ -396,6 +426,13 @@ namespace ImajinationAPI.Controllers
                 return;
             }
 
+            if (IsConversationExplicitlyClosed(bookingAccess.ConversationClosedAt))
+            {
+                Response.StatusCode = StatusCodes.Status403Forbidden;
+                await Response.WriteAsJsonAsync(new { message = "This booking conversation is closed." }, HttpContext.RequestAborted);
+                return;
+            }
+
             Response.StatusCode = StatusCodes.Status200OK;
             Response.ContentType = "text/event-stream";
             Response.Headers["Cache-Control"] = "no-cache";
@@ -446,11 +483,48 @@ namespace ImajinationAPI.Controllers
                     sender_id uuid NOT NULL,
                     receiver_id uuid NOT NULL,
                     message_text text NOT NULL,
+                    attachment_data_url text NULL,
+                    attachment_name text NULL,
+                    attachment_type text NULL,
                     created_at timestamptz NOT NULL DEFAULT NOW()
                 );";
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+
+            const string alterSql = @"
+                ALTER TABLE booking_messages ADD COLUMN IF NOT EXISTS attachment_data_url text NULL;
+                ALTER TABLE booking_messages ADD COLUMN IF NOT EXISTS attachment_name text NULL;
+                ALTER TABLE booking_messages ADD COLUMN IF NOT EXISTS attachment_type text NULL;";
+            using var alterCmd = new NpgsqlCommand(alterSql, connection);
+            await alterCmd.ExecuteNonQueryAsync();
+        }
+
+        private static string? ValidateAttachment(string? dataUrl, string? contentType)
+        {
+            if (string.IsNullOrWhiteSpace(dataUrl)) return null;
+            var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "image/png",
+                "image/jpeg",
+                "image/webp",
+                "application/pdf",
+                "text/plain"
+            };
+            var type = (contentType ?? string.Empty).Trim();
+            if (!allowedTypes.Contains(type))
+            {
+                return "Attachments must be PNG, JPG, WEBP, PDF, or plain text.";
+            }
+            if (!dataUrl.StartsWith($"data:{type};base64,", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Attachment data is invalid.";
+            }
+            if (dataUrl.Length > 3_600_000)
+            {
+                return "Attachment is too large. Use a file under about 2.5MB.";
+            }
+            return null;
         }
 
         private static async Task EnsureBookingMessagingColumnsExist(NpgsqlConnection connection)
@@ -459,6 +533,9 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_status varchar(30) NOT NULL DEFAULT 'Unpaid';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_fee_status varchar(30) NOT NULL DEFAULT 'Unpaid';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS event_end_time timestamptz NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_closed_at timestamptz NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_closed_by_user_id uuid NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_close_reason text NOT NULL DEFAULT '';
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
                 UPDATE bookings
                 SET updated_at = COALESCE(updated_at, created_at, NOW())

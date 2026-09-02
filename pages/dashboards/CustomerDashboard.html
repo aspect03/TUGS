@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/push-notifications.js"></script>
   <style>
     @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
     .animate-pop-in { animation: popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
@@ -378,8 +379,22 @@
                 <div id="customerMfaSettings"></div>
               </div>
 
+              <div id="customerPushNotificationsPanel">
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">6. Push Notifications</h3>
+                <div class="rounded-2xl border border-white/10 bg-black/40 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white">Booking and Ticket Alerts</p>
+                    <p data-push-status class="text-sm text-white/65 mt-2">Checking notification support...</p>
+                  </div>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" data-push-enable class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-red-500 transition-colors">Enable</button>
+                    <button type="button" data-push-disable class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase tracking-[0.18em] hover:bg-white/10 transition-colors">Disable</button>
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">6. Password Recovery</h3>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">7. Password Recovery</h3>
                 <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
@@ -820,6 +835,7 @@
       const initialView = CUSTOMER_VIEWS.has(requestedView || '') ? requestedView : (CUSTOMER_VIEWS.has(savedView || '') ? savedView : 'dashboard');
       setActiveView(initialView);
       window.initDashboardMfaSettings?.({ containerId: 'customerMfaSettings', title: 'Customer MFA' });
+      window.initPushNotificationControls?.('customerPushNotificationsPanel');
       syncCustomerForgotPasswordLink();
 
       if (storedProfilePicture) {
@@ -1992,8 +2008,7 @@
 
     // Receipt Modal Logic
     function buildTicketQrPayload(ticketId, unitNumber) {
-      // Compact pipe format — scanner's ParseTicketScan handles it directly
-      return `${ticketId}|${unitNumber}`;
+      return `/api/ticket/${encodeURIComponent(ticketId)}/qr-image?unit=${encodeURIComponent(unitNumber)}`;
     }
 
     function syncReceiptUnitView() {
@@ -2026,7 +2041,7 @@
         qrImage.removeAttribute('src');
         qrImage.classList.add('hidden');
       } else {
-        qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${encodeURIComponent(buildTicketQrPayload(t.ticketId, activeReceiptUnitNumber))}`;
+        qrImage.src = buildTicketQrPayload(t.ticketId, activeReceiptUnitNumber);
         qrImage.classList.remove('hidden');
       }
 

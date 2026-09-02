@@ -8,6 +8,7 @@ bin/
 obj/
 out/
 temp-build-verify/
+temp-build-*/
 temp_build_verify/
 deploy-check/
 runtime-test-*.log

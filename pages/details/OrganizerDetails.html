@@ -168,6 +168,9 @@
               </div>
 
               <!-- Report -->
+              <button id="saveOrganizerBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-white/65 hover:bg-white/[0.08] hover:text-white transition-colors">
+                <i data-lucide="bookmark" class="w-3.5 h-3.5"></i> Save Organizer
+              </button>
               <button id="reportOrganizerBtn" type="button" class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-white/50 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-300 transition-colors">
                 <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i> Report Organizer
               </button>
@@ -215,6 +218,8 @@
   <script>
     lucide.createIcons();
     let currentOrganizerId = null;
+    let currentOrganizerTitle = 'Organizer';
+    let organizerSaved = false;
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -323,7 +328,7 @@
         const dashLink = document.getElementById('dashboardLink');
         if (role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
         else if (role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if (role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
       }
 
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
@@ -367,6 +372,7 @@
 
         renderOrganizerProfileV2(organizer);
         renderOrganizerPosts(Array.isArray(posts) ? posts : []);
+        await syncOrganizerBookmarkState(organizerId);
         document.getElementById('loadingState').classList.add('hidden');
         document.getElementById('organizerContent').classList.remove('hidden');
         lucide.createIcons();
@@ -428,6 +434,7 @@
 
     function renderOrganizerProfileV2(organizer) {
       const displayName = organizer.displayName || organizer.productionName || 'Organizer';
+      currentOrganizerTitle = displayName;
       document.getElementById('organizerDisplayName').innerText = displayName;
       document.getElementById('organizerContactMeta').innerText = [organizer.email, organizer.address].filter(Boolean).join(' • ') || 'Organizer contact details are private or still being completed.';
       const organizerEmailValue = document.getElementById('organizerEmailValue');
@@ -490,6 +497,64 @@
         </div>
       `;
     }
+
+    function updateSaveOrganizerButton() {
+      const button = document.getElementById('saveOrganizerBtn');
+      if (!button) return;
+      button.classList.toggle('bg-red-500/10', organizerSaved);
+      button.classList.toggle('border-red-500/20', organizerSaved);
+      button.classList.toggle('text-red-300', organizerSaved);
+      button.innerHTML = `<i data-lucide="${organizerSaved ? 'bookmark-check' : 'bookmark'}" class="w-3.5 h-3.5"></i> ${organizerSaved ? 'Saved' : 'Save Organizer'}`;
+      lucide.createIcons();
+    }
+
+    async function syncOrganizerBookmarkState(organizerId) {
+      const viewerId = (localStorage.getItem('userId') || '').trim();
+      if (!viewerId || !organizerId) {
+        updateSaveOrganizerButton();
+        return;
+      }
+      try {
+        const res = await fetch(`/api/bookmark/user/${encodeURIComponent(viewerId)}?targetType=organizer`);
+        const saved = res.ok ? await res.json() : [];
+        organizerSaved = Array.isArray(saved) && saved.some(item => String(item.targetId) === String(organizerId));
+      } catch {
+        organizerSaved = false;
+      }
+      updateSaveOrganizerButton();
+    }
+
+    document.getElementById('saveOrganizerBtn')?.addEventListener('click', async () => {
+      const viewerId = (localStorage.getItem('userId') || '').trim();
+      if (!viewerId) {
+        window.location.href = '/pages/auth/login.html';
+        return;
+      }
+      if (!currentOrganizerId) return;
+      const button = document.getElementById('saveOrganizerBtn');
+      button.disabled = true;
+      try {
+        const res = await fetch('/api/bookmark/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: viewerId,
+            targetId: currentOrganizerId,
+            targetType: 'organizer',
+            title: currentOrganizerTitle,
+            url: `/pages/details/OrganizerDetails.html?id=${encodeURIComponent(currentOrganizerId)}`
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not update saved organizer.');
+        organizerSaved = !!data.saved;
+        updateSaveOrganizerButton();
+      } catch (error) {
+        alert(error.message || 'Could not update saved organizer.');
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     function renderOrganizerPosts(posts) {
       const container = document.getElementById('organizerPostsList');
@@ -561,4 +626,3 @@
   </script>
 </body>
 </html>
-

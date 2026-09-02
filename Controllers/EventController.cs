@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Npgsql;
+using NpgsqlTypes;
 using ImajinationAPI.Models;
 using System.Text.Json;
 using System.Threading;
@@ -25,10 +26,109 @@ namespace ImajinationAPI.Controllers
             _uploadScanningService = uploadScanningService;
         }
 
+        private Guid? GetActorUserId() =>
+            Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUserId) ? parsedUserId : null;
+
+        private bool IsAdmin() =>
+            string.Equals(User.FindFirstValue(ClaimTypes.Role), "Admin", StringComparison.OrdinalIgnoreCase);
+
+        private bool CanManageOrganizer(Guid organizerId)
+        {
+            var actorUserId = GetActorUserId();
+            return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == organizerId);
+        }
+
+        public class UpdateEventScheduleDaysRequest
+        {
+            public Guid organizerId { get; set; }
+            public List<EventScheduleDayDto>? days { get; set; }
+        }
+
+        public class ArchiveEventRequest
+        {
+            public Guid? organizerId { get; set; }
+        }
+
         private static readonly JsonSerializerOptions LineupJsonOptions = new()
         {
             PropertyNameCaseInsensitive = true
         };
+
+        private static List<string> ValidatePublishReadiness(
+            CreateEventDto req,
+            string? title,
+            string? city,
+            string? location,
+            string? posterUrl,
+            DateTime eventTimeUtc)
+        {
+            var errors = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                errors.Add("Event title is required before publishing.");
+            }
+
+            if (eventTimeUtc <= DateTime.UtcNow)
+            {
+                errors.Add("Event date and time must be in the future before publishing.");
+            }
+
+            if (string.IsNullOrWhiteSpace(city))
+            {
+                errors.Add("Event city is required before publishing.");
+            }
+
+            if (string.IsNullOrWhiteSpace(location))
+            {
+                errors.Add("Event venue or full location is required before publishing.");
+            }
+
+            if (string.IsNullOrWhiteSpace(posterUrl))
+            {
+                errors.Add("Event poster is required before publishing.");
+            }
+
+            if (req.price < 0 || (req.tierPrice.HasValue && req.tierPrice.Value < 0))
+            {
+                errors.Add("Ticket prices cannot be negative.");
+            }
+
+            var tierCapacity = req.tiers?
+                .Where(tier => !string.IsNullOrWhiteSpace(tier.name))
+                .Sum(tier => Math.Max(0, tier.totalSlots)) ?? 0;
+            var listedCapacity = Math.Max(0, req.slots);
+            var legacyTierCapacity = Math.Max(0, req.tierSlots ?? 0);
+            var hasTicketCapacity = tierCapacity > 0 || listedCapacity > 0 || legacyTierCapacity > 0;
+
+            if (!hasTicketCapacity)
+            {
+                errors.Add("At least one ticket slot or ticket tier is required before publishing.");
+            }
+
+            if (req.maxTicketsPerCustomer is < 1)
+            {
+                errors.Add("Max tickets per customer must be at least 1.");
+            }
+
+            if (req.minimumAge is not (0 or 13 or 16 or 18))
+            {
+                errors.Add("Choose an event age restriction: All ages, 13+, 16+, or 18+.");
+            }
+
+            if (req.minimumAge > 0 && string.IsNullOrWhiteSpace(req.ageAdvisory))
+            {
+                errors.Add("A public age advisory is required for restricted events.");
+            }
+
+            if (req.saleStartsAt.HasValue && req.saleEndsAt.HasValue &&
+                PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) >= PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt))
+            {
+                errors.Add("Sale end date must be after the sale start date.");
+            }
+
+            return errors;
+        }
 
         private async Task EnsureVerifiedGigsTableExists(NpgsqlConnection connection)
         {
@@ -276,6 +376,110 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        private static async Task EnsureEventScheduleSchemaAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS event_schedule_days (
+                    id uuid PRIMARY KEY,
+                    event_id uuid NOT NULL,
+                    day_date date NOT NULL,
+                    start_time time NULL,
+                    end_time time NULL,
+                    label text NULL,
+                    sort_order integer NOT NULL DEFAULT 0,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    UNIQUE (event_id, day_date, sort_order)
+                );
+                CREATE INDEX IF NOT EXISTS idx_event_schedule_days_event ON event_schedule_days(event_id);";
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static List<EventScheduleDayDto> NormalizeScheduleDays(IEnumerable<EventScheduleDayDto>? days, DateTime fallbackEventTime)
+        {
+            var normalized = (days ?? Enumerable.Empty<EventScheduleDayDto>())
+                .Where(day => day.dayDate != default)
+                .Select((day, index) => new EventScheduleDayDto
+                {
+                    id = day.id,
+                    dayDate = day.dayDate.Date,
+                    startTime = day.startTime,
+                    endTime = day.endTime,
+                    label = SecuritySupport.SanitizePlainText(day.label, 120, false),
+                    sortOrder = day.sortOrder > 0 ? day.sortOrder : index + 1
+                })
+                .OrderBy(day => day.dayDate)
+                .ThenBy(day => day.sortOrder)
+                .Take(14)
+                .ToList();
+
+            if (normalized.Count == 0)
+            {
+                normalized.Add(new EventScheduleDayDto
+                {
+                    dayDate = fallbackEventTime.Date,
+                    startTime = fallbackEventTime.TimeOfDay,
+                    label = "Main event",
+                    sortOrder = 1
+                });
+            }
+
+            return normalized;
+        }
+
+        private static async Task<List<EventScheduleDayDto>> FetchScheduleDaysAsync(NpgsqlConnection connection, Guid eventId)
+        {
+            await EnsureEventScheduleSchemaAsync(connection);
+            var days = new List<EventScheduleDayDto>();
+            const string sql = @"
+                SELECT id, day_date, start_time, end_time, COALESCE(label, ''), sort_order
+                FROM event_schedule_days
+                WHERE event_id = @eventId
+                ORDER BY day_date ASC, sort_order ASC;";
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@eventId", eventId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                days.Add(new EventScheduleDayDto
+                {
+                    id = reader.GetGuid(0),
+                    dayDate = reader.GetDateTime(1),
+                    startTime = reader.IsDBNull(2) ? null : reader.GetFieldValue<TimeSpan>(2),
+                    endTime = reader.IsDBNull(3) ? null : reader.GetFieldValue<TimeSpan>(3),
+                    label = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    sortOrder = reader.IsDBNull(5) ? 0 : reader.GetInt32(5)
+                });
+            }
+            return days;
+        }
+
+        private static async Task SyncScheduleDaysAsync(NpgsqlConnection connection, Guid eventId, List<EventScheduleDayDto> days)
+        {
+            await EnsureEventScheduleSchemaAsync(connection);
+            await using (var deleteCmd = new NpgsqlCommand("DELETE FROM event_schedule_days WHERE event_id = @eventId;", connection))
+            {
+                deleteCmd.Parameters.AddWithValue("@eventId", eventId);
+                await deleteCmd.ExecuteNonQueryAsync();
+            }
+
+            const string insertSql = @"
+                INSERT INTO event_schedule_days (id, event_id, day_date, start_time, end_time, label, sort_order, created_at)
+                VALUES (@id, @eventId, @dayDate, @startTime, @endTime, @label, @sortOrder, NOW());";
+            foreach (var day in days)
+            {
+                await using var cmd = new NpgsqlCommand(insertSql, connection);
+                cmd.Parameters.AddWithValue("@id", day.id.GetValueOrDefault(Guid.NewGuid()));
+                cmd.Parameters.AddWithValue("@eventId", eventId);
+                cmd.Parameters.AddWithValue("@dayDate", day.dayDate.Date);
+                cmd.Parameters.AddWithValue("@startTime", (object?)day.startTime ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@endTime", (object?)day.endTime ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@label", string.IsNullOrWhiteSpace(day.label) ? DBNull.Value : day.label);
+                cmd.Parameters.AddWithValue("@sortOrder", day.sortOrder);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
         private async Task EnsureEventLineupColumns(NpgsqlConnection connection)
         {
             const string sql = @"
@@ -283,7 +487,9 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sessionist_lineup text;
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();
                 ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_quantity_limit integer NULL;
-                ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_quantity_used integer NOT NULL DEFAULT 0;";
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS sale_quantity_used integer NOT NULL DEFAULT 0;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS minimum_age integer NOT NULL DEFAULT 0;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS age_advisory text NULL;";
 
             using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
@@ -519,6 +725,7 @@ namespace ImajinationAPI.Controllers
             await cmd.ExecuteNonQueryAsync();
         }
 
+        [Authorize]
         [HttpDelete("{eventId}/lineup/{role}/{userId}")]
         public async Task<IActionResult> RemoveLineupMember(Guid eventId, string role, Guid userId)
         {
@@ -549,6 +756,21 @@ namespace ImajinationAPI.Controllers
                     artistLineupRaw = reader.IsDBNull(0) ? "[]" : reader.GetString(0);
                     sessionistLineupRaw = reader.IsDBNull(1) ? "[]" : reader.GetString(1);
                     eventTitle = reader.IsDBNull(2) ? "This event" : reader.GetString(2);
+                }
+
+                await using (var ownerCmd = new NpgsqlCommand("SELECT organizer_id FROM events WHERE id = @id LIMIT 1;", connection))
+                {
+                    ownerCmd.Parameters.AddWithValue("@id", eventId);
+                    var organizerId = await ownerCmd.ExecuteScalarAsync();
+                    if (organizerId is null || organizerId == DBNull.Value)
+                    {
+                        return NotFound(new { message = "Event not found." });
+                    }
+
+                    if (!CanManageOrganizer((Guid)organizerId))
+                    {
+                        return Forbid();
+                    }
                 }
 
                 var normalizedRole = (role ?? string.Empty).Trim().ToLowerInvariant();
@@ -622,13 +844,14 @@ namespace ImajinationAPI.Controllers
         }
 
         // 1. CREATE EVENT
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpPost("create")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> CreateEvent([FromBody] CreateEventDto req)
         {
             try
             {
+                req.minimumAge ??= 0;
                 var eventTime = req.time.Kind == DateTimeKind.Unspecified
                     ? DateTime.SpecifyKind(req.time, DateTimeKind.Local).ToUniversalTime()
                     : req.time.ToUniversalTime();
@@ -645,10 +868,28 @@ namespace ImajinationAPI.Controllers
                 await CommunitySupport.EnsureCommunitySchemaAsync(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+                await EnsureEventScheduleSchemaAsync(connection);
+                await EnsureEventScheduleSchemaAsync(connection);
+                await EnsureEventScheduleSchemaAsync(connection);
 
-                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
-                    ? parsedActorUserId
-                    : Guid.Empty;
+                var actorUserId = GetActorUserId();
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before creating an event." });
+                }
+
+                var actorRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+                Guid? requestedOrganizerId = req.organizerId.HasValue && req.organizerId.Value != Guid.Empty
+                    ? req.organizerId.Value
+                    : null;
+                Guid? effectiveOrganizerId = IsAdmin()
+                    ? requestedOrganizerId
+                    : actorUserId.Value;
+
+                if (!IsAdmin() && requestedOrganizerId.HasValue && requestedOrganizerId.Value != actorUserId.Value)
+                {
+                    return Forbid();
+                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -663,6 +904,7 @@ namespace ImajinationAPI.Controllers
                 var sanitizedSponsors = SecuritySupport.SanitizePlainText(req.sponsors, 1000, true);
                 var sanitizedSaleName = SecuritySupport.SanitizePlainText(req.saleName, 120, false);
                 var sanitizedSaleType = SecuritySupport.SanitizePlainText(req.saleType, 40, false);
+                var sanitizedAgeAdvisory = SecuritySupport.SanitizePlainText(req.ageAdvisory, 500, true);
                 var sanitizedStatus = SecuritySupport.SanitizePlainText(req.status, 40, false);
                 var normalizedStatus = string.Equals(sanitizedStatus, "Draft", StringComparison.OrdinalIgnoreCase) ? "Draft" : "Upcoming";
                 var normalizedPoster = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.posterUrl, 3_500_000, out var posterError);
@@ -675,22 +917,44 @@ namespace ImajinationAPI.Controllers
                 {
                     return BadRequest(new { message = posterScan.Message });
                 }
+
+                if (!string.Equals(normalizedStatus, "Draft", StringComparison.OrdinalIgnoreCase))
+                {
+                    var publishErrors = ValidatePublishReadiness(
+                        req,
+                        sanitizedTitle,
+                        sanitizedCity,
+                        sanitizedLocation,
+                        normalizedPoster,
+                        eventTime);
+
+                    if (publishErrors.Count > 0)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Complete the required event details before publishing.",
+                            details = publishErrors
+                        });
+                    }
+                }
+
                 var normalizedArtistLineup = NormalizeLineup(req.artistLineup, "Artist");
                 var normalizedSessionistLineup = NormalizeLineup(req.sessionistLineup, "Sessionist");
                 var lineupDisplay = sanitizedArtists;
                 var mergedLineup = MergeLineupMembers(normalizedArtistLineup, normalizedSessionistLineup);
                 var eventId = Guid.NewGuid();
                 var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
+                var normalizedScheduleDays = NormalizeScheduleDays(req.scheduleDays, eventTime);
 
                 string sql = @"
                     INSERT INTO events
-                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, max_tickets_per_customer, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, sale_quantity_limit, status, artist_lineup, sessionist_lineup)
+                    (id, organizer_id, title, artists, description, event_time, city, location, poster_url, base_price, total_slots, max_tickets_per_customer, event_type, genres, tier_name, tier_price, tier_slots, bundles, discounts, sponsors, sale_name, sale_type, sale_value, sale_starts_at, sale_ends_at, sale_quantity_limit, minimum_age, age_advisory, status, artist_lineup, sessionist_lineup)
                     VALUES
-                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @maxTicketsPerCustomer, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @saleQtyLimit, @status, @artistLineup, @sessionistLineup)";
+                    (@id, @orgId, @title, @artists, @desc, @time, @city, @loc, @poster, @price, @slots, @maxTicketsPerCustomer, @eType, @genres, @tName, @tPrice, @tSlots, @bund, @disc, @spons, @saleName, @saleType, @saleValue, @saleStartsAt, @saleEndsAt, @saleQtyLimit, @minimumAge, @ageAdvisory, @status, @artistLineup, @sessionistLineup)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
-                cmd.Parameters.AddWithValue("@orgId", req.organizerId);
+                cmd.Parameters.Add("@orgId", NpgsqlDbType.Uuid).Value = (object?)effectiveOrganizerId ?? DBNull.Value;
                 cmd.Parameters.AddWithValue("@title", sanitizedTitle);
                 cmd.Parameters.AddWithValue("@artists", lineupDisplay);
                 cmd.Parameters.AddWithValue("@desc", sanitizedDescription);
@@ -717,6 +981,8 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleQtyLimit", (object?)req.saleQuantityLimit ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@minimumAge", req.minimumAge ?? 0);
+                cmd.Parameters.AddWithValue("@ageAdvisory", (object?)sanitizedAgeAdvisory ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
@@ -725,13 +991,14 @@ namespace ImajinationAPI.Controllers
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
                     actorUserId,
-                    "Admin",
+                    actorRole,
                     "event_created",
                     "event",
                     eventId,
                     HttpContext,
-                    $"Admin created event '{sanitizedTitle}'.");
+                    $"{actorRole} created event '{sanitizedTitle}'.");
                 await NotifyLineupAddedAsync(connection, eventId, req.title, mergedLineup);
+                await SyncScheduleDaysAsync(connection, eventId, normalizedScheduleDays);
 
                 // Sync ticket tiers (wrapped so tier errors never kill the event save)
                 if (req.tiers is { Count: > 0 })
@@ -744,7 +1011,7 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
-                return Ok(new { message = normalizedStatus == "Draft" ? "Draft saved successfully!" : "Event successfully created!" });
+                return Ok(new { message = normalizedStatus == "Draft" ? "Draft saved successfully!" : "Event successfully created!", eventId });
             }
             catch (Exception ex)
             {
@@ -753,11 +1020,17 @@ namespace ImajinationAPI.Controllers
         }
 
         // 2. GET ALL EVENTS FOR ORGANIZER
+        [Authorize]
         [HttpGet("organizer/{orgId}")]
         public async Task<IActionResult> GetOrganizerEvents(Guid orgId)
         {
             try
             {
+                if (!CanManageOrganizer(orgId))
+                {
+                    return Forbid();
+                }
+
                 var events = new List<EventDto>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -793,7 +1066,9 @@ namespace ImajinationAPI.Controllers
                         ), 0) AS attended_tickets,
                         e.poster_url,
                         COALESCE(e.sale_quantity_limit, 0),
-                        COALESCE(e.sale_quantity_used, 0)
+                        COALESCE(e.sale_quantity_used, 0),
+                        COALESCE(e.minimum_age, 0),
+                        e.age_advisory
                     FROM events e
                     WHERE e.organizer_id = @orgId
                     ORDER BY e.created_at DESC, e.event_time ASC";
@@ -826,7 +1101,9 @@ namespace ImajinationAPI.Controllers
                         sessionistLineup = DeserializeLineup(reader.IsDBNull(17) ? null : reader.GetString(17)),
                         posterUrl = reader.IsDBNull(19) ? null : reader.GetString(19),
                         saleQuantityLimit = reader.IsDBNull(20) ? null : (int?)reader.GetInt32(20),
-                        saleQuantityUsed = reader.IsDBNull(21) ? null : (int?)reader.GetInt32(21)
+                        saleQuantityUsed = reader.IsDBNull(21) ? null : (int?)reader.GetInt32(21),
+                        minimumAge = reader.IsDBNull(22) ? 0 : reader.GetInt32(22),
+                        ageAdvisory = reader.IsDBNull(23) ? null : reader.GetString(23)
                     });
                 }
                 return Ok(events);
@@ -837,11 +1114,101 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/all")]
+        public async Task<IActionResult> GetAdminEvents()
+        {
+            try
+            {
+                var events = new List<EventDto>();
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureEventLineupColumnsOnce(connection);
+                await EnsureTicketAttendanceColumnsExist(connection);
+                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await AutoFinishExpiredEvents(connection);
+
+                const string sql = @"
+                    SELECT
+                        e.id,
+                        e.title,
+                        e.event_time,
+                        e.city,
+                        e.location,
+                        e.base_price,
+                        e.total_slots,
+                        e.tickets_sold,
+                        e.status,
+                        e.event_type,
+                        e.genres,
+                        e.sale_name,
+                        e.sale_type,
+                        e.sale_value,
+                        e.sale_starts_at,
+                        e.sale_ends_at,
+                        e.artist_lineup,
+                        e.sessionist_lineup,
+                        COALESCE((
+                            SELECT SUM(COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 0) ELSE 0 END))
+                            FROM tickets t
+                            WHERE t.event_id = e.id
+                        ), 0) AS attended_tickets,
+                        e.poster_url,
+                        COALESCE(e.sale_quantity_limit, 0),
+                        COALESCE(e.sale_quantity_used, 0)
+                    FROM events e
+                    ORDER BY e.created_at DESC, e.event_time ASC";
+
+                using var cmd = new NpgsqlCommand(sql, connection);
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    events.Add(new EventDto
+                    {
+                        id = reader.GetGuid(0),
+                        title = reader.GetString(1),
+                        time = reader.GetDateTime(2),
+                        city = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                        location = reader.GetString(4),
+                        price = reader.GetDecimal(5),
+                        slots = reader.GetInt32(6),
+                        ticketsSold = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                        attendedTickets = reader.IsDBNull(18) ? 0 : Convert.ToInt32(reader.GetInt64(18)),
+                        status = reader.IsDBNull(8) ? "Upcoming" : reader.GetString(8),
+                        eventType = reader.IsDBNull(9) ? "Live Gig" : reader.GetString(9),
+                        genres = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                        saleName = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                        saleType = reader.IsDBNull(12) ? "" : reader.GetString(12),
+                        saleValue = reader.IsDBNull(13) ? null : (decimal?)reader.GetDecimal(13),
+                        saleStartsAt = reader.IsDBNull(14) ? null : (DateTime?)reader.GetDateTime(14),
+                        saleEndsAt = reader.IsDBNull(15) ? null : (DateTime?)reader.GetDateTime(15),
+                        artistLineup = DeserializeLineup(reader.IsDBNull(16) ? null : reader.GetString(16)),
+                        sessionistLineup = DeserializeLineup(reader.IsDBNull(17) ? null : reader.GetString(17)),
+                        posterUrl = reader.IsDBNull(19) ? null : reader.GetString(19),
+                        saleQuantityLimit = reader.IsDBNull(20) ? null : (int?)reader.GetInt32(20),
+                        saleQuantityUsed = reader.IsDBNull(21) ? null : (int?)reader.GetInt32(21)
+                    });
+                }
+
+                return Ok(events);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching admin events: " + ex.Message });
+            }
+        }
+
+        [Authorize]
         [HttpGet("organizer/{orgId}/dashboard")]
         public async Task<IActionResult> GetOrganizerDashboard(Guid orgId)
         {
             try
             {
+                if (!CanManageOrganizer(orgId))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
@@ -942,11 +1309,17 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize]
         [HttpGet("organizer/{orgId}/attendees")]
         public async Task<IActionResult> GetOrganizerAttendees(Guid orgId)
         {
             try
             {
+                if (!CanManageOrganizer(orgId))
+                {
+                    return Forbid();
+                }
+
                 var attendees = new List<object>();
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
@@ -1013,11 +1386,17 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [Authorize]
         [HttpGet("organizer/{orgId}/payouts")]
         public async Task<IActionResult> GetOrganizerPayouts(Guid orgId)
         {
             try
             {
+                if (!CanManageOrganizer(orgId))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
@@ -1097,17 +1476,23 @@ namespace ImajinationAPI.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpGet("organizer/{orgId}/analytics/{eventId}")]
         public async Task<IActionResult> GetOrganizerEventAnalytics(Guid orgId, Guid eventId)
         {
             try
             {
+                var isAdmin = IsAdmin();
+                if (!isAdmin && !CanManageOrganizer(orgId))
+                {
+                    return Forbid();
+                }
+
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureEventLineupColumnsOnce(connection);
                 await EnsureTicketAttendanceColumnsExist(connection);
-                await AutoFinishExpiredEvents(connection, orgId);
+                await AutoFinishExpiredEvents(connection, isAdmin ? null : orgId);
 
                 object? summary = null;
                 var salesTimeline = new List<object>();
@@ -1135,7 +1520,7 @@ namespace ImajinationAPI.Controllers
                     FROM events e
                     LEFT JOIN tickets t ON t.event_id = e.id
                     WHERE e.id = @eventId
-                      AND e.organizer_id = @orgId
+                      AND (@isAdmin = TRUE OR e.organizer_id = @orgId)
                     GROUP BY
                         e.id,
                         e.title,
@@ -1153,12 +1538,13 @@ namespace ImajinationAPI.Controllers
                 using (var summaryCmd = new NpgsqlCommand(summarySql, connection))
                 {
                     summaryCmd.Parameters.AddWithValue("@eventId", eventId);
+                    summaryCmd.Parameters.AddWithValue("@isAdmin", isAdmin);
                     summaryCmd.Parameters.AddWithValue("@orgId", orgId);
 
                     using var reader = await summaryCmd.ExecuteReaderAsync();
                     if (!await reader.ReadAsync())
                     {
-                        return NotFound(new { message = "Event not found or does not belong to this organizer." });
+                        return NotFound(new { message = isAdmin ? "Event not found." : "Event not found or does not belong to this organizer." });
                     }
 
                     var artistLineup = DeserializeLineup(reader.IsDBNull(10) ? "[]" : reader.GetString(10));
@@ -1307,11 +1693,19 @@ namespace ImajinationAPI.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error fetching organizer event analytics: " + ex.Message });
+                return StatusCode(500, new { message = "Error fetching event analytics: " + ex.Message });
             }
         }
 
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/analytics/{eventId}")]
+        public Task<IActionResult> GetAdminEventAnalytics(Guid eventId)
+        {
+            return GetOrganizerEventAnalytics(Guid.Empty, eventId);
+        }
+
         // 3. DELETE EVENT
+        [Authorize]
         [HttpDelete("{eventId}")]
         public async Task<IActionResult> DeleteEvent(Guid eventId)
         {
@@ -1320,9 +1714,20 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
 
-                string sql = "DELETE FROM events WHERE id = @id";
+                var actorUserId = GetActorUserId();
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before deleting an event." });
+                }
+
+                string sql = @"
+                    DELETE FROM events
+                    WHERE id = @id
+                      AND (@isAdmin = TRUE OR organizer_id = @organizerId)";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
+                cmd.Parameters.AddWithValue("@isAdmin", IsAdmin());
+                cmd.Parameters.AddWithValue("@organizerId", actorUserId.Value);
 
                 int rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return NotFound(new { message = "Event not found." });
@@ -1336,7 +1741,7 @@ namespace ImajinationAPI.Controllers
         }
 
         // 4. FINISH EVENT
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpPost("{eventId}/finish")]
         public async Task<IActionResult> FinishEvent(Guid eventId)
         {
@@ -1346,9 +1751,22 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureVerifiedGigsTableExists(connection);
 
-                string updateSql = "UPDATE events SET status = 'Finished' WHERE id = @id RETURNING title, base_price, tickets_sold, total_slots";
+                var actorUserId = GetActorUserId();
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before finishing an event." });
+                }
+
+                string updateSql = @"
+                    UPDATE events
+                    SET status = 'Finished'
+                    WHERE id = @id
+                      AND (@isAdmin = TRUE OR organizer_id = @organizerId)
+                    RETURNING title, base_price, tickets_sold, total_slots";
                 using var cmd = new NpgsqlCommand(updateSql, connection);
                 cmd.Parameters.AddWithValue("@id", eventId);
+                cmd.Parameters.AddWithValue("@isAdmin", IsAdmin());
+                cmd.Parameters.AddWithValue("@organizerId", actorUserId.Value);
 
                 using var reader = await cmd.ExecuteReaderAsync();
                 if (await reader.ReadAsync())
@@ -1371,6 +1789,62 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error finishing event: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("{eventId}/archive")]
+        public async Task<IActionResult> ArchiveEvent(Guid eventId, [FromBody] ArchiveEventRequest? req)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                var actorRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActor)
+                    ? parsedActor
+                    : Guid.Empty;
+                var requestedOrganizerId = req?.organizerId ?? actorUserId;
+
+                const string sql = @"
+                    UPDATE events
+                    SET status = 'Archived'
+                    WHERE id = @id
+                      AND COALESCE(status, 'Upcoming') = 'Finished'
+                      AND (
+                        @isAdmin = TRUE
+                        OR organizer_id = @organizerId
+                      )
+                    RETURNING title;";
+
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", eventId);
+                cmd.Parameters.AddWithValue("@isAdmin", actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+                cmd.Parameters.AddWithValue("@organizerId", requestedOrganizerId);
+
+                var title = await cmd.ExecuteScalarAsync() as string;
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    return NotFound(new { message = "Only finished events owned by you can be archived." });
+                }
+
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    actorUserId == Guid.Empty ? null : actorUserId,
+                    actorRole,
+                    "event_archived",
+                    "event",
+                    eventId,
+                    HttpContext,
+                    $"Archived event '{title}'.");
+
+                return Ok(new { message = "Event archived.", status = "Archived" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error archiving event: " + ex.Message });
             }
         }
 
@@ -1576,7 +2050,9 @@ namespace ImajinationAPI.Controllers
                            COALESCE(u.profile_picture, ''),
                            COALESCE(u.bio, ''),
                            COALESCE(u.is_verified, FALSE),
-                           COALESCE(u.email, '')
+                           COALESCE(u.email, ''),
+                           COALESCE(e.minimum_age, 0),
+                           e.age_advisory
                     FROM events e
                     LEFT JOIN users u ON u.id = e.organizer_id
                     WHERE e.id = @id";
@@ -1625,10 +2101,13 @@ namespace ImajinationAPI.Controllers
                 var evOrgBio       = reader.IsDBNull(31) ? ""               : reader.GetString(31);
                 var evOrgVer       = !reader.IsDBNull(32) && reader.GetBoolean(32);
                 var evOrgEmail     = reader.IsDBNull(33) ? ""               : reader.GetString(33);
+                var evMinimumAge   = reader.IsDBNull(34) ? 0                : reader.GetInt32(34);
+                var evAgeAdvisory  = reader.IsDBNull(35) ? null             : reader.GetString(35);
                 await reader.CloseAsync();
 
                 // Fetch tiers with live slot counts (separate query, reader already closed)
                 var tiers = await FetchTiersAsync(connection, evId);
+                var scheduleDays = await FetchScheduleDaysAsync(connection, evId);
 
                 // Calculate live ticketsSold from confirmed tickets so it's always accurate
                 int liveTicketsSold = evSold;
@@ -1661,7 +2140,9 @@ namespace ImajinationAPI.Controllers
                     organizerId = evOrgId, organizerName = evOrgName,
                     organizerProfilePicture = evOrgPic, organizerBio = evOrgBio,
                     organizerVerified = evOrgVer, organizerEmail = evOrgEmail,
-                    tiers
+                    minimumAge = evMinimumAge, ageAdvisory = evAgeAdvisory,
+                    tiers,
+                    scheduleDays
                 });
             }
             catch (Exception ex)
@@ -1688,14 +2169,64 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [HttpGet("{id}/schedule-days")]
+        public async Task<IActionResult> GetEventScheduleDays(Guid id)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                return Ok(await FetchScheduleDaysAsync(connection, id));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to fetch event schedule: " + ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpPut("{id}/schedule-days")]
+        public async Task<IActionResult> UpdateEventScheduleDays(Guid id, [FromBody] UpdateEventScheduleDaysRequest req)
+        {
+            try
+            {
+                if (req.organizerId == Guid.Empty || !CanManageOrganizer(req.organizerId))
+                {
+                    return Forbid();
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureEventScheduleSchemaAsync(connection);
+
+                await using var checkCmd = new NpgsqlCommand("SELECT event_time FROM events WHERE id = @id AND organizer_id = @organizerId LIMIT 1;", connection);
+                checkCmd.Parameters.AddWithValue("@id", id);
+                checkCmd.Parameters.AddWithValue("@organizerId", req.organizerId);
+                var result = await checkCmd.ExecuteScalarAsync();
+                if (result is null || result == DBNull.Value)
+                {
+                    return NotFound(new { message = "Event not found or you don't have permission to edit it." });
+                }
+
+                var days = NormalizeScheduleDays(req.days, Convert.ToDateTime(result));
+                await SyncScheduleDaysAsync(connection, id, days);
+                return Ok(new { message = "Event schedule updated.", scheduleDays = days });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to update event schedule: " + ex.Message });
+            }
+        }
+
         // 7. UPDATE EVENT
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         [HttpPut("{id}")]
         [RequestSizeLimit(100_000_000)]
         public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] CreateEventDto req)
         {
             try
             {
+                req.minimumAge ??= 0;
                 var updatedEventTime = req.time.Kind == DateTimeKind.Unspecified
                     ? DateTime.SpecifyKind(req.time, DateTimeKind.Local).ToUniversalTime()
                     : req.time.ToUniversalTime();
@@ -1713,9 +2244,21 @@ namespace ImajinationAPI.Controllers
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 await SecuritySupport.EnsureSecuritySchemaAsync(connection);
 
-                var actorUserId = Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedActorUserId)
-                    ? parsedActorUserId
-                    : Guid.Empty;
+                var actorUserId = GetActorUserId();
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before updating an event." });
+                }
+
+                var actorRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+                var requestedOrganizerId = req.organizerId.HasValue && req.organizerId.Value != Guid.Empty
+                    ? req.organizerId.Value
+                    : (Guid?)null;
+                var isAdmin = IsAdmin();
+                if (!isAdmin && (!requestedOrganizerId.HasValue || !CanManageOrganizer(requestedOrganizerId.Value)))
+                {
+                    return Forbid();
+                }
 
                 var sanitizedTitle = SecuritySupport.SanitizePlainText(req.title, 180, false);
                 var sanitizedArtists = SecuritySupport.SanitizePlainText(BuildLineupDisplay(req), 600, true);
@@ -1730,6 +2273,7 @@ namespace ImajinationAPI.Controllers
                 var sanitizedSponsors = SecuritySupport.SanitizePlainText(req.sponsors, 1000, true);
                 var sanitizedSaleName = SecuritySupport.SanitizePlainText(req.saleName, 120, false);
                 var sanitizedSaleType = SecuritySupport.SanitizePlainText(req.saleType, 40, false);
+                var sanitizedAgeAdvisory = SecuritySupport.SanitizePlainText(req.ageAdvisory, 500, true);
                 var sanitizedStatus = SecuritySupport.SanitizePlainText(req.status, 40, false);
                 var normalizedStatus = string.Equals(sanitizedStatus, "Draft", StringComparison.OrdinalIgnoreCase) ? "Draft" : "Upcoming";
                 var normalizedPoster = SecuritySupport.ValidateAndNormalizeImageDataUrl(req.posterUrl, 3_500_000, out var posterError);
@@ -1752,18 +2296,22 @@ namespace ImajinationAPI.Controllers
                            event_time,
                            COALESCE(city, ''),
                            COALESCE(location, ''),
-                           organizer_id
+                           organizer_id,
+                           COALESCE(poster_url, '')
                     FROM events
-                    WHERE id = @id AND organizer_id = @orgId;";
+                    WHERE id = @id
+                      AND (@isAdmin = TRUE OR organizer_id = @orgId);";
                 string previousTitle = "This event";
                 DateTime previousEventTime = DateTime.UtcNow;
                 string previousCity = "";
                 string previousLocation = "";
-                Guid organizerId = req.organizerId;
+                string previousPosterUrl = "";
+                Guid organizerId = requestedOrganizerId ?? Guid.Empty;
                 using (var existingCmd = new NpgsqlCommand(existingSql, connection))
                 {
                     existingCmd.Parameters.AddWithValue("@id", id);
-                    existingCmd.Parameters.AddWithValue("@orgId", req.organizerId);
+                    existingCmd.Parameters.AddWithValue("@isAdmin", isAdmin);
+                    existingCmd.Parameters.Add("@orgId", NpgsqlDbType.Uuid).Value = (object?)requestedOrganizerId ?? DBNull.Value;
                     using var reader = await existingCmd.ExecuteReaderAsync();
                     if (!await reader.ReadAsync())
                     {
@@ -1776,13 +2324,35 @@ namespace ImajinationAPI.Controllers
                     previousEventTime = reader.IsDBNull(3) ? DateTime.UtcNow : reader.GetDateTime(3);
                     previousCity = reader.IsDBNull(4) ? "" : reader.GetString(4);
                     previousLocation = reader.IsDBNull(5) ? "" : reader.GetString(5);
-                    organizerId = reader.IsDBNull(6) ? req.organizerId : reader.GetGuid(6);
+                    organizerId = reader.IsDBNull(6) ? Guid.Empty : reader.GetGuid(6);
+                    previousPosterUrl = reader.IsDBNull(7) ? "" : reader.GetString(7);
+                }
+
+                if (!string.Equals(normalizedStatus, "Draft", StringComparison.OrdinalIgnoreCase))
+                {
+                    var publishErrors = ValidatePublishReadiness(
+                        req,
+                        sanitizedTitle,
+                        sanitizedCity,
+                        sanitizedLocation,
+                        normalizedPoster ?? previousPosterUrl,
+                        updatedEventTime);
+
+                    if (publishErrors.Count > 0)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "Complete the required event details before publishing.",
+                            details = publishErrors
+                        });
+                    }
                 }
 
                 var normalizedArtistLineup = NormalizeLineup(req.artistLineup, "Artist");
                 var normalizedSessionistLineup = NormalizeLineup(req.sessionistLineup, "Sessionist");
                 var lineupDisplay = sanitizedArtists;
                 var maxTicketsPerCustomer = Math.Clamp(req.maxTicketsPerCustomer ?? 5, 3, 10);
+                var normalizedScheduleDays = NormalizeScheduleDays(req.scheduleDays, updatedEventTime);
                 var normalizedEventTime = new DateTime(
                     previousEventTime.Year,
                     previousEventTime.Month,
@@ -1821,15 +2391,19 @@ namespace ImajinationAPI.Controllers
                         sale_starts_at = COALESCE(@saleStartsAt, sale_starts_at),
                         sale_ends_at = COALESCE(@saleEndsAt, sale_ends_at),
                         sale_quantity_limit = @saleQtyLimit,
+                        minimum_age = @minimumAge,
+                        age_advisory = @ageAdvisory,
                         sale_quantity_used = 0,
                         status = @status,
                         artist_lineup = @artistLineup,
                         sessionist_lineup = @sessionistLineup
-                    WHERE id = @id AND organizer_id = @orgId";
+                    WHERE id = @id
+                      AND (@isAdmin = TRUE OR organizer_id = @orgId)";
 
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.AddWithValue("@id", id);
-                cmd.Parameters.AddWithValue("@orgId", req.organizerId); 
+                cmd.Parameters.AddWithValue("@isAdmin", isAdmin);
+                cmd.Parameters.Add("@orgId", NpgsqlDbType.Uuid).Value = (object?)requestedOrganizerId ?? DBNull.Value;
                 
                 cmd.Parameters.AddWithValue("@title", sanitizedTitle);
                 cmd.Parameters.AddWithValue("@artists", lineupDisplay);
@@ -1857,21 +2431,24 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@saleStartsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleStartsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleEndsAt", (object?)PlatformFeatureSupport.NormalizeToUtc(req.saleEndsAt) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@saleQtyLimit", (object?)req.saleQuantityLimit ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@minimumAge", req.minimumAge ?? 0);
+                cmd.Parameters.AddWithValue("@ageAdvisory", (object?)sanitizedAgeAdvisory ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@status", normalizedStatus);
                 cmd.Parameters.AddWithValue("@artistLineup", SerializeLineup(normalizedArtistLineup));
                 cmd.Parameters.AddWithValue("@sessionistLineup", SerializeLineup(normalizedSessionistLineup));
 
                 int rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0) return NotFound(new { message = "Event not found or you don't have permission to edit it." });
+                await SyncScheduleDaysAsync(connection, id, normalizedScheduleDays);
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
                     actorUserId,
-                    "Admin",
+                    actorRole,
                     "event_updated",
                     "event",
                     id,
                     HttpContext,
-                    $"Admin updated event '{sanitizedTitle}'.");
+                    $"{actorRole} updated event '{sanitizedTitle}'.");
 
                 var previousIds = MergeLineupMembers(previousArtistLineup, previousSessionistLineup).Select(item => item.id).ToHashSet();
                 var currentMembers = MergeLineupMembers(normalizedArtistLineup, normalizedSessionistLineup);

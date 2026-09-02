@@ -23,9 +23,19 @@ namespace ImajinationAPI.Models
         public string? profilePicture { get; set; }
     }
 
+    public class EventScheduleDayDto
+    {
+        public Guid? id { get; set; }
+        public DateTime dayDate { get; set; }
+        public TimeSpan? startTime { get; set; }
+        public TimeSpan? endTime { get; set; }
+        public string? label { get; set; }
+        public int sortOrder { get; set; }
+    }
+
     public class CreateEventDto
     {
-        public Guid organizerId { get; set; }
+        public Guid? organizerId { get; set; }
         public string title { get; set; } = string.Empty;
         public string artists { get; set; } = string.Empty;
         public string description { get; set; } = string.Empty;
@@ -54,10 +64,13 @@ namespace ImajinationAPI.Models
         public DateTime? saleStartsAt { get; set; }
         public DateTime? saleEndsAt { get; set; }
         public int? saleQuantityLimit { get; set; }
+        public int? minimumAge { get; set; }
+        public string? ageAdvisory { get; set; }
         public string? status { get; set; }
         public List<TalentLineupItemDto>? artistLineup { get; set; }
         public List<TalentLineupItemDto>? sessionistLineup { get; set; }
         public List<TicketTierDto>? tiers { get; set; }
+        public List<EventScheduleDayDto>? scheduleDays { get; set; }
     }
 
     public class EventDto
@@ -86,8 +99,11 @@ namespace ImajinationAPI.Models
         public List<TalentLineupItemDto> artistLineup { get; set; } = new();
         public List<TalentLineupItemDto> sessionistLineup { get; set; } = new();
         public List<TicketTierDto> tiers { get; set; } = new();
+        public List<EventScheduleDayDto> scheduleDays { get; set; } = new();
         public string? description { get; set; }
         public int? saleQuantityLimit { get; set; }
         public int? saleQuantityUsed { get; set; }
+        public int minimumAge { get; set; }
+        public string? ageAdvisory { get; set; }
     }
 }

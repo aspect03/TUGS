@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/signup-terms.js" defer></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <style>
     #otpModal { transition: opacity 0.2s ease; }
@@ -153,18 +154,18 @@
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
-      <div class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-white/70 leading-relaxed">
+      <div id="termsScrollArea" class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-white/70 leading-relaxed">
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">1. Acceptance</h4><p>By creating an account on Imajination you agree to these Terms. If you do not agree, do not use the platform. We may update these terms at any time; continued use means acceptance.</p></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">2. Account Security &amp; Privacy</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Passwords are stored as <strong class="text-white">bcrypt hashes</strong> — we never store your plain-text password.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Sessions use signed JWT tokens in secure cookies. Tokens expire and are invalidated on logout.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>We collect your name, email, and profile data only to operate the platform. We do not sell personal data.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Your <strong class="text-white">birthday can only be set once</strong> and cannot be changed after signup.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Security events are logged to protect your account from unauthorized access.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">3. General Rules (All Users)</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>You must be at least <strong class="text-white">13 years old</strong>. Users under 18 need parental consent.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No multiple accounts, impersonation, or identity misrepresentation.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No harassment, hate speech, illegal activity, or abusive behavior toward any member.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">4. Organizer Terms</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Organizers may create events, set ticket tiers, manage artist lineups, and scan attendee tickets.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>Events must not promote illegal activities. Organizers are solely responsible for delivering the event as described.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>A ticket service fee (5%) is collected per transaction to maintain the platform.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>Cancelling an event after ticket sales requires immediate communication and a clear refund process.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">5. Payments &amp; Refunds</h4><p>All payments go through <strong class="text-white">PayMongo</strong>. Refund requests are reviewed by admins. Chargebacks initiated without first raising a dispute through Imajination may result in account suspension.</p></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">6. Reports &amp; Moderation</h4><p>Reports are reviewed within 3 business days. Actions range from warning to permanent ban. Admins may remove content or accounts that violate these terms without prior notice.</p></div>
-        <div class="space-y-2"><h4 class="text-white font-bold text-sm">7. Governing Law</h4><p>These terms are governed by the laws of the <strong class="text-white">Republic of the Philippines</strong>.</p></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">7. Philippine Laws</h4><p>These terms operate alongside Philippine law, including <strong class="text-white">R.A. No. 10173</strong> (Data Privacy Act), <strong class="text-white">R.A. No. 8792</strong> (Electronic Commerce Act), <strong class="text-white">R.A. No. 7394</strong> (Consumer Act), <strong class="text-white">R.A. No. 10175</strong> (Cybercrime Prevention Act), <strong class="text-white">R.A. No. 11313</strong> (Safe Spaces Act), and child-protection laws <strong class="text-white">R.A. Nos. 7610 and 11930</strong>. See the full Terms page for details.</p></div>
       </div>
       <div class="px-6 py-4 border-t border-white/10 shrink-0 flex gap-3">
         <button id="dismissTermsBtn" type="button" class="flex-1 py-3 bg-white/5 border border-white/10 text-white text-xs font-semibold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors">Close</button>
-        <button id="acceptTermsBtn" type="button" class="flex-1 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">I Accept</button>
+        <button id="acceptTermsBtn" type="button" disabled class="flex-1 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Scroll to the end to accept</button>
       </div>
     </div>
   </div>
@@ -181,7 +182,7 @@
         </div>
         <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-red-300/90 mb-3">Organizer Verification</p>
         <h3 class="text-[1.75rem] font-extrabold tracking-tight mb-2">Check Your Email</h3>
-        <p class="text-sm leading-relaxed text-white/65 mb-6">We sent a 6-digit code to <span id="displayEmail" class="text-white font-semibold break-all">your email</span>.</p>
+        <p class="text-sm leading-relaxed text-white/65 mb-6">A verification code was accepted for delivery to <span id="displayEmail" class="text-white font-semibold break-all">your email</span>. Enter it only after it arrives.</p>
         <input type="text" id="otpInput" placeholder="ENTER 6-DIGIT CODE" maxlength="6" class="otp-code-input w-full px-4 py-4 bg-black/60 text-center font-mono border border-red-500/40 rounded-2xl text-base focus:ring-2 focus:ring-red-500 outline-none mb-4 uppercase">
         <p class="text-[10px] uppercase tracking-[0.18em] text-white/35 mb-5">Use the code before it expires.</p>
         <button id="confirmOtpBtn" class="w-full py-3.5 bg-white text-black text-sm font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-neutral-200 transition-colors">
@@ -383,6 +384,8 @@
         password: document.getElementById('password').value,
         birthday: document.getElementById('bday').value,
         age: parseInt(document.getElementById('age').value),
+        termsAccepted: document.getElementById('agreeTerms').checked,
+        termsVersion: '2026-08-29',
         otp: otpCode 
       };
 

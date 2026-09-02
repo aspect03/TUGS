@@ -29,6 +29,8 @@ if (dotenvValues.Count > 0)
     builder.Configuration.AddInMemoryCollection(dotenvValues);
 }
 
+NotificationSupport.Configure(builder.Configuration);
+
 var allowedOrigins = builder.Configuration
     .GetSection("AppSecurity:AllowedOrigins")
     .Get<string[]>()?
@@ -61,6 +63,7 @@ builder.Services.AddSingleton<MessageProtectionService>();
 builder.Services.AddSingleton<BookingMessageStreamService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<TicketPdfService>();
+builder.Services.AddSingleton<ScannerLinkService>();
 builder.Services.AddHostedService<EventReminderService>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ImajinationAPI.Hubs.EventScanBroadcaster>();
@@ -278,6 +281,21 @@ app.Use(async (context, next) =>
         "camera=(self), microphone=(), geolocation=(), payment=(), usb=()";
 
     if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "0";
+    }
+
+    if (context.Request.Path.Value?.EndsWith(".html", StringComparison.OrdinalIgnoreCase) == true)
+    {
+        context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "0";
+    }
+
+    if (context.Request.Path.Equals("/dashboardscanner.html", StringComparison.OrdinalIgnoreCase) ||
+        context.Request.Path.Equals("/pages/tools/dashboardscanner.html", StringComparison.OrdinalIgnoreCase))
     {
         context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate";
         context.Response.Headers["Pragma"] = "no-cache";

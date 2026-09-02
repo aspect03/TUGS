@@ -78,12 +78,17 @@ namespace ImajinationAPI.Services
                     revoked_at timestamptz NULL,
                     revoked_reason text NULL
                 );
+                ALTER TABLE user_active_sessions ADD COLUMN IF NOT EXISTS refresh_token_hash text NULL;
+                ALTER TABLE user_active_sessions ADD COLUMN IF NOT EXISTS refresh_expires_at timestamptz NULL;
 
                 CREATE INDEX IF NOT EXISTS idx_user_active_sessions_user_id
                     ON user_active_sessions(user_id);
 
                 CREATE INDEX IF NOT EXISTS idx_user_active_sessions_last_seen
                     ON user_active_sessions(last_seen_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_user_active_sessions_refresh_token_hash
+                    ON user_active_sessions(refresh_token_hash);
             ";
 
                 await using var cmd = new NpgsqlCommand(sql, connection);
@@ -473,7 +478,23 @@ namespace ImajinationAPI.Services
             await cmd.ExecuteNonQueryAsync();
         }
 
-        public static async Task<(string SessionToken, int RevokedCount)> CreateTrackedSessionAsync(
+        public static string GenerateSecureToken()
+        {
+            Span<byte> tokenBytes = stackalloc byte[32];
+            RandomNumberGenerator.Fill(tokenBytes);
+            return Convert.ToBase64String(tokenBytes)
+                .Replace("/", "_", StringComparison.Ordinal)
+                .Replace("+", "-", StringComparison.Ordinal)
+                .TrimEnd('=');
+        }
+
+        public static string HashToken(string token)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+            return Convert.ToHexString(bytes).ToLowerInvariant();
+        }
+
+        public static async Task<(string SessionToken, string RefreshToken, DateTime RefreshExpiresAt, int RevokedCount)> CreateTrackedSessionAsync(
             NpgsqlConnection connection,
             Guid userId,
             string? actorRole,
@@ -497,19 +518,16 @@ namespace ImajinationAPI.Services
                 revokedCount = await revokeCmd.ExecuteNonQueryAsync();
             }
 
-            Span<byte> tokenBytes = stackalloc byte[32];
-            RandomNumberGenerator.Fill(tokenBytes);
-            var sessionToken = Convert.ToBase64String(tokenBytes)
-                .Replace("/", "_", StringComparison.Ordinal)
-                .Replace("+", "-", StringComparison.Ordinal)
-                .TrimEnd('=');
+            var sessionToken = GenerateSecureToken();
+            var refreshToken = GenerateSecureToken();
+            var refreshExpiresAt = DateTime.UtcNow.AddDays(14);
 
             const string insertSql = @"
                 INSERT INTO user_active_sessions (
-                    id, user_id, session_token, actor_role, ip_address, user_agent, created_at, last_seen_at
+                    id, user_id, session_token, refresh_token_hash, refresh_expires_at, actor_role, ip_address, user_agent, created_at, last_seen_at
                 )
                 VALUES (
-                    @id, @userId, @sessionToken, @actorRole, @ipAddress, @userAgent, NOW(), NOW()
+                    @id, @userId, @sessionToken, @refreshTokenHash, @refreshExpiresAt, @actorRole, @ipAddress, @userAgent, NOW(), NOW()
                 );";
 
             await using (var insertCmd = new NpgsqlCommand(insertSql, connection))
@@ -517,13 +535,15 @@ namespace ImajinationAPI.Services
                 insertCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = Guid.NewGuid();
                 insertCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
                 insertCmd.Parameters.Add("@sessionToken", NpgsqlDbType.Text).Value = sessionToken;
+                insertCmd.Parameters.Add("@refreshTokenHash", NpgsqlDbType.Text).Value = HashToken(refreshToken);
+                insertCmd.Parameters.Add("@refreshExpiresAt", NpgsqlDbType.TimestampTz).Value = refreshExpiresAt;
                 insertCmd.Parameters.Add("@actorRole", NpgsqlDbType.Text).Value = (object?)actorRole ?? DBNull.Value;
                 insertCmd.Parameters.Add("@ipAddress", NpgsqlDbType.Text).Value = (object?)GetClientIpAddress(context) ?? DBNull.Value;
                 insertCmd.Parameters.Add("@userAgent", NpgsqlDbType.Text).Value = (object?)GetUserAgent(context) ?? DBNull.Value;
                 await insertCmd.ExecuteNonQueryAsync();
             }
 
-            return (sessionToken, revokedCount);
+            return (sessionToken, refreshToken, refreshExpiresAt, revokedCount);
         }
 
         public static async Task<(bool IsValid, bool ReplacedElsewhere, string? Message)> ValidateTrackedSessionAsync(

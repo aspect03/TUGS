@@ -6,8 +6,10 @@ using ImajinationAPI.Models;
 using Microsoft.Extensions.Caching.Memory;
 using System.Net.Mail;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using ImajinationAPI.Services;
 
 namespace ImajinationAPI.Controllers
@@ -24,6 +26,7 @@ namespace ImajinationAPI.Controllers
         private readonly ImajinationAPI.Services.EmailService _emailService;
         private const string AccessTokenCookieName = "IMAJINATION-ACCESS";
         private const string SessionTokenCookieName = "IMAJINATION-SESSION";
+        private const string RefreshTokenCookieName = "IMAJINATION-REFRESH";
 
         public AuthController(IConfiguration configuration, IMemoryCache cache, JwtTokenService jwtTokenService, TotpService totpService, ImajinationAPI.Services.EmailService emailService)
         {
@@ -48,12 +51,18 @@ namespace ImajinationAPI.Controllers
             };
         }
 
-        private void SetAuthCookies(Guid userId, string role, string firstName, string username, string sessionToken)
+        private void SetAuthCookies(Guid userId, string role, string firstName, string username, string sessionToken, string? refreshToken = null, DateTime? refreshExpiresAt = null)
         {
             var cookieOptions = BuildAuthCookieOptions();
             var accessToken = _jwtTokenService.GenerateAccessToken(userId, role, firstName, username);
             Response.Cookies.Append(AccessTokenCookieName, accessToken, cookieOptions);
             Response.Cookies.Append(SessionTokenCookieName, sessionToken, cookieOptions);
+            if (!string.IsNullOrWhiteSpace(refreshToken))
+            {
+                var refreshOptions = BuildAuthCookieOptions();
+                refreshOptions.Expires = refreshExpiresAt ?? DateTimeOffset.UtcNow.AddDays(14);
+                Response.Cookies.Append(RefreshTokenCookieName, refreshToken, refreshOptions);
+            }
         }
 
         private void ClearAuthCookies()
@@ -61,6 +70,7 @@ namespace ImajinationAPI.Controllers
             var cookieOptions = BuildAuthCookieOptions();
             Response.Cookies.Delete(AccessTokenCookieName, cookieOptions);
             Response.Cookies.Delete(SessionTokenCookieName, cookieOptions);
+            Response.Cookies.Delete(RefreshTokenCookieName, cookieOptions);
         }
 
         // ==========================================
@@ -78,10 +88,27 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "Email is required." });
                 }
 
+                if (!IsValidEmailAddress(normalizedEmail))
+                {
+                    return BadRequest(new { message = "Enter a valid email address that can receive verification codes." });
+                }
+
                 await using var securityConnection = new NpgsqlConnection(_connectionString);
                 await securityConnection.OpenAsync();
                 await SecuritySupport.EnsureSecuritySchemaAsync(securityConnection);
-                var otpAllowance = await SecuritySupport.CheckOtpSendAllowanceAsync(securityConnection, normalizedEmail);
+                await using (var existingAccountCmd = new NpgsqlCommand(
+                    "SELECT 1 FROM users WHERE LOWER(TRIM(email)) = @email LIMIT 1;", securityConnection))
+                {
+                    existingAccountCmd.Parameters.AddWithValue("@email", normalizedEmail);
+                    if (await existingAccountCmd.ExecuteScalarAsync() is not null)
+                    {
+                        return Conflict(new { message = "An account already uses this email. Please sign in or reset your password." });
+                    }
+                }
+                var otpAllowance = await SecuritySupport.CheckOtpSendAllowanceAsync(
+                    securityConnection,
+                    normalizedEmail,
+                    cooldownSeconds: 30);
                 if (!otpAllowance.Allowed)
                 {
                     await SecuritySupport.LogSecurityEventAsync(
@@ -103,10 +130,7 @@ namespace ImajinationAPI.Controllers
                     });
                 }
 
-                Random random = new Random();
-                string otpCode = random.Next(100000, 999999).ToString();
-
-                _cache.Set(normalizedEmail, otpCode, TimeSpan.FromMinutes(5));
+                string otpCode = RandomNumberGenerator.GetInt32(100000, 1_000_000).ToString();
 
                 var senderEmail = ConfigurationFallbacks.GetRequiredSetting(
                     _config,
@@ -209,9 +233,12 @@ namespace ImajinationAPI.Controllers
                 {
                     smtp.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
                     smtp.EnableSsl = true;
-                    await smtp.SendMailAsync(mail);
+                    smtp.Timeout = 12_000;
+                    await smtp.SendMailAsync(mail).WaitAsync(TimeSpan.FromSeconds(12));
                 }
 
+                // Do not create a usable OTP until the SMTP provider has accepted the message.
+                _cache.Set(normalizedEmail, otpCode, TimeSpan.FromMinutes(5));
                 await SecuritySupport.MarkOtpSentAsync(securityConnection, normalizedEmail);
                 await TryLogOtpEmailAttemptAsync(attemptId, normalizedEmail, senderEmail, "AcceptedBySmtp", "OTP email accepted by SMTP provider.");
                 await SecuritySupport.LogSecurityEventAsync(
@@ -224,7 +251,7 @@ namespace ImajinationAPI.Controllers
                     HttpContext,
                     $"OTP sent to {normalizedEmail}.");
 
-                return Ok(new { message = "OTP sent successfully.", attemptId });
+                return Ok(new { message = "Verification code accepted for delivery.", attemptId });
             }
             catch (SmtpException ex)
             {
@@ -282,6 +309,11 @@ namespace ImajinationAPI.Controllers
                 });
             }
 
+            if (!req.termsAccepted || string.IsNullOrWhiteSpace(req.termsVersion))
+            {
+                return BadRequest(new { message = "You must read and accept the current Terms and Conditions." });
+            }
+
             if (!_cache.TryGetValue(normalizedEmail, out string savedOtp))
             {
                 return BadRequest(new { message = "OTP expired or not requested. Please request a new code." });
@@ -301,9 +333,9 @@ namespace ImajinationAPI.Controllers
             var birthdayDate = req.birthday.Date;
             var computedAge = today.Year - birthdayDate.Year;
             if (birthdayDate > today.AddYears(-computedAge)) computedAge--;
-            if (computedAge < 18)
+            if (computedAge < 13)
             {
-                return BadRequest(new { message = "You must be at least 18 years old to register." });
+                return BadRequest(new { message = "You must be at least 13 years old to register." });
             }
 
             try
@@ -326,7 +358,9 @@ namespace ImajinationAPI.Controllers
                     });
                 }
 
-                var accountStatus = "Active";
+                var accountStatus = normalizedRole == "Customer" && computedAge < 18
+                    ? "MinorPendingReview"
+                    : "Active";
 
                 string sql = @"
                     INSERT INTO users
@@ -353,6 +387,17 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@accountStatus", accountStatus);
 
                 await cmd.ExecuteNonQueryAsync();
+                await EnsureTermsAcceptanceTableAsync(connection);
+                await using (var consentCmd = new NpgsqlCommand(@"
+                    INSERT INTO terms_acceptances (id, user_email, role, terms_version, accepted_at)
+                    VALUES (@id, @email, @role, @version, NOW());", connection))
+                {
+                    consentCmd.Parameters.AddWithValue("@id", Guid.NewGuid());
+                    consentCmd.Parameters.AddWithValue("@email", normalizedEmail);
+                    consentCmd.Parameters.AddWithValue("@role", normalizedRole);
+                    consentCmd.Parameters.AddWithValue("@version", SecuritySupport.SanitizePlainText(req.termsVersion, 80, false) ?? "current");
+                    await consentCmd.ExecuteNonQueryAsync();
+                }
                 await SecuritySupport.LogSecurityEventAsync(
                     connection,
                     null,
@@ -378,6 +423,17 @@ namespace ImajinationAPI.Controllers
             catch (PostgresException ex) when (ex.SqlState == "23505")
             {
                 return Conflict(new { message = "Email or Username already exists." });
+            }
+            catch (NpgsqlException ex) when (ex.InnerException is SocketException socketEx
+                && socketEx.SocketErrorCode == SocketError.HostNotFound)
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    message = ConfigurationFallbacks.BuildSafeErrorMessage(
+                        _config,
+                        "Google sign-in reached the server, but the configured database host could not be resolved. Check ConnectionStrings__SupabaseConnection and verify the Supabase host name.",
+                        ex)
+                });
             }
             catch (Exception ex)
             {
@@ -534,7 +590,9 @@ namespace ImajinationAPI.Controllers
                         authenticatedRole,
                         authenticatedFirstName,
                         authenticatedUsername,
-                        trackedSession.SessionToken);
+                        trackedSession.SessionToken,
+                        trackedSession.RefreshToken,
+                        trackedSession.RefreshExpiresAt);
 
                     return Ok(new
                     {
@@ -544,6 +602,8 @@ namespace ImajinationAPI.Controllers
                         username = authenticatedUsername,
                         profilePicture = authenticatedProfilePicture,
                         sessionToken = trackedSession.SessionToken,
+                        refreshToken = trackedSession.RefreshToken,
+                        refreshExpiresAt = trackedSession.RefreshExpiresAt,
                         signedOutOtherDevices = trackedSession.RevokedCount > 0
                     });
                 }
@@ -752,7 +812,9 @@ namespace ImajinationAPI.Controllers
                     existingUser.Role,
                     existingUser.FirstName,
                     existingUser.Username,
-                    trackedSession.SessionToken);
+                    trackedSession.SessionToken,
+                    trackedSession.RefreshToken,
+                    trackedSession.RefreshExpiresAt);
 
                 return Ok(new
                 {
@@ -762,6 +824,8 @@ namespace ImajinationAPI.Controllers
                     username = existingUser.Username,
                     profilePicture = existingUser.ProfilePicture ?? string.Empty,
                     sessionToken = trackedSession.SessionToken,
+                    refreshToken = trackedSession.RefreshToken,
+                    refreshExpiresAt = trackedSession.RefreshExpiresAt,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }
@@ -1072,7 +1136,9 @@ namespace ImajinationAPI.Controllers
                     pendingLogin.Role,
                     pendingLogin.FirstName,
                     pendingLogin.Username,
-                    trackedSession.SessionToken);
+                    trackedSession.SessionToken,
+                    trackedSession.RefreshToken,
+                    trackedSession.RefreshExpiresAt);
 
                 return Ok(new
                 {
@@ -1082,6 +1148,8 @@ namespace ImajinationAPI.Controllers
                     username = pendingLogin.Username,
                     profilePicture = pendingLogin.ProfilePicture,
                     sessionToken = trackedSession.SessionToken,
+                    refreshToken = trackedSession.RefreshToken,
+                    refreshExpiresAt = trackedSession.RefreshExpiresAt,
                     signedOutOtherDevices = trackedSession.RevokedCount > 0
                 });
             }
@@ -1138,6 +1206,138 @@ namespace ImajinationAPI.Controllers
             catch
             {
                 return StatusCode(500, new { message = "Unable to verify session right now." });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshSession([FromBody] RefreshSessionDto? req)
+        {
+            var userId = req?.userId ?? Guid.Empty;
+            if (userId == Guid.Empty && Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var claimUserId))
+            {
+                userId = claimUserId;
+            }
+
+            var refreshToken = req?.refreshToken;
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                refreshToken = Request.Cookies[RefreshTokenCookieName] ?? string.Empty;
+            }
+
+            if (userId == Guid.Empty || string.IsNullOrWhiteSpace(refreshToken))
+            {
+                return BadRequest(new { message = "Refresh token details are required." });
+            }
+
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await SecuritySupport.EnsureSecuritySchemaAsync(connection);
+
+                const string lookupSql = @"
+                    SELECT s.id,
+                           u.id,
+                           COALESCE(u.role, ''),
+                           COALESCE(u.firstname, ''),
+                           COALESCE(u.username, ''),
+                           COALESCE(u.profile_picture, ''),
+                           COALESCE(u.is_banned, FALSE),
+                           COALESCE(u.account_status, 'Active')
+                    FROM user_active_sessions s
+                    INNER JOIN users u ON u.id = s.user_id
+                    WHERE s.user_id = @userId
+                      AND s.refresh_token_hash = @refreshTokenHash
+                      AND s.revoked_at IS NULL
+                      AND COALESCE(s.refresh_expires_at, NOW() - interval '1 minute') > NOW()
+                    LIMIT 1;";
+
+                Guid sessionId;
+                string role;
+                string firstName;
+                string username;
+                string profilePicture;
+                bool isBanned;
+                string accountStatus;
+                await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+                {
+                    lookupCmd.Parameters.AddWithValue("@userId", userId);
+                    lookupCmd.Parameters.AddWithValue("@refreshTokenHash", SecuritySupport.HashToken(refreshToken));
+                    await using var reader = await lookupCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        ClearAuthCookies();
+                        return Unauthorized(new { message = "Refresh token is invalid or expired." });
+                    }
+
+                    sessionId = reader.GetGuid(0);
+                    role = reader.GetString(2);
+                    firstName = reader.GetString(3);
+                    username = reader.GetString(4);
+                    profilePicture = reader.GetString(5);
+                    isBanned = reader.GetBoolean(6);
+                    accountStatus = reader.GetString(7);
+                }
+
+                if (isBanned || accountStatus.Equals("Banned", StringComparison.OrdinalIgnoreCase))
+                {
+                    ClearAuthCookies();
+                    return StatusCode(403, new { message = "This account has been blocked by admin." });
+                }
+
+                var nextSessionToken = SecuritySupport.GenerateSecureToken();
+                var nextRefreshToken = SecuritySupport.GenerateSecureToken();
+                var nextRefreshExpiresAt = DateTime.UtcNow.AddDays(14);
+
+                const string rotateSql = @"
+                    UPDATE user_active_sessions
+                    SET session_token = @sessionToken,
+                        refresh_token_hash = @refreshTokenHash,
+                        refresh_expires_at = @refreshExpiresAt,
+                        last_seen_at = NOW(),
+                        ip_address = @ipAddress,
+                        user_agent = @userAgent
+                    WHERE id = @sessionId
+                      AND revoked_at IS NULL;";
+
+                await using (var rotateCmd = new NpgsqlCommand(rotateSql, connection))
+                {
+                    rotateCmd.Parameters.AddWithValue("@sessionId", sessionId);
+                    rotateCmd.Parameters.AddWithValue("@sessionToken", nextSessionToken);
+                    rotateCmd.Parameters.AddWithValue("@refreshTokenHash", SecuritySupport.HashToken(nextRefreshToken));
+                    rotateCmd.Parameters.AddWithValue("@refreshExpiresAt", nextRefreshExpiresAt);
+                    rotateCmd.Parameters.AddWithValue("@ipAddress", (object?)SecuritySupport.GetClientIpAddress(HttpContext) ?? DBNull.Value);
+                    rotateCmd.Parameters.AddWithValue("@userAgent", (object?)SecuritySupport.GetUserAgent(HttpContext) ?? DBNull.Value);
+                    await rotateCmd.ExecuteNonQueryAsync();
+                }
+
+                await SecuritySupport.LogSecurityEventAsync(
+                    connection,
+                    userId,
+                    role,
+                    "session_refreshed",
+                    "user",
+                    userId,
+                    HttpContext,
+                    "Access and refresh tokens were rotated.");
+
+                SetAuthCookies(userId, role, firstName, username, nextSessionToken, nextRefreshToken, nextRefreshExpiresAt);
+                return Ok(new
+                {
+                    id = userId,
+                    role,
+                    firstName,
+                    username,
+                    profilePicture,
+                    sessionToken = nextSessionToken,
+                    refreshToken = nextRefreshToken,
+                    refreshExpiresAt = nextRefreshExpiresAt
+                });
+            }
+            catch
+            {
+                return StatusCode(500, new { message = "Unable to refresh session right now." });
             }
         }
 
@@ -1338,8 +1538,26 @@ namespace ImajinationAPI.Controllers
                 ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT FALSE;
 
                 ALTER TABLE users
-                ADD COLUMN IF NOT EXISTS account_status VARCHAR(40) NOT NULL DEFAULT 'Active';";
+                ADD COLUMN IF NOT EXISTS account_status VARCHAR(40) NOT NULL DEFAULT 'Active';
 
+                ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS age_verification_status VARCHAR(40) NOT NULL DEFAULT 'Unverified';";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task EnsureTermsAcceptanceTableAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS terms_acceptances (
+                    id uuid PRIMARY KEY,
+                    user_email text NOT NULL,
+                    role varchar(40) NOT NULL,
+                    terms_version varchar(80) NOT NULL,
+                    accepted_at timestamptz NOT NULL DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_terms_acceptances_email ON terms_acceptances(user_email);";
             await using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
         }
@@ -1461,6 +1679,28 @@ namespace ImajinationAPI.Controllers
         private static string NormalizeEmail(string? email)
         {
             return (email ?? string.Empty).Trim().ToLowerInvariant();
+        }
+
+        private static bool IsValidEmailAddress(string email)
+        {
+            if (email.Length > 254 || email.Any(char.IsWhiteSpace))
+            {
+                return false;
+            }
+
+            try
+            {
+                var parsed = new MailAddress(email);
+                var atIndex = email.LastIndexOf('@');
+                return string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase)
+                    && atIndex > 0
+                    && atIndex < email.Length - 1
+                    && email[(atIndex + 1)..].Contains(".", StringComparison.Ordinal);
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
 
         private static string? NormalizeRegistrationRole(string? role)

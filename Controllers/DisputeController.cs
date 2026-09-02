@@ -87,6 +87,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
 
                 // Verify reporter is part of this booking
                 const string bookingSql = @"
@@ -140,6 +141,7 @@ namespace ImajinationAPI.Controllers
                     await using var holdCmd = new NpgsqlCommand(holdSql, connection);
                     holdCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = req.bookingId;
                     await holdCmd.ExecuteNonQueryAsync();
+                    await EscrowService.MarkDisputedAsync(connection, req.bookingId);
                 }
                 catch { /* column may already exist */ }
 
@@ -172,6 +174,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
 
                 const string sql = @"
                     SELECT d.id, d.dispute_type, d.description, d.status, d.resolution,
@@ -280,6 +283,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
 
                 const string sql = @"
                     UPDATE booking_disputes
@@ -301,6 +305,29 @@ namespace ImajinationAPI.Controllers
                 await using var holdCmd = new NpgsqlCommand(holdSql, connection);
                 holdCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId.Value;
                 await holdCmd.ExecuteNonQueryAsync();
+
+                if (resolution is "Dismissed" or "NoAction" or "WarningIssued")
+                {
+                    await EscrowService.ClearDisputeAsync(connection, bookingId.Value);
+
+                    const string releaseCheckSql = @"
+                        SELECT COALESCE(status, ''), COALESCE(talent_platform_fee_status, 'Unpaid')
+                        FROM bookings WHERE id = @id;";
+                    await using var releaseCheckCmd = new NpgsqlCommand(releaseCheckSql, connection);
+                    releaseCheckCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId.Value;
+                    await using var releaseReader = await releaseCheckCmd.ExecuteReaderAsync();
+                    if (await releaseReader.ReadAsync())
+                    {
+                        var isCompleted = string.Equals(releaseReader.GetString(0), "Completed", StringComparison.OrdinalIgnoreCase);
+                        var platformPaid = string.Equals(releaseReader.GetString(1), "Paid", StringComparison.OrdinalIgnoreCase);
+                        await releaseReader.CloseAsync();
+                        if (isCompleted && platformPaid)
+                        {
+                            await EscrowService.MarkReleaseReadyAsync(connection, bookingId.Value);
+                            await EscrowService.ReleaseAsync(connection, bookingId.Value, "dispute_dismissed");
+                        }
+                    }
+                }
 
                 // Notify both booking parties
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);

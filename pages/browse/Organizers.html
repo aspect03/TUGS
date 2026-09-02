@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Organizers</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    #profileDropdown { transition: opacity .2s ease, transform .2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link { display: inline-flex; align-items: center; height: 4rem; border-bottom: 2px solid transparent; }
+    .detail-nav-link.active { color: white; border-bottom-color: rgba(239,68,68,.95); }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased" style="font-family:'Montserrat',system-ui,sans-serif;">
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none"></div>
+
+  <nav class="fixed top-0 w-full z-50">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center">
+        <div class="h-8 w-28 sm:w-32 flex items-center">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+        <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+        <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+        <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+        <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+      </div>
+      <div class="flex items-center gap-3 relative">
+        <div id="authLoggedOut" class="flex items-center gap-3">
+          <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+          <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors">Get started</a>
+        </div>
+        <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+          <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+          </button>
+          <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+              <p class="text-sm font-bold text-white">Notifications</p>
+              <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+            </div>
+            <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+              <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+            </div>
+          </div>
+          <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+            <span id="profileInitial">A</span>
+            <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+              <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+              </a>
+            </div>
+            <div class="p-2 border-t border-white/10">
+              <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-20">
+    <header class="mb-8">
+      <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Discover</p>
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Organizers</h1>
+      <p class="text-sm text-white/55 mt-2">Find productions, venues, and event teams active on Tugs.</p>
+    </header>
+
+    <section class="bg-black/30 border border-white/[0.08] rounded-2xl p-3 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+        <div class="relative flex-1">
+          <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
+          <input id="organizerSearch" type="text" placeholder="Search organizer, city, bio..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-red-500/40">
+        </div>
+        <button id="organizerSearchBtn" type="button" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Search</button>
+      </div>
+    </section>
+
+    <section id="organizerGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <p class="text-sm text-white/45 p-6 bg-black/30 border border-white/10 rounded-2xl">Loading organizers...</p>
+    </section>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    const userId = localStorage.getItem('userId') || '';
+    let savedOrganizerIds = new Set();
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    async function loadSavedOrganizers() {
+      savedOrganizerIds = new Set();
+      if (!userId) return;
+      const res = await fetch(`/api/bookmark/user/${encodeURIComponent(userId)}?targetType=organizer`);
+      if (!res.ok) return;
+      const saved = await res.json().catch(() => []);
+      savedOrganizerIds = new Set((Array.isArray(saved) ? saved : []).map(item => String(item.targetId)));
+    }
+
+    function renderOrganizers(organizers) {
+      const grid = document.getElementById('organizerGrid');
+      if (!organizers.length) {
+        grid.innerHTML = `<div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-white/10 bg-black/30 p-10 text-center"><p class="text-sm text-white/45">No organizers found.</p></div>`;
+        return;
+      }
+
+      grid.innerHTML = organizers.map(org => {
+        const saved = savedOrganizerIds.has(String(org.id));
+        return `
+          <article class="bg-[#141111] border border-white/[0.07] rounded-2xl overflow-hidden">
+            <div class="p-5 space-y-4">
+              <div class="flex items-start gap-4">
+                <div class="w-14 h-14 rounded-2xl overflow-hidden border border-white/10 bg-black/40 flex-shrink-0">
+                  ${org.profilePicture ? `<img src="${escapeHtml(org.profilePicture)}" alt="" class="w-full h-full object-cover">` : `<div class="w-full h-full flex items-center justify-center text-lg font-bold text-red-300">${escapeHtml((org.displayName || '?')[0])}</div>`}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-extrabold tracking-tight text-white truncate">${escapeHtml(org.displayName || 'Organizer')}</h2>
+                    ${org.isVerified ? `<i data-lucide="badge-check" class="w-4 h-4 text-emerald-400 flex-shrink-0"></i>` : ''}
+                  </div>
+                  <p class="text-xs text-white/45 mt-1">${escapeHtml(org.address || 'Location not set')}</p>
+                </div>
+              </div>
+              <p class="text-sm text-white/65 leading-relaxed line-clamp-3">${escapeHtml(org.bio || 'Organizer profile details are being completed.')}</p>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-xl bg-black/30 border border-white/10 px-3 py-2">
+                  <p class="text-[10px] uppercase tracking-widest text-white/35">Events</p>
+                  <p class="text-lg font-bold text-white">${Number(org.eventCount || 0)}</p>
+                </div>
+                <div class="rounded-xl bg-black/30 border border-white/10 px-3 py-2">
+                  <p class="text-[10px] uppercase tracking-widest text-white/35">Upcoming</p>
+                  <p class="text-lg font-bold text-white">${Number(org.upcomingCount || 0)}</p>
+                </div>
+                <div class="rounded-xl bg-black/30 border border-white/10 px-3 py-2">
+                  <p class="text-[10px] uppercase tracking-widest text-white/35">Rating</p>
+                  <p class="text-lg font-bold text-amber-300">${Number(org.averageRating || 0).toFixed(1)}</p>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <a href="/pages/details/OrganizerDetails.html?id=${org.id}" class="flex-1 inline-flex items-center justify-center px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-colors">View Profile</a>
+                <button type="button" onclick="toggleOrganizerSave('${org.id}', '${escapeHtml(org.displayName || 'Organizer')}')" class="w-12 inline-flex items-center justify-center rounded-xl border ${saved ? 'border-red-500/25 bg-red-500/10 text-red-300' : 'border-white/10 bg-white/5 text-white/50 hover:text-white'} transition-colors" title="${saved ? 'Saved' : 'Save'}">
+                  <i data-lucide="${saved ? 'bookmark-check' : 'bookmark'}" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    async function loadOrganizers() {
+      const q = document.getElementById('organizerSearch').value.trim();
+      await loadSavedOrganizers();
+      const params = new URLSearchParams();
+      if (q) params.set('query', q);
+      const res = await fetch(`/api/organizer?${params}`);
+      if (!res.ok) throw new Error('Failed to load organizers.');
+      renderOrganizers(await res.json());
+    }
+
+    async function toggleOrganizerSave(id, title) {
+      if (!userId) { window.location.href = '/pages/auth/login.html'; return; }
+      const res = await fetch('/api/bookmark/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          targetId: id,
+          targetType: 'organizer',
+          title,
+          url: `/pages/details/OrganizerDetails.html?id=${id}`
+        })
+      });
+      if (res.ok) await loadOrganizers();
+    }
+
+    document.getElementById('organizerSearchBtn')?.addEventListener('click', () => loadOrganizers().catch(() => {}));
+    document.getElementById('organizerSearch')?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') loadOrganizers().catch(() => {});
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadOrganizers().catch(() => {
+        document.getElementById('organizerGrid').innerHTML = `<div class="md:col-span-2 xl:col-span-3 rounded-2xl border border-red-500/20 bg-black/30 p-10 text-center"><p class="text-sm text-red-300">Failed to load organizers.</p></div>`;
+      });
+    });
+  </script>
+</body>
+</html>

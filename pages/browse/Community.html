@@ -387,6 +387,7 @@
 
     // ── STATE ──────────────────────────────────────────────────────────────────
     let communityPostsCache = [];
+    let savedCommunityIds = new Set();
     let currentCommunityLimit = 24;
     let activeCommunityFilters = { query:'', role:'', category:'', likes:'' };
     let currentLayout = 'list';
@@ -440,6 +441,17 @@
       return escapeHtml(text).replace(/@(\w[\w\s]{0,30})/g, '<span class="text-red-400 font-semibold">@$1</span>');
     }
 
+    async function loadSavedCommunityIds() {
+      savedCommunityIds = new Set();
+      if (!userId) return;
+      try {
+        const res = await fetch(`/api/bookmark/user/${encodeURIComponent(userId)}?targetType=community`);
+        if (!res.ok) return;
+        const saved = await res.json().catch(() => []);
+        savedCommunityIds = new Set((Array.isArray(saved) ? saved : []).map(item => String(item.targetId)));
+      } catch {}
+    }
+
     // ── RENDER POSTS ───────────────────────────────────────────────────────────
     function renderCommunityFeed(posts) {
       const container = document.getElementById('communityFeedGrid');
@@ -467,6 +479,7 @@
     function renderPostCard(post) {
       const cfg = catConfig(post.category || 'General');
       const isOwnPost = userId && String(post.userId) === String(userId);
+      const isSaved = savedCommunityIds.has(String(post.id));
       const pollHtml = post.pollId ? `<div class="mt-3 community-poll-area" data-post-id="${escapeHtml(post.id)}" data-poll-id="${escapeHtml(post.pollId||'')}"><div class="text-center py-2 text-white/30 text-xs">Loading poll…</div></div>` : '';
 
       return `
@@ -516,6 +529,10 @@
             <button type="button" data-post-id="${escapeHtml(post.id)}" data-comments-count="${Number(post.commentsCount||0)}" class="open-comments-btn flex items-center gap-1.5 text-[12px] font-semibold text-white/40 hover:text-white transition-colors">
               <i data-lucide="message-circle" class="w-4 h-4"></i>
               <span>${Number(post.commentsCount||0)}</span>
+            </button>
+            <button type="button" data-save-community="${escapeHtml(post.id)}" class="community-save-btn flex items-center gap-1.5 text-[12px] font-semibold transition-all ${isSaved ? 'text-red-300' : 'text-white/40 hover:text-white'}">
+              <i data-lucide="${isSaved ? 'bookmark-check' : 'bookmark'}" class="w-4 h-4"></i>
+              <span>${isSaved ? 'Saved' : 'Save'}</span>
             </button>
             <button type="button" data-post-id="${escapeHtml(post.id)}" data-post-content="${escapeHtml((post.content||'').slice(0,60))}" class="share-btn ml-auto flex items-center gap-1.5 text-[11px] text-white/30 hover:text-white/60 transition-colors">
               <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
@@ -614,6 +631,14 @@
         btn.addEventListener('click', () => openComments(btn.dataset.postId, parseInt(btn.dataset.commentsCount)||0));
       });
 
+      document.querySelectorAll('.community-save-btn').forEach(btn => {
+        btn.addEventListener('click', async e => {
+          e.preventDefault();
+          e.stopPropagation();
+          await toggleCommunitySave(btn.dataset.saveCommunity, btn);
+        });
+      });
+
       // Follow
       document.querySelectorAll('.follow-btn').forEach(btn => {
         btn.addEventListener('click', async e => {
@@ -653,6 +678,33 @@
 
       // Load polls
       loadPollsForPosts(communityPostsCache);
+    }
+
+    async function toggleCommunitySave(postId, button) {
+      if (!userId) { window.location.href = '/pages/auth/login.html'; return; }
+      const post = communityPostsCache.find(p => String(p.id) === String(postId));
+      if (!post) return;
+      button.disabled = true;
+      try {
+        const res = await fetch('/api/bookmark/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            targetId: postId,
+            targetType: 'community',
+            title: (post.content || 'Community post').slice(0, 90),
+            url: `/pages/browse/Community.html#${postId}`
+          })
+        });
+        if (!res.ok) throw new Error('Save failed.');
+        const data = await res.json().catch(() => ({}));
+        if (data.saved) savedCommunityIds.add(String(postId));
+        else savedCommunityIds.delete(String(postId));
+        renderCommunityFeed(getFilteredCommunityPosts());
+      } catch {
+        button.disabled = false;
+      }
     }
 
     // ── COMMENTS ──────────────────────────────────────────────────────────────
@@ -1025,6 +1077,7 @@
         if (!res.ok) throw new Error('Failed to load feed.');
         const posts = await res.json();
         communityPostsCache = Array.isArray(posts) ? posts : [];
+        await loadSavedCommunityIds();
 
         // Community stats
         const statsEl = document.getElementById('communityStats');

@@ -1,0 +1,30 @@
+Using launch settings from C:\Users\Aspect\Downloads\TUG-MARC-main\TUG-MARC-main\Properties\launchSettings.json...
+Building...
+info: ImajinationAPI.Services.EventReminderService[0]
+      [EventReminder] Service started.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5248
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\Aspect\Downloads\TUG-MARC-main\TUG-MARC-main
+warn: ImajinationAPI.Services.EventReminderService[0]
+      [EventReminder] Error during reminder cycle.
+      Npgsql.NpgsqlException (0x80004005): The requested name is valid, but no data of the requested type was found.
+       ---> System.Net.Sockets.SocketException (11004): The requested name is valid, but no data of the requested type was found.
+         at System.Net.NameResolutionPal.ProcessResult(SocketError errorCode, GetAddrInfoExContext* context)
+         at System.Net.NameResolutionPal.GetAddressInfoExCallback(Int32 error, Int32 bytes, NativeOverlapped* overlapped)
+      --- End of stack trace from previous location ---
+         at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+         at Npgsql.Internal.NpgsqlConnector.ConnectAsync(NpgsqlTimeout timeout, CancellationToken cancellationToken)
+         at Npgsql.Internal.NpgsqlConnector.RawOpen(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+         at Npgsql.Internal.NpgsqlConnector.<Open>g__OpenCore|209_0(NpgsqlConnector conn, String username, SslMode sslMode, GssEncryptionMode gssEncMode, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+         at Npgsql.Internal.NpgsqlConnector.Open(NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+         at Npgsql.PoolingDataSource.OpenNewConnector(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+         at Npgsql.PoolingDataSource.<Get>g__RentAsync|33_0(NpgsqlConnection conn, NpgsqlTimeout timeout, Boolean async, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlConnection.<Open>g__OpenAsync|42_0(Boolean async, CancellationToken cancellationToken)
+         at ImajinationAPI.Services.EventReminderService.SendPendingRemindersAsync(CancellationToken ct) in C:\Users\Aspect\Downloads\TUG-MARC-main\TUG-MARC-main\Services\EventReminderService.cs:line 53
+         at ImajinationAPI.Services.EventReminderService.SendPendingRemindersAsync(CancellationToken ct) in C:\Users\Aspect\Downloads\TUG-MARC-main\TUG-MARC-main\Services\EventReminderService.cs:line 109
+         at ImajinationAPI.Services.EventReminderService.ExecuteAsync(CancellationToken stoppingToken) in C:\Users\Aspect\Downloads\TUG-MARC-main\TUG-MARC-main\Services\EventReminderService.cs:line 38

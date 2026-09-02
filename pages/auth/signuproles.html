@@ -212,7 +212,7 @@
     }
 
     // Init card state based on saved preference
-    const savedTheme = localStorage.getItem('imajination-theme') || 'dark';
+    const savedTheme = localStorage.getItem('imajination-theme') || 'light';
     if (savedTheme === 'light') selectTheme('light');
 
     const googleSignupPayload = sessionStorage.getItem('pendingGoogleSignup');

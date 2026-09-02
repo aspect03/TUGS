@@ -1,5 +1,6 @@
 using Npgsql;
 using ImajinationAPI.Controllers;
+using System.Net.Sockets;
 
 namespace ImajinationAPI.Services
 {
@@ -9,6 +10,9 @@ namespace ImajinationAPI.Services
     /// </summary>
     public class EventReminderService : BackgroundService
     {
+        private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan StandardInterval = TimeSpan.FromHours(1);
+        private static readonly TimeSpan ConfigurationRetryInterval = TimeSpan.FromMinutes(15);
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<EventReminderService> _logger;
         private readonly string _connectionString;
@@ -29,13 +33,24 @@ namespace ImajinationAPI.Services
             _logger.LogInformation("[EventReminder] Service started.");
 
             // Stagger startup by 60s so the app can finish booting first
-            await Task.Delay(TimeSpan.FromSeconds(60), stoppingToken);
+            await Task.Delay(StartupDelay, stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
+                var delayBeforeNextRun = StandardInterval;
+
                 try
                 {
                     await SendPendingRemindersAsync(stoppingToken);
+                }
+                catch (NpgsqlException ex) when (ex.InnerException is SocketException socketEx
+                    && (socketEx.SocketErrorCode == SocketError.HostNotFound
+                        || socketEx.SocketErrorCode == SocketError.NoData))
+                {
+                    delayBeforeNextRun = ConfigurationRetryInterval;
+                    _logger.LogWarning(
+                        "[EventReminder] Skipping reminder cycle because the configured database host could not be resolved. Check ConnectionStrings__SupabaseConnection. Retrying at {RetryTimeUtc:u}.",
+                        DateTime.UtcNow.Add(delayBeforeNextRun));
                 }
                 catch (Exception ex)
                 {
@@ -43,7 +58,7 @@ namespace ImajinationAPI.Services
                 }
 
                 // Run every 60 minutes
-                await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                await Task.Delay(delayBeforeNextRun, stoppingToken);
             }
         }
 

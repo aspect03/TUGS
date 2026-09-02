@@ -63,6 +63,33 @@
       transform: scale(1);
       transition: opacity 2s ease-in-out, transform 10s linear;
     }
+    @media (prefers-reduced-motion: no-preference) {
+      [data-scroll-reveal] {
+        opacity: 0;
+        transform: translateY(64px);
+        transition: opacity 780ms ease, transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
+        will-change: opacity, transform;
+      }
+      [data-scroll-reveal].is-revealed {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .scroll-reveal-card {
+        opacity: 0;
+        transition: opacity 520ms ease, transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+        transition-delay: var(--reveal-delay, 0ms);
+      }
+      #landingEventsContainer .scroll-reveal-card { transform: translateX(-34px); }
+      #spotlightArtistsContainer .scroll-reveal-card { transform: translateY(42px) scale(0.9); }
+      #spotlightSessionistsContainer .scroll-reveal-card { transform: translateX(34px); }
+      .cards-ready .scroll-reveal-card {
+        opacity: 1;
+        transform: translate(0) scale(1) !important;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      [data-scroll-reveal], .scroll-reveal-card { transition: none !important; }
+    }
     .detail-nav-link {
       display: inline-flex;
       align-items: center;
@@ -82,7 +109,7 @@
 
     /* ── PAGE BASE ──────────────────────────────────────────────────────── */
     html.light-mode body {
-      background-color: #faf7f4 !important;
+      background-color: #e9e5df !important;
       color: #1a1410 !important;
     }
 
@@ -132,8 +159,8 @@
     /* ── BROWSE / EVENTS ──────────────────────────────────────────────── */
     html.light-mode #browse {
       background:
-        radial-gradient(ellipse 100% 50% at 100% 50%, rgba(204,41,43,0.04), transparent 60%),
-        #ffffff !important;
+        radial-gradient(ellipse 100% 50% at 100% 50%, rgba(204,41,43,0.06), transparent 60%),
+        linear-gradient(145deg, #f1ede7 0%, #e8e3dc 100%) !important;
       border-top: 1px solid rgba(204,41,43,0.10) !important;
     }
     html.light-mode #browse h2,
@@ -148,7 +175,7 @@
     html.light-mode #artists {
       background:
         radial-gradient(ellipse 80% 60% at 0% 50%, rgba(204,41,43,0.05), transparent 55%),
-        linear-gradient(135deg, #f5f0eb 0%, #faf7f4 50%, #f2ede8 100%) !important;
+        linear-gradient(135deg, #e8e2da 0%, #dfd8cf 50%, #e6dfd6 100%) !important;
       border-top: 1px solid rgba(204,41,43,0.08) !important;
     }
     html.light-mode #artists .absolute { opacity: 0.3 !important; }
@@ -160,8 +187,8 @@
     /* ── SESSIONISTS ──────────────────────────────────────────────────── */
     html.light-mode #sessionists {
       background:
-        radial-gradient(ellipse 70% 50% at 80% 30%, rgba(204,41,43,0.04), transparent 55%),
-        #ffffff !important;
+        radial-gradient(ellipse 70% 50% at 80% 30%, rgba(204,41,43,0.06), transparent 55%),
+        linear-gradient(145deg, #eee9e2 0%, #e4ded6 100%) !important;
       border-top: 1px solid rgba(204,41,43,0.06) !important;
     }
     html.light-mode #sessionists .absolute { opacity: 0.2 !important; }
@@ -174,7 +201,7 @@
     html.light-mode #about {
       background:
         radial-gradient(ellipse 80% 60% at 50% 100%, rgba(204,41,43,0.06), transparent 60%),
-        linear-gradient(175deg, #faf7f4 0%, #f5f0eb 100%) !important;
+        linear-gradient(175deg, #e7e1d9 0%, #ddd6cd 100%) !important;
       border-top: 1px solid rgba(204,41,43,0.08) !important;
     }
     html.light-mode #about h2,
@@ -184,7 +211,7 @@
     html.light-mode #about .text-white\/65 { color: #5c524a !important; }
 
     html.light-mode #about .rounded-3xl {
-      background: #ffffff !important;
+      background: #f8f4ee !important;
       border-color: rgba(26,20,16,0.07) !important;
       box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04) !important;
       backdrop-filter: none !important;
@@ -212,7 +239,7 @@
 
     /* Dynamically rendered event cards */
     html.light-mode #landingEventsContainer > div {
-      background: #ffffff !important;
+      background: #f8f4ee !important;
       border-color: rgba(26,20,16,0.08) !important;
       box-shadow: 0 4px 20px rgba(0,0,0,0.07) !important;
       backdrop-filter: none !important;
@@ -237,7 +264,7 @@
     /* Artist & Sessionist cards */
     html.light-mode #spotlightArtistsContainer > div,
     html.light-mode #spotlightSessionistsContainer > div {
-      background: #ffffff !important;
+      background: #f8f4ee !important;
       border-color: rgba(26,20,16,0.07) !important;
       box-shadow: 0 2px 14px rgba(0,0,0,0.06) !important;
     }
@@ -410,7 +437,7 @@
     </section>
 
     <section id="browse" class="relative py-24 bg-gradient-to-b from-[#110303] to-[#1a0505] border-t border-red-500/10">
-      <div class="max-w-7xl mx-auto px-6 relative z-10">
+      <div data-scroll-reveal class="max-w-7xl mx-auto px-6 relative z-10">
         
         <div class="flex items-end justify-between mb-10 gap-6">
           <div>
@@ -453,7 +480,7 @@
     <section id="artists" class="relative py-24 bg-gradient-to-b from-[#1a0505] to-[#140000] border-t border-red-500/10 overflow-hidden">
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-600/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div class="max-w-7xl mx-auto px-6 relative z-10">
+      <div data-scroll-reveal class="max-w-7xl mx-auto px-6 relative z-10">
         <div class="flex items-end justify-between mb-10 gap-6">
           <div>
             <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2">
@@ -485,7 +512,7 @@
     <section id="sessionists" class="relative py-24 bg-gradient-to-b from-[#140000] to-[#0d0000] border-t border-red-500/10 overflow-hidden">
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[760px] h-[760px] bg-white/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div class="max-w-7xl mx-auto px-6 relative z-10">
+      <div data-scroll-reveal class="max-w-7xl mx-auto px-6 relative z-10">
         <div class="flex items-end justify-between mb-10 gap-6">
           <div>
             <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2">
@@ -515,7 +542,7 @@
     </section>
 
     <section id="about" class="relative py-24 border-t border-red-500/10 bg-gradient-to-b from-[#140000] to-black">
-      <div class="max-w-7xl mx-auto px-6 relative z-10">
+      <div data-scroll-reveal class="max-w-7xl mx-auto px-6 relative z-10">
         <div class="text-center max-w-2xl mx-auto mb-14">
           <h2 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
             Everything you need to run a show
@@ -562,7 +589,7 @@
 
     <!-- ── LAUNCH YOUR EVENT WITH US ── -->
     <section id="partnerSection" class="relative py-24 border-t border-white/5">
-      <div class="max-w-6xl mx-auto px-6">
+      <div data-scroll-reveal class="max-w-6xl mx-auto px-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
           <!-- Left: pitch copy -->
@@ -796,7 +823,7 @@
         const dashLink = document.getElementById('dashboardLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
         else if(role === 'Admin') dashLink.href = '/pages/dashboards/ProfileAdmin.html';
 
         if (role === 'Artist' && userId) {
@@ -819,8 +846,60 @@
       fetchPublicEvents();
       fetchSpotlightArtists();
       fetchSpotlightSessionists();
+      initializeScrollReveals();
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
     });
+
+    function initializeScrollReveals() {
+      const sections = document.querySelectorAll('[data-scroll-reveal]');
+      if (!sections.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        sections.forEach(section => section.classList.add('is-revealed'));
+        return;
+      }
+
+      let scheduled = false;
+      const revealVisibleSections = () => {
+        scheduled = false;
+        const triggerLine = window.innerHeight * 0.78;
+
+        sections.forEach(section => {
+          if (section.classList.contains('is-revealed')) return;
+          const bounds = section.getBoundingClientRect();
+          if (bounds.top > triggerLine || bounds.bottom < 0) return;
+
+          section.classList.add('is-revealed');
+          section.dispatchEvent(new Event('sectionrevealed'));
+        });
+      };
+
+      const scheduleRevealCheck = () => {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(revealVisibleSections);
+      };
+
+      window.addEventListener('scroll', scheduleRevealCheck, { passive: true });
+      window.addEventListener('resize', scheduleRevealCheck);
+      scheduleRevealCheck();
+    }
+
+    function stageDynamicCards(container) {
+      const cards = Array.from(container.querySelectorAll(':scope > div'));
+      if (!cards.length) return;
+
+      cards.forEach((card, index) => {
+        card.classList.add('scroll-reveal-card');
+        card.style.setProperty('--reveal-delay', `${Math.min(index * 90, 450)}ms`);
+      });
+
+      const section = container.closest('[data-scroll-reveal]');
+      const revealCards = () => {
+        requestAnimationFrame(() => container.classList.add('cards-ready'));
+      };
+
+      if (!section || section.classList.contains('is-revealed')) revealCards();
+      else section.addEventListener('sectionrevealed', revealCards, { once: true });
+    }
 
     const profileBtn = document.getElementById('profileBtn');
     const profileDropdown = document.getElementById('profileDropdown');
@@ -998,6 +1077,7 @@
           `;
         });
 
+        stageDynamicCards(container);
         lucide.createIcons(); 
       } catch(e) {
         container.innerHTML = `<p class="text-red-500 w-full text-center py-10 font-medium uppercase tracking-widest text-sm">Failed to load live events.</p>`;
@@ -1041,6 +1121,7 @@
           `;
         });
 
+        stageDynamicCards(container);
       } catch(e) {
         container.innerHTML = `<p class="text-red-500 col-span-4 text-center py-10 font-medium uppercase tracking-widest text-sm">Failed to load artists.</p>`;
       }
@@ -1086,6 +1167,7 @@
           `;
         });
 
+        stageDynamicCards(container);
         lucide.createIcons();
       } catch(e) {
         container.innerHTML = `<p class="text-red-500 col-span-4 text-center py-10 font-medium uppercase tracking-widest text-sm">Failed to load sessionists.</p>`;

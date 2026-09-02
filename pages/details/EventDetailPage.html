@@ -157,6 +157,17 @@
                     <p id="detailTime" class="text-sm mt-1 text-white/70">Date Details</p>
                   </div>
                 </div>
+                <div id="eventSchedulePanel" class="hidden pt-4 border-t border-white/10">
+                  <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0">
+                      <i data-lucide="calendar-days" class="w-5 h-5 text-red-500"></i>
+                    </div>
+                    <div class="flex-1">
+                      <p class="font-semibold text-white">Event Schedule</p>
+                      <div id="eventScheduleList" class="mt-3 space-y-2"></div>
+                    </div>
+                  </div>
+                </div>
                 <div class="flex items-start gap-4 pt-4 border-t border-white/10">
                   <div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 flex-shrink-0">
                     <i data-lucide="mic" class="w-5 h-5 text-red-500"></i>
@@ -364,7 +375,7 @@
         const profilePageLink = document.getElementById('profilePageLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
         if (role === 'Customer' && profilePageLink) {
           profilePageLink.href = '/pages/dashboards/CustomerDashboard.html?view=settings';
           profilePageLink.classList.remove('hidden');
@@ -509,6 +520,38 @@
           </a>
         `;
       }).join('');
+    }
+
+    function renderEventScheduleDays(days) {
+      const panel = document.getElementById('eventSchedulePanel');
+      const list = document.getElementById('eventScheduleList');
+      const schedule = Array.isArray(days) ? days : [];
+      if (!panel || !list) return;
+      if (schedule.length <= 1) {
+        panel.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = schedule.map((day, index) => {
+        const dateText = day.dayDate
+          ? new Date(day.dayDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+          : `Day ${index + 1}`;
+        const startText = day.startTime ? String(day.startTime).slice(0, 5) : '';
+        const endText = day.endTime ? String(day.endTime).slice(0, 5) : '';
+        const timeText = startText && endText ? `${startText} - ${endText}` : (startText || 'Time TBA');
+        return `
+          <div class="rounded-xl border border-white/10 bg-black/25 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <p class="text-sm font-semibold text-white">${escapeHtml(day.label || `Day ${index + 1}`)}</p>
+              <p class="text-xs text-white/50 mt-1">${escapeHtml(dateText)}</p>
+            </div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-red-300">${escapeHtml(timeText)}</p>
+          </div>
+        `;
+      }).join('');
+      panel.classList.remove('hidden');
+      lucide.createIcons();
     }
 
     function parseArtistNames(value) {
@@ -736,6 +779,7 @@
 
       const fTime = new Date(ev.time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
       document.getElementById('detailTime').innerText = fTime;
+      renderEventScheduleDays(ev.scheduleDays || []);
 
       const now = new Date();
       const evDate = new Date(ev.time);
@@ -1303,4 +1347,3 @@
   </script>
 </body>
 </html>
-

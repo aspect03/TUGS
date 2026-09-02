@@ -11,9 +11,9 @@
   var STORAGE_KEY = 'imajination-theme';
   var LIGHT_CLASS  = 'light-mode';
 
-  // ── Read stored preference (default: dark) ────────────────────────────────
+  // ── Read stored preference (default: light) ───────────────────────────────
   function getTheme() {
-    try { return localStorage.getItem(STORAGE_KEY) || 'dark'; } catch { return 'dark'; }
+    try { return localStorage.getItem(STORAGE_KEY) || 'light'; } catch { return 'light'; }
   }
 
   // ── Apply theme immediately without animation ─────────────────────────────

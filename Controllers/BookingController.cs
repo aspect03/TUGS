@@ -40,6 +40,11 @@ namespace ImajinationAPI.Controllers
         public string? status { get; set; }
     }
 
+    public class CloseBookingConversationRequest
+    {
+        public string? reason { get; set; }
+    }
+
     public class BookingCheckoutRequest
     {
         public string? successUrl { get; set; }
@@ -608,6 +613,166 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        [HttpGet("talent/{userId}/wallet")]
+        public async Task<IActionResult> GetTalentWallet(Guid userId)
+        {
+            try
+            {
+                var actorUserId = GetActorUserId(User);
+                var actorRole = GetActorRole(User);
+                if (!actorUserId.HasValue) return Unauthorized(new { message = "Sign in again before viewing wallet." });
+                if (!CanAccessUserScopedBookingRoute(actorUserId.Value, actorRole, userId)) return Forbid();
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureBookingsTableExists(connection);
+
+                const string summarySql = @"
+                    SELECT
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_fee_status, 'Unpaid') = 'Released' THEN COALESCE(budget, 0) ELSE 0 END), 0),
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') THEN COALESCE(budget, 0) ELSE 0 END), 0),
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_fee_status, 'Unpaid') IN ('Unpaid', 'AwaitingPayment') AND COALESCE(status, '') = 'Confirmed' THEN COALESCE(budget, 0) ELSE 0 END), 0),
+                        COALESCE(SUM(CASE WHEN COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN COALESCE(talent_platform_fee, 0) ELSE 0 END), 0),
+                        COUNT(*) FILTER (WHERE COALESCE(status, '') = 'Completed')
+                    FROM bookings
+                    WHERE target_user_id = @userId;";
+
+                decimal released;
+                decimal escrow;
+                decimal awaiting;
+                decimal platformFees;
+                long completedCount;
+                await using (var summaryCmd = new NpgsqlCommand(summarySql, connection))
+                {
+                    summaryCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
+                    await using var reader = await summaryCmd.ExecuteReaderAsync(System.Data.CommandBehavior.SingleRow);
+                    await reader.ReadAsync();
+                    released = reader.GetDecimal(0);
+                    escrow = reader.GetDecimal(1);
+                    awaiting = reader.GetDecimal(2);
+                    platformFees = reader.GetDecimal(3);
+                    completedCount = reader.GetInt64(4);
+                }
+
+                var transactions = new List<object>();
+                const string txSql = @"
+                    SELECT id, COALESCE(event_title, ''), event_date, COALESCE(budget, 0),
+                           COALESCE(status, 'Pending'), COALESCE(talent_fee_status, 'Unpaid'),
+                           COALESCE(talent_platform_fee, 0), COALESCE(talent_platform_fee_status, 'Unpaid'),
+                           talent_fee_paid_at, talent_platform_fee_paid_at, updated_at
+                    FROM bookings
+                    WHERE target_user_id = @userId
+                    ORDER BY COALESCE(updated_at, created_at) DESC
+                    LIMIT 10;";
+                await using (var txCmd = new NpgsqlCommand(txSql, connection))
+                {
+                    txCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
+                    await using var reader = await txCmd.ExecuteReaderAsync();
+                    while (await reader.ReadAsync())
+                    {
+                        transactions.Add(new
+                        {
+                            id = reader.GetGuid(0),
+                            eventTitle = reader.IsDBNull(1) ? "" : reader.GetString(1),
+                            eventDate = reader.IsDBNull(2) ? (DateTime?)null : reader.GetDateTime(2),
+                            budget = reader.IsDBNull(3) ? 0 : reader.GetDecimal(3),
+                            status = reader.IsDBNull(4) ? "Pending" : reader.GetString(4),
+                            talentFeeStatus = reader.IsDBNull(5) ? "Unpaid" : reader.GetString(5),
+                            talentPlatformFee = reader.IsDBNull(6) ? 0 : reader.GetDecimal(6),
+                            talentPlatformFeeStatus = reader.IsDBNull(7) ? "Unpaid" : reader.GetString(7),
+                            talentFeePaidAt = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8),
+                            platformFeePaidAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9),
+                            updatedAt = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10)
+                        });
+                    }
+                }
+
+                return Ok(new
+                {
+                    releasedEarnings = released,
+                    heldInEscrow = escrow,
+                    awaitingCustomerPayment = awaiting,
+                    platformFeesPaid = platformFees,
+                    completedBookings = completedCount,
+                    transactions
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load wallet: " + ex.Message });
+            }
+        }
+
+        [HttpGet("{bookingId}/tracking")]
+        public async Task<IActionResult> GetBookingTracking(Guid bookingId)
+        {
+            try
+            {
+                var actorUserId = GetActorUserId(User);
+                var actorRole = GetActorRole(User);
+                if (!actorUserId.HasValue) return Unauthorized(new { message = "Sign in again before viewing tracking." });
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureBookingsTableExists(connection);
+                await EnsureBookingMessagesTableExists(connection);
+
+                var context = await GetBookingParticipantContextAsync(connection, bookingId);
+                if (context is null) return NotFound(new { message = "Booking not found." });
+                if (!CanAccessBooking(actorUserId.Value, actorRole, context)) return Forbid();
+
+                const string sql = @"
+                    SELECT COALESCE(status, 'Pending'), COALESCE(payment_status, 'Unpaid'),
+                           COALESCE(service_fee_status, 'Unpaid'), COALESCE(talent_fee_status, 'Unpaid'),
+                           COALESCE(talent_platform_fee_status, 'Unpaid'), event_date, event_end_time,
+                           customer_completed_at, target_completed_at, updated_at,
+                           (SELECT MAX(created_at) FROM booking_messages WHERE booking_id = @bookingId)
+                    FROM bookings
+                    WHERE id = @bookingId;";
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                await using var reader = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SingleRow);
+                if (!await reader.ReadAsync()) return NotFound(new { message = "Booking not found." });
+
+                var status = reader.GetString(0);
+                var paymentStatus = reader.GetString(1);
+                var serviceFeeStatus = reader.GetString(2);
+                var talentFeeStatus = reader.GetString(3);
+                var platformFeeStatus = reader.GetString(4);
+                var customerCompletedAt = reader.IsDBNull(7) ? (DateTime?)null : reader.GetDateTime(7);
+                var targetCompletedAt = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8);
+
+                return Ok(new
+                {
+                    bookingId,
+                    status,
+                    paymentStatus,
+                    serviceFeeStatus,
+                    talentFeeStatus,
+                    talentPlatformFeeStatus = platformFeeStatus,
+                    eventDate = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5),
+                    eventEndTime = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6),
+                    customerCompletedAt,
+                    targetCompletedAt,
+                    updatedAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9),
+                    lastMessageAt = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                    steps = new[]
+                    {
+                        new { key = "requested", label = "Request sent", done = true },
+                        new { key = "service_fee", label = "Service fee paid", done = serviceFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) || paymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) },
+                        new { key = "confirmed", label = "Booking confirmed", done = status.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) || status.Contains("Completion", StringComparison.OrdinalIgnoreCase) || status.Equals("Completed", StringComparison.OrdinalIgnoreCase) },
+                        new { key = "escrow", label = "Talent fee secured", done = talentFeeStatus.Equals("HeldInEscrow", StringComparison.OrdinalIgnoreCase) || talentFeeStatus.Equals("ReadyForRelease", StringComparison.OrdinalIgnoreCase) || talentFeeStatus.Equals("Released", StringComparison.OrdinalIgnoreCase) },
+                        new { key = "completion", label = "Completion confirmed", done = customerCompletedAt.HasValue && targetCompletedAt.HasValue },
+                        new { key = "released", label = "Escrow released", done = talentFeeStatus.Equals("Released", StringComparison.OrdinalIgnoreCase) }
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load booking tracking: " + ex.Message });
+            }
+        }
+
         [HttpGet("customer/{userId}")]
         public async Task<IActionResult> GetBookingsForCustomer(Guid userId)
         {
@@ -847,6 +1012,7 @@ namespace ImajinationAPI.Controllers
                 await EnsureNotificationsTableExists(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
                 await PaymentRefundService.EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
                 await EnsureEventBookingSupportExists(connection);
                 var bookingContext = await GetBookingParticipantContextAsync(connection, bookingId);
                 if (bookingContext is null)
@@ -1061,7 +1227,7 @@ namespace ImajinationAPI.Controllers
                             ELSE target_completed_at
                         END,
                         talent_fee_status = CASE
-                            WHEN @completed = TRUE AND COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') AND COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN 'Released'
+                            WHEN @completed = TRUE AND COALESCE(dispute_hold, FALSE) = FALSE AND COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') AND COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN 'Released'
                             WHEN @completed = TRUE AND COALESCE(talent_fee_status, 'Unpaid') = 'HeldInEscrow' THEN 'HeldInEscrow'
                             ELSE talent_fee_status
                         END,
@@ -1086,6 +1252,15 @@ namespace ImajinationAPI.Controllers
                 if (rows == 0)
                 {
                     return NotFound(new { message = "Booking request not found." });
+                }
+
+                if (completionFinalized && budget > 0)
+                {
+                    await EscrowService.MarkReleaseReadyAsync(connection, bookingId);
+                    if (talentPlatformFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await EscrowService.ReleaseAsync(connection, bookingId);
+                    }
                 }
 
                 if (normalizedStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) && eventId.HasValue && targetUserId != Guid.Empty)
@@ -1269,7 +1444,10 @@ namespace ImajinationAPI.Controllers
                         b.target_completed_at,
                         b.booking_group_id,
                         COALESCE(b.booking_sequence, 1),
-                        b.updated_at
+                        b.updated_at,
+                        b.conversation_closed_at,
+                        b.conversation_closed_by_user_id,
+                        COALESCE(b.conversation_close_reason, '')
                     FROM bookings b
                     LEFT JOIN users c ON c.id = b.customer_id
                     LEFT JOIN users t ON t.id = b.target_user_id
@@ -1335,12 +1513,79 @@ namespace ImajinationAPI.Controllers
                     targetCompletedAt = reader.IsDBNull(43) ? (DateTime?)null : reader.GetDateTime(43),
                     bookingGroupId = reader.IsDBNull(44) ? (Guid?)null : reader.GetGuid(44),
                     bookingSequence = reader.IsDBNull(45) ? 1 : reader.GetInt32(45),
-                    updatedAt = reader.IsDBNull(46) ? (DateTime?)null : reader.GetDateTime(46)
+                    updatedAt = reader.IsDBNull(46) ? (DateTime?)null : reader.GetDateTime(46),
+                    conversationClosedAt = reader.IsDBNull(47) ? (DateTime?)null : reader.GetDateTime(47),
+                    conversationClosedByUserId = reader.IsDBNull(48) ? (Guid?)null : reader.GetGuid(48),
+                    conversationCloseReason = reader.IsDBNull(49) ? "" : reader.GetString(49),
+                    conversationClosed = !reader.IsDBNull(47)
                 });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to load booking details: " + ex.Message });
+            }
+        }
+
+        [HttpPost("{bookingId}/conversation/close")]
+        public async Task<IActionResult> CloseBookingConversation(Guid bookingId, [FromBody] CloseBookingConversationRequest? req)
+        {
+            try
+            {
+                var actorUserId = GetActorUserId(User);
+                var actorRole = GetActorRole(User);
+                if (!actorUserId.HasValue)
+                {
+                    return Unauthorized(new { message = "Sign in again before closing this conversation." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await EnsureBookingsTableExists(connection);
+                await EnsureNotificationsTableExists(connection);
+
+                var context = await GetBookingParticipantContextAsync(connection, bookingId);
+                if (context is null) return NotFound(new { message = "Booking not found." });
+                if (!CanAccessBooking(actorUserId.Value, actorRole, context)) return Forbid();
+
+                const string updateSql = @"
+                    UPDATE bookings
+                    SET conversation_closed_at = COALESCE(conversation_closed_at, NOW()),
+                        conversation_closed_by_user_id = COALESCE(conversation_closed_by_user_id, @actorUserId),
+                        conversation_close_reason = COALESCE(NULLIF(@reason, ''), conversation_close_reason, 'Closed by participant'),
+                        updated_at = NOW()
+                    WHERE id = @bookingId
+                    RETURNING customer_id, target_user_id, COALESCE(event_title, 'Booking');";
+
+                Guid customerId;
+                Guid targetUserId;
+                string eventTitle;
+                await using (var cmd = new NpgsqlCommand(updateSql, connection))
+                {
+                    cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                    cmd.Parameters.Add("@actorUserId", NpgsqlDbType.Uuid).Value = actorUserId.Value;
+                    cmd.Parameters.Add("@reason", NpgsqlDbType.Text).Value = (req?.reason ?? "").Trim();
+                    await using var reader = await cmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync()) return NotFound(new { message = "Booking not found." });
+                    customerId = reader.GetGuid(0);
+                    targetUserId = reader.GetGuid(1);
+                    eventTitle = reader.GetString(2);
+                }
+
+                var notifyUser = actorUserId.Value == customerId ? targetUserId : customerId;
+                await InsertNotification(
+                    connection,
+                    notifyUser,
+                    "conversation_closed",
+                    "Conversation closed",
+                    $"The booking conversation for {eventTitle} was closed.",
+                    bookingId,
+                    "booking");
+
+                return Ok(new { message = "Conversation closed.", conversationClosed = true, conversationClosedAt = DateTime.UtcNow });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to close conversation: " + ex.Message });
             }
         }
 
@@ -1796,6 +2041,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureBookingsTableExists(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
                 var bookingContext = await GetBookingParticipantContextAsync(connection, bookingId);
                 if (bookingContext is null)
                 {
@@ -1937,6 +2183,17 @@ namespace ImajinationAPI.Controllers
                     return BadRequest(new { message = "Success and cancel URLs are required." });
                 }
 
+                Guid? escrowTransactionId = null;
+                if (paymentType == "talent")
+                {
+                    escrowTransactionId = await EscrowService.CreatePendingAsync(
+                        connection,
+                        bookingId,
+                        customerId,
+                        targetUserId,
+                        amountToCharge);
+                }
+
                 var amountInCentavos = (int)(amountToCharge * 100);
                 var paymentLabel = paymentType == "talent" ? "Talent Fee Escrow" : paymentType == "platform" ? "Talent Platform Fee" : "Booking Service Fee";
                 var paymongoPayload = new
@@ -1964,7 +2221,8 @@ namespace ImajinationAPI.Controllers
                             metadata = new
                             {
                                 booking_id = bookingId.ToString(),
-                                payment_type = paymentType
+                                payment_type = paymentType,
+                                escrow_transaction_id = escrowTransactionId?.ToString()
                             }
                         }
                     }
@@ -1997,6 +2255,11 @@ namespace ImajinationAPI.Controllers
                 var checkoutReference = data.GetProperty("attributes").TryGetProperty("reference_number", out var referenceProp)
                     ? referenceProp.GetString()
                     : null;
+
+                if (escrowTransactionId.HasValue)
+                {
+                    await EscrowService.LinkCheckoutAsync(connection, escrowTransactionId.Value, checkoutId);
+                }
 
                 var updateSql = paymentType == "talent"
                     ? @"
@@ -2054,7 +2317,8 @@ namespace ImajinationAPI.Controllers
                         paymentType,
                         eventTitle,
                         bookingFee,
-                        budget
+                        budget,
+                        escrowTransactionId
                     });
 
                 return Ok(new
@@ -2094,6 +2358,7 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureBookingsTableExists(connection);
                 await EnsureNotificationsTableExists(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
                 var bookingContext = await GetBookingParticipantContextAsync(connection, bookingId);
                 if (bookingContext is null)
                 {
@@ -2345,6 +2610,15 @@ namespace ImajinationAPI.Controllers
                 updateCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
                 await updateCmd.ExecuteNonQueryAsync();
 
+                if (normalizedPaymentType == "talent")
+                {
+                    await EscrowService.MarkHeldAsync(connection, bookingId, paymentId);
+                }
+                else if (normalizedPaymentType == "platform" && canReleaseEscrow)
+                {
+                    await EscrowService.ReleaseAsync(connection, bookingId);
+                }
+
                 await PaymentLedgerService.MarkPaidAsync(
                     connection,
                     paymentScope: normalizedPaymentType == "talent" ? "booking_talent_fee" : normalizedPaymentType == "platform" ? "booking_talent_platform_fee" : "booking_service_fee",
@@ -2418,6 +2692,7 @@ namespace ImajinationAPI.Controllers
                 await EnsureNotificationsTableExists(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
                 await PaymentRefundService.EnsureSchemaAsync(connection);
+                await EscrowService.EnsureSchemaAsync(connection);
 
                 const string sql = @"
                     SELECT customer_id,
@@ -2645,7 +2920,11 @@ namespace ImajinationAPI.Controllers
                 hasManualReview |= string.Equals(result, "Refund Pending", StringComparison.OrdinalIgnoreCase) || string.Equals(result, "Refund Failed", StringComparison.OrdinalIgnoreCase);
             }
 
-            if (refundTalentFee && talentFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) && budget > 0)
+            if (refundTalentFee &&
+                (talentFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) ||
+                 talentFeeStatus.Equals("HeldInEscrow", StringComparison.OrdinalIgnoreCase) ||
+                 talentFeeStatus.Equals("ReadyForRelease", StringComparison.OrdinalIgnoreCase)) &&
+                budget > 0)
             {
                 var result = await RefundBookingComponentAsync(
                     connection,
@@ -2735,6 +3014,21 @@ namespace ImajinationAPI.Controllers
                 await pendingCmd.ExecuteNonQueryAsync();
             }
 
+            if (componentType == "talent")
+            {
+                await EscrowService.MarkRefundPendingAsync(connection, bookingId);
+                if (await EscrowService.IsWalletFundedAsync(connection, bookingId))
+                {
+                    await using var walletRefundCmd = new NpgsqlCommand(
+                        "UPDATE bookings SET talent_fee_status = 'Refunded', payment_status = 'Refunded' WHERE id = @id;",
+                        connection);
+                    walletRefundCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                    await walletRefundCmd.ExecuteNonQueryAsync();
+                    await EscrowService.MarkRefundedAsync(connection, bookingId);
+                    return "Refunded";
+                }
+            }
+
             var refundRequestId = await PaymentRefundService.CreateRefundRequestAsync(
                 connection,
                 refundScope: "booking",
@@ -2796,6 +3090,10 @@ namespace ImajinationAPI.Controllers
             if (targetStatus == "Refunded")
             {
                 await PaymentLedgerService.MarkRefundedAsync(connection, paymentScope, null, bookingId, "Refunded");
+                if (componentType == "talent")
+                {
+                    await EscrowService.MarkRefundedAsync(connection, bookingId);
+                }
                 return "Refunded";
             }
 
@@ -2964,6 +3262,12 @@ namespace ImajinationAPI.Controllers
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS target_completed_at timestamptz NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_group_id uuid NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS booking_sequence integer NOT NULL DEFAULT 1;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_closed_at timestamptz NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_closed_by_user_id uuid NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS conversation_close_reason text NOT NULL DEFAULT '';
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS dispute_hold boolean NOT NULL DEFAULT FALSE;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS escrow_transaction_id uuid NULL;
+                ALTER TABLE bookings ADD COLUMN IF NOT EXISTS escrow_status varchar(40) NULL;
                 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT NOW();
                 UPDATE bookings SET updated_at = COALESCE(updated_at, created_at, NOW()) WHERE updated_at IS NULL;
                 ALTER TABLE bookings ALTER COLUMN status TYPE varchar(60);";

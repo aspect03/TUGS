@@ -792,53 +792,25 @@
             </div>
           </div>
 
-          <!-- Event Selector -->
-          <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
-            <label class="block text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Select Event to Scan</label>
-            <select id="scannerEventSelect" class="w-full px-4 py-3 bg-black/40 border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 transition-all">
-              <option value="">-- Select an event --</option>
-            </select>
-            <p id="scannerEventInfo" class="mt-2 text-xs text-white/40 hidden"></p>
-          </div>
-
-          <!-- Scanner Module (shown after event selected) -->
-          <div id="adminScannerModule" class="hidden space-y-4">
-            <div class="bg-neutral-900/50 border border-white/[0.07] rounded-2xl p-5">
-              <div id="adminCameraHelpBox" class="hidden mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3">
-                <p class="text-xs font-bold uppercase tracking-[0.24em] text-amber-300 mb-1">Camera Access Help</p>
-                <p id="adminCameraHelpText" class="text-sm leading-relaxed text-amber-100/90"></p>
+          <div class="rounded-[1.75rem] border border-white/[0.07] bg-white/[0.03] p-6 sm:p-7">
+            <div class="max-w-2xl">
+              <p class="text-[10px] font-bold uppercase tracking-[0.24em] text-red-400/70 mb-2">Shared Scanner Flow</p>
+              <h4 class="text-lg font-extrabold text-white tracking-tight">Open the scanner from a specific event</h4>
+              <p class="mt-3 text-sm leading-relaxed text-white/65">
+                Admin now uses the same event-specific ticket scanner flow as organizers. To start scanning,
+                open an event from the Events section and use its <span class="text-white font-semibold">Scan Tickets</span> action.
+              </p>
+              <div class="mt-5 flex flex-wrap gap-3">
+                <button type="button" onclick="switchAdminSection('events')" class="px-4 py-3 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">
+                  Go To Events
+                </button>
+                <button type="button" onclick="openSharedScannerPage()" class="px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/70 text-xs font-bold uppercase tracking-wider hover:bg-white/[0.08] transition-colors">
+                  Open Scanner Page
+                </button>
               </div>
-              <div id="adminQrReader" class="rounded-2xl overflow-hidden bg-black w-full max-w-sm mx-auto aspect-square flex items-center justify-center text-white/30 text-sm"></div>
-              <div class="mt-4 flex flex-col sm:flex-row gap-3">
-                <button id="adminStartScannerBtn" class="flex-1 px-4 py-3 bg-red-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-500 transition-colors">Start Camera</button>
-                <button id="adminStopScannerBtn" class="hidden flex-1 px-4 py-3 bg-white/10 border border-white/20 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/15 transition-colors">Stop Camera</button>
-                <label class="flex-1 px-4 py-3 bg-white/[0.04] border border-white/[0.08] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/[0.08] transition-colors text-center cursor-pointer">
-                  Upload QR Image<input id="adminQrImageInput" type="file" accept="image/*" class="hidden">
-                </label>
-              </div>
-              <p id="adminScannerStatus" class="mt-3 text-xs text-white/50 uppercase tracking-wider text-center">Tap Start Camera to begin scanning.</p>
-            </div>
-
-            <!-- Scan Result -->
-            <div id="adminScanResult" class="hidden bg-neutral-900/50 border border-white/[0.07] rounded-2xl p-6 text-center">
-              <div id="adminResultBox" class="flex flex-col items-center gap-2">
-                <i id="adminResultIcon" data-lucide="check-circle" class="w-10 h-10"></i>
-                <h2 id="adminResultTitle" class="text-xl font-bold uppercase tracking-wider">SUCCESS!</h2>
-                <p id="adminResultMsg" class="text-sm font-semibold"></p>
-                <p id="adminResultDetails" class="text-xs text-white/50"></p>
-                <button onclick="adminResumeScanning()" class="mt-4 px-5 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors">Scan Next Ticket</button>
-              </div>
-            </div>
-
-            <!-- Scan Log -->
-            <div class="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-bold text-white">Scan Log <span class="text-white/30 font-normal text-xs ml-1">(this session)</span></h4>
-                <button onclick="adminClearScanLog()" class="text-xs text-white/40 hover:text-white/70 transition-colors">Clear</button>
-              </div>
-              <div id="adminScanLog" class="space-y-2 max-h-64 overflow-y-auto">
-                <p class="text-xs text-white/30 text-center py-4">No scans yet.</p>
-              </div>
+              <p class="mt-4 text-xs uppercase tracking-[0.2em] text-white/35">
+                The scanner needs an event context. Opening the scanner without a selected event will stay disabled.
+              </p>
             </div>
           </div>
         </section>
@@ -965,6 +937,22 @@
                       <option value="Upcoming">Upcoming</option>
                       <option value="Draft">Draft</option>
                     </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Age Restriction *</label>
+                    <select id="adminEvMinimumAge" required class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-red-500/50 transition-all">
+                      <option value="0">All ages</option>
+                      <option value="13">13+</option>
+                      <option value="16">16+</option>
+                      <option value="18">18+</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-[0.16em] text-white/45 mb-1.5">Age Advisory</label>
+                    <input id="adminEvAgeAdvisory" type="text" maxlength="500" placeholder="Required when restricted" class="w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-red-500/50 transition-all">
                   </div>
                 </div>
 
@@ -3517,6 +3505,8 @@
       document.getElementById('adminEvSlots').value = event?.slots ?? '';
       document.getElementById('adminEvMaxTickets').value = event?.maxTicketsPerCustomer || 5;
       document.getElementById('adminEvStatus').value = event?.status || 'Upcoming';
+      document.getElementById('adminEvMinimumAge').value = String(event?.minimumAge ?? 0);
+      document.getElementById('adminEvAgeAdvisory').value = event?.ageAdvisory || '';
       document.getElementById('adminEvSaleName').value = event?.saleName || '';
       document.getElementById('adminEvSaleType').value = event?.saleType || '';
       document.getElementById('adminEvSaleValue').value = event?.saleValue ?? '';
@@ -3598,7 +3588,7 @@
       container.innerHTML = '<div class="rounded-2xl border border-white/[0.06] bg-black/20 p-5"><p class="text-sm text-white/40">Loading events...</p></div>';
 
       try {
-        const res = await fetch(`/api/event/organizer/${adminId}`);
+        const res = await fetch('/api/event/admin/all');
         if (!res.ok) throw new Error('Failed to load events.');
         adminEventsData = await res.json() || [];
 
@@ -3647,6 +3637,7 @@
                 </div>
                 <div class="flex items-center gap-2 flex-wrap shrink-0">
                   <button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-analytics px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-colors">Analytics</button>
+                  ${ev.status !== 'Finished' && ev.status !== 'Draft' ? `<button data-ev-id="${escapeHtml(ev.id)}" data-ev-title="${escapeHtml(ev.title || 'Untitled Event')}" class="admin-ev-scan px-3 py-1.5 rounded-xl bg-red-600/15 border border-red-500/25 text-red-300 text-[10px] font-bold uppercase tracking-wider hover:bg-red-600/25 transition-colors">Scan Tickets</button>` : ''}
                   <button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-edit px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors">Edit</button>
                   ${ev.status !== 'Finished' ? `<button data-ev-id="${escapeHtml(ev.id)}" class="admin-ev-finish px-3 py-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-[10px] font-bold uppercase tracking-wider hover:bg-cyan-500/20 transition-colors">Finish</button>` : ''}
                   <button data-ev-id="${escapeHtml(ev.id)}" data-ev-title="${escapeHtml(ev.title)}" class="admin-ev-delete px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500/20 transition-colors">Delete</button>
@@ -3664,6 +3655,12 @@
     }
 
     function bindAdminEventActions() {
+      document.querySelectorAll('.admin-ev-scan').forEach(btn => {
+        btn.addEventListener('click', () => {
+          openAdminEventScanner(btn.dataset.evId, btn.dataset.evTitle);
+        });
+      });
+
       document.querySelectorAll('.admin-ev-analytics').forEach(btn => {
         btn.addEventListener('click', () => {
           const ev = adminEventsData.find(e => e.id === btn.dataset.evId);
@@ -3714,6 +3711,23 @@
           }
         });
       });
+    }
+
+    function openAdminEventScanner(eventId, eventTitle) {
+      if (!eventId) return;
+      const params = new URLSearchParams({
+        eventId,
+        eventTitle: eventTitle || 'Untitled Event',
+        v: Date.now().toString()
+      });
+      window.location.href = `/pages/tools/dashboardscanner.html?${params.toString()}`;
+    }
+
+    function openSharedScannerPage() {
+      const params = new URLSearchParams({
+        v: Date.now().toString()
+      });
+      window.location.href = `/pages/tools/dashboardscanner.html?${params.toString()}`;
     }
 
     document.getElementById('adminOpenCreateEventBtn')?.addEventListener('click', () => openAdminEventModal(null));
@@ -3782,6 +3796,16 @@
       const saleStartsRaw = document.getElementById('adminEvSaleStarts').value;
       const saleEndsRaw = document.getElementById('adminEvSaleEnds').value;
       const posterData = document.getElementById('adminEvPosterData').value.trim() || null;
+      const minimumAge = parseInt(document.getElementById('adminEvMinimumAge').value, 10);
+      const ageAdvisory = document.getElementById('adminEvAgeAdvisory').value.trim();
+      if (![0, 13, 16, 18].includes(minimumAge)) {
+        statusEl.innerText = 'Choose a valid age restriction.';
+        return;
+      }
+      if (minimumAge > 0 && !ageAdvisory) {
+        statusEl.innerText = 'Add an age advisory for restricted events.';
+        return;
+      }
 
       // Sync DOM input values → adminEventTiers before building payload
       // (handles cases where input events were missed, e.g. autofill or rapid typing)
@@ -3800,7 +3824,7 @@
       });
 
       const payload = {
-        organizerId: adminId,
+        organizerId: null,
         title: document.getElementById('adminEvTitle').value.trim(),
         description: document.getElementById('adminEvDesc').value.trim(),
         time: document.getElementById('adminEvTime').value,
@@ -3812,6 +3836,8 @@
         slots: parseInt(document.getElementById('adminEvSlots').value) || 0,
         maxTicketsPerCustomer: parseInt(document.getElementById('adminEvMaxTickets').value) || 5,
         status: document.getElementById('adminEvStatus').value,
+        minimumAge,
+        ageAdvisory: ageAdvisory || null,
         posterUrl: posterData,
         saleName: document.getElementById('adminEvSaleName').value.trim() || null,
         saleType: saleTypeVal || null,
@@ -4151,12 +4177,9 @@
       modal.scrollTop = 0;
       lucide.createIcons();
 
-      const adminId = localStorage.getItem('userId');
-      if (!adminId) { body.innerHTML = '<p class="text-sm text-red-400 p-4">Session expired.</p>'; return; }
-
       let data;
       try {
-        const res = await fetch(`/api/event/organizer/${adminId}/analytics/${ev.id}`);
+        const res = await fetch(`/api/event/admin/analytics/${ev.id}`);
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || 'Failed to load analytics.');
         data = await res.json();
       } catch(err) {
@@ -4749,318 +4772,7 @@
       btn.addEventListener('click', () => loadPartnerInquiries());
     });
 
-    // ─── QR TICKET SCANNER MODULE ──────────────────────────────────────────
-    (function() {
-      let adminHtml5QrCode = null;
-      let adminScannerActive = false;
-      let adminIsScanning = true;
-      let adminScannerInFlight = false;
-      let adminSelectedEventId = null;
-      let adminScanLogEntries = [];
-
-      const qrConfig = {
-        fps: 12,
-        qrbox: (w, h) => { const e = Math.floor(Math.min(w, h) * 0.72); return { width: e, height: e }; },
-        aspectRatio: 1,
-        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-      };
-
-      function canUseCamera() {
-        const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        return !!navigator.mediaDevices?.getUserMedia && (window.isSecureContext || isLocal);
-      }
-
-      function showAdminCameraHelp(msg) {
-        document.getElementById('adminCameraHelpText').textContent = msg;
-        document.getElementById('adminCameraHelpBox').classList.remove('hidden');
-      }
-
-      function hideAdminCameraHelp() {
-        document.getElementById('adminCameraHelpBox').classList.add('hidden');
-      }
-
-      function describeCamError(err) {
-        if (!canUseCamera()) return 'Camera needs HTTPS or localhost. Use the Upload QR Image option instead.';
-        const n = err?.name || '';
-        if (n === 'NotAllowedError' || n === 'PermissionDeniedError') return 'Camera permission was denied. Allow camera access in browser settings, then tap Start Camera again.';
-        if (n === 'NotFoundError') return 'No camera found on this device. Try uploading a QR image instead.';
-        if (n === 'NotReadableError') return 'Camera is busy in another app. Close it and try again.';
-        return 'Camera access failed. Allow camera permission and try again, or upload a QR image.';
-      }
-
-      async function adminResetScanner() {
-        if (adminHtml5QrCode) {
-          try { if (adminScannerActive) await adminHtml5QrCode.stop(); } catch(e) {}
-          try { await adminHtml5QrCode.clear(); } catch(e) {}
-        }
-        adminScannerActive = false;
-        adminHtml5QrCode = new Html5Qrcode('adminQrReader');
-      }
-
-      async function adminStopScanner() {
-        if (!adminHtml5QrCode || !adminScannerActive) return;
-        try { await adminHtml5QrCode.stop(); await adminHtml5QrCode.clear(); } catch(e) {}
-        adminScannerActive = false;
-        document.getElementById('adminStartScannerBtn').classList.remove('hidden');
-        document.getElementById('adminStopScannerBtn').classList.add('hidden');
-        document.getElementById('adminScannerStatus').innerText = 'Camera stopped. Tap Start Camera to scan again.';
-      }
-
-      async function adminStartScanner() {
-        if (!adminSelectedEventId || adminScannerActive || adminScannerInFlight) return;
-        if (!canUseCamera()) {
-          showAdminCameraHelp('Camera needs HTTPS or localhost. Upload a QR image instead.');
-          document.getElementById('adminScannerStatus').innerText = 'Camera needs HTTPS or localhost.';
-          return;
-        }
-        adminScannerInFlight = true;
-        hideAdminCameraHelp();
-        const statusEl = document.getElementById('adminScannerStatus');
-        const startBtn = document.getElementById('adminStartScannerBtn');
-        const stopBtn = document.getElementById('adminStopScannerBtn');
-        try {
-          await adminResetScanner();
-          statusEl.innerText = 'Requesting camera access...';
-          const cameras = await Html5Qrcode.getCameras();
-          if (!cameras?.length) { statusEl.innerText = 'No camera found.'; showAdminCameraHelp('No camera detected. Upload a QR image instead.'); return; }
-          const cam = cameras.find(c => /back|rear|environment/i.test(c.label)) || cameras[0];
-          await adminHtml5QrCode.start({ deviceId: { exact: cam.id } }, qrConfig, adminOnScanSuccess, () => {});
-          adminScannerActive = true;
-          statusEl.innerText = `Camera active — point at ticket QR code.`;
-          startBtn.classList.add('hidden');
-          stopBtn.classList.remove('hidden');
-        } catch (err) {
-          const msg = describeCamError(err);
-          statusEl.innerText = msg;
-          showAdminCameraHelp(msg);
-          startBtn.innerText = 'Try Camera Again';
-        } finally {
-          adminScannerInFlight = false;
-        }
-      }
-
-      function extractTicketPreview(raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed.ticketId) return String(parsed.ticketId).slice(0, 8).toUpperCase();
-        } catch(e) {}
-        if (raw.length <= 36) return raw.slice(0, 8).toUpperCase();
-        return null;
-      }
-
-      async function adminOnScanSuccess(decodedText) {
-        if (!adminIsScanning) return;
-        adminIsScanning = false;
-        await adminStopScanner();
-        const statusEl = document.getElementById('adminScannerStatus');
-        statusEl.innerText = 'QR detected. Verifying ticket…';
-
-        const resultContainer = document.getElementById('adminScanResult');
-        const resultBox = document.getElementById('adminResultBox');
-        const resultIcon = document.getElementById('adminResultIcon');
-        const resultTitle = document.getElementById('adminResultTitle');
-        const resultMsg = document.getElementById('adminResultMsg');
-        const resultDetails = document.getElementById('adminResultDetails');
-
-        resultContainer.classList.remove('hidden');
-        resultBox.className = 'flex flex-col items-center gap-2 text-yellow-400';
-        resultTitle.innerText = 'VERIFYING…';
-        resultMsg.innerText = 'Checking database…';
-        resultDetails.innerText = '';
-        resultIcon.setAttribute('data-lucide', 'loader-2');
-        lucide.createIcons();
-
-        try {
-          const preview = extractTicketPreview(decodedText);
-          resultDetails.innerText = preview ? `Ticket ID: ${preview}` : 'Reading QR payload…';
-
-          const res = await fetch(`/api/ticket/scan?eventId=${encodeURIComponent(adminSelectedEventId)}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketValue: decodedText })
-          });
-          const data = await res.json();
-
-          const timestamp = new Date().toLocaleTimeString();
-
-          if (res.ok) {
-            resultBox.className = 'flex flex-col items-center gap-4 text-emerald-400';
-            resultIcon.setAttribute('data-lucide', 'check-circle');
-            resultTitle.innerText = 'VALID TICKET';
-            resultMsg.innerText = data.message || 'Ticket validated successfully.';
-
-            // Build event + tier info block
-            const eventLine = data.eventTitle ? data.eventTitle.toUpperCase() : '';
-            const tierLine  = data.tierName   ? data.tierName                  : '';
-            const unitLine  = data.totalQuantity > 1
-              ? `Ticket ${data.unitNumber} of ${data.totalQuantity} · ${data.remainingQuantity} remaining`
-              : '';
-            const idLine    = data.ticketId ? `ID: ${String(data.ticketId).slice(0,8).toUpperCase()} · ${timestamp}` : timestamp;
-
-            resultDetails.innerHTML = [
-              eventLine ? `<span class="block text-sm font-extrabold tracking-widest text-white">${escapeHtml(eventLine)}</span>` : '',
-              tierLine  ? `<span class="block text-xs font-semibold text-emerald-300">${escapeHtml(tierLine)}</span>` : '',
-              unitLine  ? `<span class="block text-xs text-amber-300">${escapeHtml(unitLine)}</span>` : '',
-              `<span class="block text-[10px] text-white/40">${escapeHtml(idLine)}</span>`
-            ].filter(Boolean).join('');
-
-            const logLabel = data.eventTitle
-              ? `${data.message} — ${data.tierName} · ${data.eventTitle}`
-              : (data.message || 'Ticket validated.');
-            addAdminScanLog('valid', logLabel, timestamp);
-          } else {
-            // Style each error type distinctly so the door staff can react correctly
-            const errCode = (data.message || '').toUpperCase();
-            let boxCls, iconName, titleText;
-
-            if (errCode.includes('WRONG EVENT')) {
-              boxCls   = 'flex flex-col items-center gap-3 text-amber-400';
-              iconName = 'shield-x';
-              titleText = '⛔ WRONG EVENT';
-            } else if (errCode.includes('ALREADY SCANNED')) {
-              boxCls   = 'flex flex-col items-center gap-3 text-orange-400';
-              iconName = 'scan-line';
-              titleText = '🔁 ALREADY SCANNED';
-            } else if (errCode.includes('EXPIRED')) {
-              boxCls   = 'flex flex-col items-center gap-3 text-neutral-400';
-              iconName = 'clock-x';
-              titleText = '⏰ EXPIRED TICKET';
-            } else if (errCode.includes('REFUND')) {
-              boxCls   = 'flex flex-col items-center gap-3 text-sky-400';
-              iconName = 'receipt';
-              titleText = '↩ REFUNDED';
-            } else {
-              boxCls   = 'flex flex-col items-center gap-3 text-red-400';
-              iconName = 'x-circle';
-              titleText = data.message || 'INVALID';
-            }
-
-            resultBox.className = boxCls;
-            resultIcon.setAttribute('data-lucide', iconName);
-            resultTitle.innerText = titleText;
-            resultMsg.innerText = data.details || data.message || 'Ticket validation failed.';
-            resultDetails.innerHTML = `<span class="text-[10px] text-white/40">${timestamp}</span>`;
-            addAdminScanLog('invalid', `${titleText} — ${data.details || data.message || ''}`, timestamp);
-          }
-          lucide.createIcons();
-          statusEl.innerText = 'Tap "Scan Next Ticket" to continue.';
-        } catch(err) {
-          resultBox.className = 'flex flex-col items-center gap-2 text-red-400';
-          resultIcon.setAttribute('data-lucide', 'alert-triangle');
-          resultTitle.innerText = 'ERROR';
-          resultMsg.innerText = 'Could not connect to server.';
-          lucide.createIcons();
-        }
-      }
-
-      function addAdminScanLog(type, message, timestamp) {
-        adminScanLogEntries.unshift({ type, message, timestamp });
-        renderAdminScanLog();
-      }
-
-      function renderAdminScanLog() {
-        const log = document.getElementById('adminScanLog');
-        if (!adminScanLogEntries.length) { log.innerHTML = '<p class="text-xs text-white/30 text-center py-4">No scans yet.</p>'; return; }
-        log.innerHTML = adminScanLogEntries.map(e => `
-          <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl ${e.type === 'valid' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}">
-            <i data-lucide="${e.type === 'valid' ? 'check-circle' : 'x-circle'}" class="w-4 h-4 flex-shrink-0 ${e.type === 'valid' ? 'text-emerald-400' : 'text-red-400'}"></i>
-            <span class="flex-1 text-xs ${e.type === 'valid' ? 'text-white/80' : 'text-red-300/80'} truncate">${e.message}</span>
-            <span class="text-[10px] text-white/30 flex-shrink-0 whitespace-nowrap">${e.timestamp}</span>
-          </div>`).join('');
-        lucide.createIcons();
-      }
-
-      window.adminResumeScanning = function() {
-        document.getElementById('adminScanResult').classList.add('hidden');
-        adminIsScanning = true;
-        document.getElementById('adminScannerStatus').innerText = 'Tap Start Camera to scan the next ticket.';
-      };
-
-      window.adminClearScanLog = function() {
-        adminScanLogEntries = [];
-        renderAdminScanLog();
-      };
-
-      function initAdminScanner() {
-        const select = document.getElementById('scannerEventSelect');
-        const module = document.getElementById('adminScannerModule');
-        const info = document.getElementById('scannerEventInfo');
-
-        select.addEventListener('change', async () => {
-          adminSelectedEventId = select.value || null;
-          await adminStopScanner();
-          document.getElementById('adminScanResult').classList.add('hidden');
-          adminIsScanning = true;
-          document.getElementById('adminScannerStatus').innerText = 'Tap Start Camera to begin scanning.';
-          document.getElementById('adminStartScannerBtn').innerText = 'Start Camera';
-          hideAdminCameraHelp();
-
-          if (adminSelectedEventId) {
-            module.classList.remove('hidden');
-            const opt = select.options[select.selectedIndex];
-            info.innerText = `Scanning for: ${opt.text}`;
-            info.classList.remove('hidden');
-            adminHtml5QrCode = new Html5Qrcode('adminQrReader');
-          } else {
-            module.classList.add('hidden');
-            info.classList.add('hidden');
-          }
-        });
-
-        document.getElementById('adminStartScannerBtn').addEventListener('click', adminStartScanner);
-        document.getElementById('adminStopScannerBtn').addEventListener('click', adminStopScanner);
-        document.getElementById('adminQrImageInput').addEventListener('change', async (ev) => {
-          const file = ev.target.files?.[0];
-          if (!file || !adminHtml5QrCode) return;
-          try {
-            document.getElementById('adminScannerStatus').innerText = 'Scanning uploaded image…';
-            const decoded = await adminHtml5QrCode.scanFile(file, true);
-            await adminOnScanSuccess(decoded);
-          } catch(err) {
-            document.getElementById('adminScannerStatus').innerText = 'No QR code detected in the uploaded image.';
-          } finally { ev.target.value = ''; }
-        });
-      }
-
-      async function populateScannerEventSelect() {
-        const select = document.getElementById('scannerEventSelect');
-        const adminId = localStorage.getItem('userId');
-        if (!adminId) return;
-        try {
-          const res = await fetch(`/api/event/organizer/${adminId}`);
-          if (!res.ok) return;
-          const events = await res.json() || [];
-          const upcoming = events.filter(ev => ev.status !== 'Finished' && ev.status !== 'Cancelled');
-          if (!upcoming.length) {
-            const opt = document.createElement('option');
-            opt.disabled = true;
-            opt.value = '';
-            opt.text = 'No active events found';
-            select.appendChild(opt);
-            return;
-          }
-          upcoming.forEach(ev => {
-            const opt = document.createElement('option');
-            opt.value = ev.id;
-            const evDate = ev.time ? new Date(ev.time).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '';
-            opt.text = `${ev.title}${evDate ? ` — ${evDate}` : ''}`;
-            select.appendChild(opt);
-          });
-        } catch(e) {}
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-        initAdminScanner();
-        document.querySelectorAll('.admin-section-btn[data-section="scanner"]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const select = document.getElementById('scannerEventSelect');
-            if (select && select.options.length <= 1) populateScannerEventSelect();
-          });
-        });
-      });
-    })();
-    // ───────────────────────────────────────────────────────────────────────
+    // ─── Admin scanner now reuses the shared event-specific scanner page. ───
   </script>
 </body>
 </html>

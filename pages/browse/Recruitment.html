@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tugs! - Recruitment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <script src="/assets/js/theme.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/assets/js/system-dialogs.js"></script>
+  <script src="/assets/js/performance-helpers.js"></script>
+  <script src="/assets/js/navbar-notifications.js"></script>
+  <script src="/assets/js/navbar-profile-menu.js"></script>
+  <style>
+    #profileDropdown { transition: opacity .2s ease, transform .2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .detail-nav-link { display: inline-flex; align-items: center; height: 4rem; border-bottom: 2px solid transparent; }
+    .detail-nav-link.active { color: white; border-bottom-color: rgba(239,68,68,.95); }
+  </style>
+</head>
+<body class="bg-neutral-950 text-white antialiased" style="font-family:'Montserrat',system-ui,sans-serif;">
+  <div class="bg-global-backdrop fixed inset-0 z-0 pointer-events-none">
+    <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.13),transparent_60%)]"></div>
+  </div>
+
+  <nav class="fixed top-0 w-full z-50">
+    <div class="absolute inset-0 bg-black/30 backdrop-blur-md border-b border-white/10"></div>
+    <div class="relative max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
+      <a href="/" class="flex items-center">
+        <div class="h-8 w-28 sm:w-32 flex items-center">
+          <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left" onerror="this.style.display='none'">
+        </div>
+      </a>
+      <div class="hidden md:flex items-center gap-10 text-xs font-medium text-white/70 uppercase tracking-[0.14em]">
+        <a href="/" class="detail-nav-link hover:text-white/90 transition-colors">Home</a>
+        <a href="/pages/browse/Events.html" class="detail-nav-link hover:text-white/90 transition-colors">Events</a>
+        <a href="/pages/browse/Artists.html" class="detail-nav-link hover:text-white/90 transition-colors">Artists</a>
+        <a href="/pages/browse/Community.html" class="detail-nav-link hover:text-white/90 transition-colors">Community</a>
+      </div>
+      <div class="flex items-center gap-3 relative">
+        <div id="authLoggedOut" class="flex items-center gap-3">
+          <a href="/pages/auth/login.html" class="hidden sm:inline-flex items-center justify-center px-4 py-2 rounded-lg text-xs font-medium uppercase tracking-[0.12em] text-white/80 hover:text-white transition-colors">Sign in</a>
+          <a href="/pages/auth/signuproles.html" class="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-medium uppercase tracking-[0.12em] hover:bg-red-500 transition-colors">Get started</a>
+        </div>
+        <div id="authLoggedIn" class="hidden relative flex items-center gap-2">
+          <button id="globalNotificationBellBtn" type="button" class="relative mr-2 flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span id="globalNotificationBellBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold items-center justify-center">0</span>
+          </button>
+          <div id="globalNotificationBellDropdown" class="hidden absolute top-full right-12 mt-3 w-80 bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40 flex items-center justify-between">
+              <p class="text-sm font-bold text-white">Notifications</p>
+              <span id="globalNotificationBellCount" class="text-[10px] uppercase tracking-widest text-red-300">0 new</span>
+            </div>
+            <div id="globalNotificationBellList" class="max-h-96 overflow-y-auto p-2 space-y-2">
+              <div class="p-4 text-center text-sm text-white/50">Loading notifications...</div>
+            </div>
+          </div>
+          <button id="profileBtn" class="flex items-center justify-center w-9 h-9 rounded-full bg-red-600/20 border border-red-500/50 text-red-500 font-bold uppercase hover:bg-red-600/30 transition-colors focus:outline-none overflow-hidden">
+            <span id="profileInitial">A</span>
+            <img id="navProfilePic" src="" class="w-full h-full object-cover hidden">
+          </button>
+          <div id="profileDropdown" class="absolute right-0 mt-3 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+            <div class="px-4 py-3 border-b border-white/10 bg-black/40">
+              <p id="dropdownName" class="text-sm font-bold text-white truncate">User Name</p>
+              <p id="dropdownRole" class="text-[10px] uppercase tracking-wider text-white/50 mt-0.5">Role</p>
+            </div>
+            <div class="p-2 flex flex-col gap-1">
+              <a id="dashboardLink" href="#" class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Dashboard
+              </a>
+            </div>
+            <div class="p-2 border-t border-white/10">
+              <button onclick="handleLogout()" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-20">
+    <header class="mb-8">
+      <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Recruitment Board</p>
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight text-white">Find collaborators for upcoming gigs</h1>
+      <p class="text-sm text-white/55 mt-2 max-w-2xl">Post open calls, apply as talent, and review applicants without leaving Tugs.</p>
+    </header>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+      <section class="space-y-4">
+        <div class="bg-black/30 border border-white/[0.08] rounded-2xl p-3">
+          <div class="flex flex-col md:flex-row gap-2">
+            <div class="relative flex-1">
+              <i data-lucide="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-white/35 pointer-events-none"></i>
+              <input id="recruitmentSearch" type="text" placeholder="Search role, genre, venue..." class="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-red-500/40">
+            </div>
+            <select id="recruitmentRoleFilter" class="px-3 py-2.5 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white/80 focus:outline-none focus:border-red-500/40">
+              <option value="">Any role</option>
+              <option value="Artist">Artist</option>
+              <option value="Sessionist">Sessionist</option>
+            </select>
+            <button id="recruitmentApplyFilters" type="button" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Apply</button>
+          </div>
+        </div>
+        <div id="recruitmentPosts" class="space-y-4">
+          <p class="text-sm text-white/45 p-6 bg-black/30 border border-white/10 rounded-2xl">Loading recruitment posts...</p>
+        </div>
+      </section>
+
+      <aside class="space-y-4">
+        <section id="createRecruitmentSection" class="hidden bg-[#141111] border border-white/[0.07] rounded-2xl p-5">
+          <h2 class="text-sm font-bold uppercase tracking-widest text-white/60 mb-4">Create Recruitment Post</h2>
+          <form id="recruitmentCreateForm" class="space-y-3">
+            <input id="recruitmentTitle" type="text" required placeholder="Post title" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+            <select id="recruitmentRoleNeeded" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+              <option value="Artist">Looking for Artist</option>
+              <option value="Sessionist">Looking for Sessionist</option>
+            </select>
+            <input id="recruitmentGenres" type="text" placeholder="Genres or instruments" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+            <input id="recruitmentLocation" type="text" placeholder="Location / venue" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+            <input id="recruitmentDate" type="datetime-local" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40 [color-scheme:dark]">
+            <div class="grid grid-cols-2 gap-2">
+              <input id="recruitmentBudgetMin" type="number" min="0" placeholder="Min budget" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+              <input id="recruitmentBudgetMax" type="number" min="0" placeholder="Max budget" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40">
+            </div>
+            <textarea id="recruitmentDescription" rows="5" required placeholder="Describe what you need, schedule, expected set, and requirements." class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white outline-none focus:border-red-500/40 resize-none"></textarea>
+            <p id="recruitmentCreateStatus" class="hidden text-xs text-white/45"></p>
+            <button type="submit" class="w-full px-4 py-3 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Publish</button>
+          </form>
+        </section>
+
+        <section id="recruitmentActivitySection" class="hidden bg-[#141111] border border-white/[0.07] rounded-2xl p-5">
+          <div class="flex items-center justify-between gap-3 mb-4">
+            <h2 class="text-sm font-bold uppercase tracking-widest text-white/60">My Recruitment</h2>
+            <button id="refreshRecruitmentActivity" type="button" class="text-xs text-white/40 hover:text-white">Refresh</button>
+          </div>
+          <div id="recruitmentActivity" class="space-y-3">
+            <p class="text-sm text-white/40">Loading activity...</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    const userId = localStorage.getItem('userId') || '';
+    const userRole = localStorage.getItem('userRole') || '';
+    let recruitmentPosts = [];
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function formatMoney(value) {
+      if (value === null || value === undefined || value === '') return '';
+      return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(Number(value || 0));
+    }
+
+    function formatRecruitmentDate(value) {
+      if (!value) return 'Flexible schedule';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? 'Flexible schedule' : date.toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function profileUrl(role, id) {
+      const normalized = String(role || '').toLowerCase();
+      if (normalized === 'sessionist') return `/pages/details/SessionistDetailsPage.html?id=${id}`;
+      if (normalized === 'organizer') return `/pages/details/OrganizerDetails.html?id=${id}`;
+      return `/pages/details/ArtistDetails.html?id=${id}`;
+    }
+
+    function setStatus(id, text, tone = 'muted') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerText = text;
+      el.className = `text-xs ${tone === 'error' ? 'text-red-300' : tone === 'ok' ? 'text-emerald-300' : 'text-white/45'}`;
+      el.classList.remove('hidden');
+    }
+
+    function renderRecruitmentPosts(posts) {
+      const container = document.getElementById('recruitmentPosts');
+      if (!posts.length) {
+        container.innerHTML = `<div class="bg-black/30 border border-white/10 rounded-2xl p-10 text-center"><p class="text-sm text-white/45">No recruitment posts match your search.</p></div>`;
+        return;
+      }
+
+      container.innerHTML = posts.map(post => {
+        const isOwn = userId && String(post.ownerId) === String(userId);
+        const canApply = userId && !isOwn && ['Artist','Sessionist'].includes(userRole) && userRole === post.roleNeeded;
+        const budget = post.budgetMin || post.budgetMax
+          ? `${formatMoney(post.budgetMin || 0)}${post.budgetMax ? ` - ${formatMoney(post.budgetMax)}` : '+'}`
+          : 'Open rate';
+        return `
+          <article class="bg-[#141111] border border-white/[0.07] rounded-2xl p-5 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div class="min-w-0">
+                <div class="flex flex-wrap gap-2 mb-3">
+                  <span class="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-[10px] font-bold uppercase tracking-widest text-red-300">${escapeHtml(post.roleNeeded)}</span>
+                  <span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-white/50">${escapeHtml(post.status || 'Open')}</span>
+                </div>
+                <h2 class="text-xl font-extrabold tracking-tight text-white">${escapeHtml(post.title)}</h2>
+                <p class="text-sm text-white/65 leading-relaxed mt-3">${escapeHtml(post.description)}</p>
+              </div>
+              <div class="md:text-right text-xs text-white/45 shrink-0">
+                <p class="font-semibold text-white/75">${escapeHtml(formatRecruitmentDate(post.eventDate))}</p>
+                <p class="mt-1">${escapeHtml(post.location || 'Location TBA')}</p>
+                <p class="mt-1 text-emerald-300">${budget}</p>
+              </div>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-white/10">
+              <a href="${profileUrl(post.ownerRole, post.ownerId)}" class="inline-flex items-center gap-2 text-xs text-white/55 hover:text-white">
+                ${post.ownerProfilePicture ? `<img src="${escapeHtml(post.ownerProfilePicture)}" class="w-7 h-7 rounded-full object-cover border border-white/10">` : `<span class="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">${escapeHtml((post.ownerName || '?')[0])}</span>`}
+                <span>${escapeHtml(post.ownerName || 'Recruiter')}</span>
+              </a>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[10px] uppercase tracking-widest text-white/35">${Number(post.applicationCount || 0)} applicant${Number(post.applicationCount || 0) === 1 ? '' : 's'}</span>
+                ${post.genres ? `<span class="text-[10px] uppercase tracking-widest text-white/35">${escapeHtml(post.genres)}</span>` : ''}
+                ${canApply ? `<button type="button" onclick="applyToRecruitment('${post.id}')" class="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">${post.hasApplied ? 'Update Application' : 'Apply'}</button>` : ''}
+                ${post.hasApplied && !isOwn ? `<span class="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs font-bold text-emerald-300">${escapeHtml(post.myApplicationStatus || 'Applied')}</span>` : ''}
+                ${!userId ? `<a href="/pages/auth/login.html" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider hover:bg-white/10">Sign in to apply</a>` : ''}
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    async function loadRecruitmentPosts() {
+      const params = new URLSearchParams();
+      const q = document.getElementById('recruitmentSearch').value.trim();
+      const role = document.getElementById('recruitmentRoleFilter').value;
+      if (q) params.set('query', q);
+      if (role) params.set('roleNeeded', role);
+      if (userId) params.set('userId', userId);
+
+      const res = await fetch(`/api/recruitment/posts?${params}`);
+      if (!res.ok) throw new Error('Failed to load recruitment posts.');
+      recruitmentPosts = await res.json();
+      renderRecruitmentPosts(Array.isArray(recruitmentPosts) ? recruitmentPosts : []);
+    }
+
+    async function applyToRecruitment(postId) {
+      if (!userId) { window.location.href = '/pages/auth/login.html'; return; }
+      const message = await window.systemDialog.prompt('Tell the recruiter why you fit this gig:', {
+        title: 'Apply to Recruitment',
+        kicker: 'Recruitment',
+        placeholder: 'Share your availability, style, links, or relevant experience.',
+        okText: 'Send Application',
+        multiline: true
+      });
+      if (message === null) return;
+      const rateText = await window.systemDialog.prompt('Proposed rate in PHP (optional):', {
+        title: 'Proposed Rate',
+        kicker: 'Recruitment',
+        placeholder: 'Example: 2500',
+        okText: 'Continue'
+      });
+      if (rateText === null) return;
+
+      const res = await fetch(`/api/recruitment/posts/${postId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicantId: userId,
+          applicantRole: userRole,
+          message,
+          proposedRate: rateText ? Number(rateText) : null
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        await window.systemDialog.alert(data.message || 'Failed to send application.', { title: 'Application Error', kicker: 'Recruitment' });
+        return;
+      }
+      await window.systemDialog.alert(data.message || 'Application sent.', { title: 'Application Sent', kicker: 'Recruitment' });
+      await Promise.allSettled([loadRecruitmentPosts(), loadRecruitmentActivity()]);
+    }
+
+    function renderRecruitmentActivity(data) {
+      const container = document.getElementById('recruitmentActivity');
+      const apps = Array.isArray(data?.applications) ? data.applications : [];
+      if (!apps.length) {
+        container.innerHTML = '<p class="text-sm text-white/40">No recruitment applications yet.</p>';
+        return;
+      }
+
+      container.innerHTML = apps.map(app => {
+        const ownerCanReview = String(app.applicantId) !== String(userId);
+        const applicantLink = profileUrl(app.applicantRole, app.applicantId);
+        return `
+          <div class="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-bold text-white">${escapeHtml(app.postTitle || 'Recruitment')}</p>
+                <a href="${applicantLink}" class="text-xs text-white/50 hover:text-white">${escapeHtml(app.applicantName || 'Applicant')} | ${escapeHtml(app.applicantRole || 'Talent')}</a>
+              </div>
+              <span class="px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${app.status === 'Accepted' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : app.status === 'Rejected' ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-amber-500/10 border-amber-500/20 text-amber-300'}">${escapeHtml(app.status || 'Pending')}</span>
+            </div>
+            <p class="text-xs text-white/65 leading-relaxed">${escapeHtml(app.message || '')}</p>
+            ${app.proposedRate ? `<p class="text-xs text-emerald-300">Rate: ${formatMoney(app.proposedRate)}</p>` : ''}
+            ${app.ownerNote ? `<p class="text-xs text-white/40">Note: ${escapeHtml(app.ownerNote)}</p>` : ''}
+            ${ownerCanReview && app.status === 'Pending' ? `<div class="flex flex-wrap gap-2">
+              <button type="button" onclick="reviewRecruitmentApplication('${app.id}','Accepted')" class="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 text-xs font-bold uppercase tracking-wider">Accept</button>
+              <button type="button" onclick="reviewRecruitmentApplication('${app.id}','Rejected')" class="px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-bold uppercase tracking-wider">Reject</button>
+            </div>` : ''}
+            ${ownerCanReview && app.status === 'Accepted' ? `<a href="${applicantLink}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white text-xs font-bold uppercase tracking-wider"><i data-lucide="message-square" class="w-3.5 h-3.5"></i> Open profile to book</a>` : ''}
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    async function loadRecruitmentActivity() {
+      if (!userId) return;
+      const res = await fetch(`/api/recruitment/mine/${userId}`);
+      if (!res.ok) throw new Error('Failed to load recruitment activity.');
+      renderRecruitmentActivity(await res.json());
+    }
+
+    async function reviewRecruitmentApplication(applicationId, status) {
+      const note = await window.systemDialog.prompt(status === 'Accepted' ? 'Add an acceptance note (optional):' : 'Add a rejection note (optional):', {
+        title: `${status} Application`,
+        kicker: 'Recruitment',
+        placeholder: 'Optional note',
+        okText: status
+      });
+      if (note === null) return;
+
+      const res = await fetch(`/api/recruitment/applications/${applicationId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerId: userId, status, note })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        await window.systemDialog.alert(data.message || 'Failed to update application.', { title: 'Recruitment Error', kicker: 'System Message' });
+        return;
+      }
+      await loadRecruitmentActivity();
+    }
+
+    document.getElementById('recruitmentCreateForm')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const payload = {
+        userId,
+        role: userRole,
+        title: document.getElementById('recruitmentTitle').value,
+        roleNeeded: document.getElementById('recruitmentRoleNeeded').value,
+        genres: document.getElementById('recruitmentGenres').value,
+        location: document.getElementById('recruitmentLocation').value,
+        eventDate: document.getElementById('recruitmentDate').value || null,
+        budgetMin: document.getElementById('recruitmentBudgetMin').value ? Number(document.getElementById('recruitmentBudgetMin').value) : null,
+        budgetMax: document.getElementById('recruitmentBudgetMax').value ? Number(document.getElementById('recruitmentBudgetMax').value) : null,
+        description: document.getElementById('recruitmentDescription').value
+      };
+      try {
+        const res = await fetch('/api/recruitment/posts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to create post.');
+        event.target.reset();
+        setStatus('recruitmentCreateStatus', data.message || 'Recruitment post published.', 'ok');
+        await Promise.allSettled([loadRecruitmentPosts(), loadRecruitmentActivity()]);
+      } catch (error) {
+        setStatus('recruitmentCreateStatus', error.message || 'Failed to create post.', 'error');
+      }
+    });
+
+    document.getElementById('recruitmentApplyFilters')?.addEventListener('click', () => loadRecruitmentPosts().catch(() => {}));
+    document.getElementById('recruitmentSearch')?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') loadRecruitmentPosts().catch(() => {});
+    });
+    document.getElementById('refreshRecruitmentActivity')?.addEventListener('click', () => loadRecruitmentActivity().catch(() => {}));
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (userId) {
+        document.getElementById('createRecruitmentSection').classList.remove('hidden');
+        document.getElementById('recruitmentActivitySection').classList.remove('hidden');
+      }
+      await Promise.allSettled([loadRecruitmentPosts(), loadRecruitmentActivity()]);
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

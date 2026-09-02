@@ -1,5 +1,5 @@
 // Imajination Service Worker — v1.1
-const CACHE_NAME = 'imajination-v1.4';
+const CACHE_NAME = 'imajination-v1.5';
 const STATIC_ASSETS = [
   '/',
   '/pages/home/LandingPage.html',
@@ -73,6 +73,11 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
 
+  if (url.pathname === '/pages/tools/dashboardscanner.html' || url.pathname === '/dashboardscanner.html') {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // Always go network for API calls
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/hubs/')) {
     event.respondWith(
@@ -82,6 +87,18 @@ self.addEventListener('fetch', event => {
           headers: { 'Content-Type': 'application/json' }
         })
       )
+    );
+    return;
+  }
+
+  // Never cache app HTML pages. We want nav updates to appear immediately.
+  if (request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .catch(() =>
+          caches.match(request)
+            .then(cached => cached || caches.match('/pages/home/LandingPage.html'))
+        )
     );
     return;
   }

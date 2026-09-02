@@ -48,6 +48,96 @@ namespace ImajinationAPI.Controllers
             return IsAdmin() || (actorUserId.HasValue && actorUserId.Value == targetUserId);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetOrganizers([FromQuery] string? query = null)
+        {
+            try
+            {
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+                await CommunitySupport.EnsureCommunitySchemaAsync(connection);
+                await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+
+                var organizers = new List<object>();
+                const string sql = @"
+                    SELECT u.id,
+                           COALESCE(u.firstname, ''),
+                           COALESCE(u.lastname, ''),
+                           COALESCE(u.productionname, ''),
+                           COALESCE(u.profile_picture, ''),
+                           COALESCE(u.address, ''),
+                           COALESCE(u.bio, ''),
+                           COALESCE(u.is_verified, FALSE),
+                           COALESCE(event_stats.event_count, 0),
+                           COALESCE(event_stats.upcoming_count, 0),
+                           COALESCE(rating_stats.average_rating, 0),
+                           COALESCE(rating_stats.review_count, 0)
+                    FROM users u
+                    LEFT JOIN (
+                        SELECT organizer_id,
+                               COUNT(*) AS event_count,
+                               COUNT(*) FILTER (WHERE COALESCE(status, 'Upcoming') NOT IN ('Finished', 'Cancelled', 'Suspended')) AS upcoming_count
+                        FROM events
+                        GROUP BY organizer_id
+                    ) event_stats ON event_stats.organizer_id = u.id
+                    LEFT JOIN (
+                        SELECT e.organizer_id,
+                               ROUND(AVG(er.rating)::numeric, 1) AS average_rating,
+                               COUNT(er.id) AS review_count
+                        FROM event_reviews er
+                        INNER JOIN events e ON e.id = er.event_id
+                        GROUP BY e.organizer_id
+                    ) rating_stats ON rating_stats.organizer_id = u.id
+                    WHERE u.role = 'Organizer'
+                      AND COALESCE(u.account_status, 'Active') = 'Active'
+                      AND (
+                        @query = ''
+                        OR LOWER(COALESCE(u.productionname, '')) LIKE LOWER(@likeQuery)
+                        OR LOWER(COALESCE(u.firstname, '') || ' ' || COALESCE(u.lastname, '')) LIKE LOWER(@likeQuery)
+                        OR LOWER(COALESCE(u.address, '')) LIKE LOWER(@likeQuery)
+                        OR LOWER(COALESCE(u.bio, '')) LIKE LOWER(@likeQuery)
+                      )
+                    ORDER BY COALESCE(u.is_verified, FALSE) DESC, COALESCE(event_stats.upcoming_count, 0) DESC, COALESCE(event_stats.event_count, 0) DESC, u.firstname ASC
+                    LIMIT 80;";
+
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                var safeQuery = (query ?? "").Trim();
+                if (safeQuery.Length > 120) safeQuery = safeQuery[..120];
+                cmd.Parameters.Add("@query", NpgsqlDbType.Text).Value = safeQuery;
+                cmd.Parameters.Add("@likeQuery", NpgsqlDbType.Text).Value = $"%{safeQuery}%";
+
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    var first = reader.GetString(1);
+                    var last = reader.GetString(2);
+                    var productionName = reader.GetString(3);
+                    var displayName = CommunitySupport.BuildDisplayName(first, last, "", productionName, "Organizer");
+                    organizers.Add(new
+                    {
+                        id = reader.GetGuid(0),
+                        displayName,
+                        productionName,
+                        profilePicture = CommunitySupport.NormalizeListImage(reader.GetString(4), string.Empty),
+                        address = reader.GetString(5),
+                        bio = reader.GetString(6),
+                        isVerified = reader.GetBoolean(7),
+                        eventCount = Convert.ToInt32(reader.GetInt64(8)),
+                        upcomingCount = Convert.ToInt32(reader.GetInt64(9)),
+                        averageRating = reader.IsDBNull(10) ? 0 : reader.GetDecimal(10),
+                        reviewCount = Convert.ToInt32(reader.GetInt64(11)),
+                        profileCompletionPercent = CommunitySupport.CalculateProfileCompletion("Organizer", first, last, reader.GetString(6), reader.GetString(4), "", "", productionName, "", reader.GetString(5), "")
+                    });
+                }
+
+                return Ok(organizers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to load organizers: " + ex.Message });
+            }
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetOrganizerById(Guid id)
         {

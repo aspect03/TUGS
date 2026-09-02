@@ -39,6 +39,8 @@ namespace ImajinationAPI.Models
 
         // The 6-digit verification code
         public string? otp { get; set; }
+        public bool termsAccepted { get; set; }
+        public string? termsVersion { get; set; }
     }
 
     // Used for the Forgot Password flow
@@ -52,5 +54,11 @@ namespace ImajinationAPI.Models
     public class GoogleLoginDto
     {
         public string credential { get; set; } = string.Empty;
+    }
+
+    public class RefreshSessionDto
+    {
+        public Guid userId { get; set; }
+        public string? refreshToken { get; set; }
     }
 }

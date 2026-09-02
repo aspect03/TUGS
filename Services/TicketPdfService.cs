@@ -26,14 +26,17 @@ namespace ImajinationAPI.Services
             decimal TotalPrice,
             string OrderRef,
             bool IsUsed,
-            IReadOnlySet<int>? UsedUnits = null
+            IReadOnlySet<int>? UsedUnits = null,
+            IReadOnlyDictionary<int, string>? QrPayloads = null
         );
 
         public byte[] GenerateTicketPdf(TicketPdfData data)
         {
             var qty = Math.Max(1, data.Quantity);
             var qrBytesList = Enumerable.Range(1, qty)
-                .Select(unit => GenerateQrPng($"{data.TicketId}|{unit}"))
+                .Select(unit => GenerateQrPng(data.QrPayloads != null && data.QrPayloads.TryGetValue(unit, out var payload)
+                    ? payload
+                    : $"{data.TicketId}|{unit}"))
                 .ToList();
 
             // Dark background colours — using Color.FromHex (no leading #)
@@ -140,7 +143,7 @@ namespace ImajinationAPI.Services
             return document.GeneratePdf();
         }
 
-        private static byte[] GenerateQrPng(string content)
+        public static byte[] GenerateQrPng(string content)
         {
             using var qrGenerator = new QRCodeGenerator();
             var qrData = qrGenerator.CreateQrCode(content, QRCodeGenerator.ECCLevel.H);

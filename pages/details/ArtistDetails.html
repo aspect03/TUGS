@@ -527,7 +527,7 @@
         const dashLink = document.getElementById('dashboardLink');
         if(role === 'Customer') dashLink.href = '/pages/dashboards/CustomerDashboard.html';
         else if(role === 'Artist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
-        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/ArtistDashboard.html';
+        else if(role === 'Sessionist') dashLink.href = '/pages/dashboards/SessionistDashboard.html';
         
         // Fetch User Profile Pic in the background only when needed
         if (role === 'Artist' && userId && !storedProfilePicture) {

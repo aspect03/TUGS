@@ -80,10 +80,16 @@
                   <p class="text-xs text-white/60">Talk through the details here before confirming.</p>
                 </div>
               </div>
-              <button id="openContractPanelBtn" type="button" class="hidden inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
-                <i data-lucide="file-text" class="w-4 h-4"></i>
-                Contract
-              </button>
+              <div class="flex flex-wrap gap-2">
+                <button id="openContractPanelBtn" type="button" class="hidden inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 transition-colors whitespace-nowrap">
+                  <i data-lucide="file-text" class="w-4 h-4"></i>
+                  Contract
+                </button>
+                <button id="closeConversationBtn" type="button" class="hidden inline-flex items-center gap-2 px-4 py-2.5 bg-white/5 border border-white/10 text-white/70 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-colors whitespace-nowrap">
+                  <i data-lucide="archive" class="w-4 h-4"></i>
+                  Close
+                </button>
+              </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-white/80">
               <div>
@@ -124,6 +130,13 @@
                 </button>
               </div>
             </div>
+            <div id="bookingTrackingPanel" class="hidden mt-5 pt-4 border-t border-white/10">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                <p class="text-[10px] uppercase tracking-widest text-white/50">Booking Tracking</p>
+                <p id="bookingTrackingUpdatedAt" class="text-[10px] text-white/35">Updated just now</p>
+              </div>
+              <div id="bookingTrackingSteps" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2"></div>
+            </div>
           </div>
         </div>
 
@@ -132,11 +145,18 @@
         </div>
 
         <footer class="p-4 bg-black/40 border-t border-white/10 shrink-0 backdrop-blur-md">
-          <form id="messageForm" class="flex items-end gap-3 max-w-5xl mx-auto">
-            <textarea id="messageInput" rows="1" placeholder="Type your message..." class="flex-1 max-h-32 min-h-[44px] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none text-white"></textarea>
-            <button id="sendMessageBtn" type="submit" class="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors shadow-lg">
-              <i data-lucide="send" class="w-5 h-5"></i>
-            </button>
+          <form id="messageForm" class="max-w-5xl mx-auto space-y-2">
+            <div id="attachmentPreview" class="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70"></div>
+            <div class="flex items-end gap-3">
+              <input id="messageAttachmentInput" type="file" class="hidden" accept="image/png,image/jpeg,image/webp,application/pdf,text/plain">
+              <button id="attachMessageBtn" type="button" class="p-3 bg-white/5 border border-white/10 text-white/70 rounded-xl hover:bg-white/10 hover:text-white transition-colors">
+                <i data-lucide="paperclip" class="w-5 h-5"></i>
+              </button>
+              <textarea id="messageInput" rows="1" placeholder="Type your message..." class="flex-1 max-h-32 min-h-[44px] bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-red-500/50 resize-none text-white"></textarea>
+              <button id="sendMessageBtn" type="submit" class="p-3 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors shadow-lg">
+                <i data-lucide="send" class="w-5 h-5"></i>
+              </button>
+            </div>
           </form>
         </footer>
       </div>
@@ -223,6 +243,7 @@
     const bookingFeePaid = query.get('bookingFeePaid');
     const talentFeePaid = query.get('talentFeePaid');
     const platformFeePaid = query.get('platformFeePaid');
+    const walletTopUpId = query.get('walletTopUpId');
     const openContractRequested = query.get('openContract') === '1';
 
     let conversations = [];
@@ -232,6 +253,7 @@
     let activeMessages = [];
     let activeConversationRequest = 0;
     let isSendingMessage = false;
+    let selectedMessageAttachment = null;
     let liveMessageStream = null;
     let liveMessagePollHandle = null;
 
@@ -252,6 +274,8 @@
       setBackLink();
       document.getElementById('conversationSearch').addEventListener('input', renderConversationList);
       document.getElementById('messageForm').addEventListener('submit', sendMessage);
+      document.getElementById('attachMessageBtn')?.addEventListener('click', () => document.getElementById('messageAttachmentInput')?.click());
+      document.getElementById('messageAttachmentInput')?.addEventListener('change', handleMessageAttachmentSelected);
       document.getElementById('payBookingBtn').addEventListener('click', startBookingPayment);
       document.getElementById('completeBookingBtn').addEventListener('click', markBookingCompleted);
       document.getElementById('refundBookingBtn').addEventListener('click', requestBookingRefund);
@@ -261,6 +285,7 @@
       document.getElementById('acceptContractBtn').addEventListener('click', () => updateContractStatus('Accepted'));
       document.getElementById('rejectContractBtn').addEventListener('click', () => updateContractStatus('Rejected'));
       document.getElementById('openContractPanelBtn').addEventListener('click', openContractPanel);
+      document.getElementById('closeConversationBtn').addEventListener('click', closeActiveConversation);
       document.getElementById('closeContractPanelBtn').addEventListener('click', closeContractPanel);
       document.getElementById('contractPanelBackdrop').addEventListener('click', closeContractPanel);
       document.addEventListener('keydown', (event) => {
@@ -269,6 +294,7 @@
       window.addEventListener('beforeunload', stopLiveConversationUpdates);
 
       await handleBookingFeeReturn();
+      await handleWalletTopUpReturn();
       await loadConversations();
 
       if (requestedBookingId) {
@@ -282,7 +308,7 @@
     function setBackLink() {
       const backLink = document.getElementById('backLink');
       if (userRole === 'Artist') backLink.href = '/pages/dashboards/ArtistDashboard.html';
-      else if (userRole === 'Sessionist') backLink.href = '/pages/dashboards/ArtistDashboard.html';
+      else if (userRole === 'Sessionist') backLink.href = '/pages/dashboards/SessionistDashboard.html';
       else if (userRole === 'Customer') backLink.href = '/pages/dashboards/CustomerDashboard.html';
     }
 
@@ -399,23 +425,60 @@
     function applyMessageComposerState(booking) {
       const input = document.getElementById('messageInput');
       const button = document.getElementById('sendMessageBtn');
+      const attachButton = document.getElementById('attachMessageBtn');
+      const closeButton = document.getElementById('closeConversationBtn');
       if (!input || !button) return;
 
       const cancelledState = getCancelledConversationState(booking);
-      if (cancelledState.isClosed) {
+      const explicitlyClosed = !!booking?.conversationClosed;
+      if (closeButton) {
+        closeButton.classList.toggle('hidden', explicitlyClosed || cancelledState.isClosed || !activeBookingId);
+      }
+
+      if (explicitlyClosed || cancelledState.isClosed) {
         input.disabled = true;
         button.disabled = true;
-        input.placeholder = 'This cancelled booking thread is now closed.';
+        if (attachButton) attachButton.disabled = true;
+        input.placeholder = explicitlyClosed ? 'This booking conversation is closed.' : 'This cancelled booking thread is now closed.';
         button.classList.add('opacity-60', 'cursor-not-allowed');
+        attachButton?.classList.add('opacity-60', 'cursor-not-allowed');
         return;
       }
 
       input.disabled = false;
       button.disabled = false;
+      if (attachButton) attachButton.disabled = false;
       input.placeholder = cancelledState.isCancelled && cancelledState.expiresAt
         ? `Cancelled booking thread stays open until ${formatDateTime(cancelledState.expiresAt)}.`
         : 'Type your message...';
       button.classList.remove('opacity-60', 'cursor-not-allowed');
+      attachButton?.classList.remove('opacity-60', 'cursor-not-allowed');
+    }
+
+    async function closeActiveConversation() {
+      if (!activeBookingId) return;
+      const reason = await window.systemDialog.prompt('Add an optional reason for closing this conversation:', {
+        title: 'Close Conversation',
+        kicker: 'Booking Messages',
+        placeholder: 'Optional reason',
+        okText: 'Close',
+        multiline: true
+      });
+      if (reason === null) return;
+      try {
+        const res = await fetch(`/api/booking/${activeBookingId}/conversation/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to close conversation.');
+        stopLiveConversationUpdates();
+        await refreshActiveBooking();
+        await showSystemAlert(data.message || 'Conversation closed.', 'Conversation Closed');
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to close conversation.', 'Conversation Error');
+      }
     }
 
     function canMarkBookingCompleted(booking) {
@@ -464,6 +527,27 @@
       } finally {
         const cleanUrl = `${window.location.origin}${window.location.pathname}?bookingId=${requestedBookingId}`;
         window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+
+    async function handleWalletTopUpReturn() {
+      if (!walletTopUpId || !requestedBookingId) return;
+      try {
+        const confirmRes = await fetch(`/api/wallet/topups/${walletTopUpId}/confirm`, { method: 'POST' });
+        const confirmData = await confirmRes.json().catch(() => ({}));
+        if (!confirmRes.ok) throw new Error(confirmData.message || 'Could not confirm the wallet top-up yet.');
+        if (confirmData.paymentStatus === 'PendingPayment') {
+          await showSystemAlert('Your wallet top-up is still pending. Please wait a moment, then refresh this booking.', 'Payment Pending');
+          return;
+        }
+        const reserveRes = await fetch(`/api/wallet/bookings/${requestedBookingId}/reserve`, { method: 'POST' });
+        const reserveData = await reserveRes.json().catch(() => ({}));
+        if (!reserveRes.ok) throw new Error(reserveData.message || 'Wallet funds were added, but could not be reserved for this booking.');
+        await showSystemAlert('Your wallet was funded and the talent fee is now held safely in escrow.', 'Escrow Funded');
+      } catch (error) {
+        await showSystemAlert(error.message || 'Could not finish wallet funding.', 'Wallet Error');
+      } finally {
+        window.history.replaceState({}, document.title, `${window.location.origin}${window.location.pathname}?bookingId=${requestedBookingId}`);
       }
     }
 
@@ -620,6 +704,7 @@
         const messages = await res.json().catch(() => []);
         activeMessages = mergeMessages(messages);
         renderMessages(activeMessages);
+        loadBookingTracking(activeBookingId);
       } catch (_) {
       }
     }
@@ -659,6 +744,7 @@
 
         activeMessages = mergeMessages([...activeMessages, payload.message]);
         renderMessages(activeMessages);
+        loadBookingTracking(activeBookingId);
         syncConversationPreview(payload.message);
       });
 
@@ -729,6 +815,7 @@
         activeBooking = booking;
         activeMessages = mergeMessages(messages);
         applyBookingHeader(activeBooking);
+        await loadBookingTracking(bookingId);
         await loadBookingContract(bookingId);
         renderMessages(activeMessages);
         startLiveConversationUpdates(bookingId);
@@ -783,7 +870,7 @@
       const canRequestCustomerRefund = (userRole === 'Customer' || userRole === 'Organizer')
         && bookingEnded
         && isBookableSettlementState
-        && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || talentFeeStatus === 'Paid' || talentFeeStatus === 'Refund Failed');
+        && (serviceFeeStatus === 'Paid' || serviceFeeStatus === 'Refund Failed' || ['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Refund Failed'].includes(talentFeeStatus));
       const canRequestTalentRefund = (userRole === 'Artist' || userRole === 'Sessionist')
         && bookingEnded
         && isBookableSettlementState
@@ -811,7 +898,7 @@
         paymentRow.classList.remove('hidden');
       } else if (canPayTalentFee) {
         payButton.dataset.paymentType = 'talent';
-        payButton.innerText = talentFeeStatus === 'AwaitingPayment' ? 'Continue Escrow Payment' : `Pay ${formatPeso(booking.budget || 0)} Talent Fee to Escrow`;
+        payButton.innerText = `Fund ${formatPeso(booking.budget || 0)} Talent Escrow`;
         paymentRow.classList.remove('hidden');
       } else if (canPayPlatformFee) {
         payButton.dataset.paymentType = 'platform';
@@ -826,6 +913,40 @@
 
       payButton.classList.remove('hidden');
       paymentRow.classList.remove('hidden');
+    }
+
+    function renderBookingTracking(data) {
+      const panel = document.getElementById('bookingTrackingPanel');
+      const list = document.getElementById('bookingTrackingSteps');
+      const updated = document.getElementById('bookingTrackingUpdatedAt');
+      if (!panel || !list) return;
+      const steps = Array.isArray(data?.steps) ? data.steps : [];
+      if (!steps.length) {
+        panel.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = steps.map(step => `
+        <div class="rounded-xl border ${step.done ? 'border-emerald-500/25 bg-emerald-500/10' : 'border-white/10 bg-black/25'} px-3 py-3 flex items-center gap-3">
+          <span class="w-7 h-7 rounded-full flex items-center justify-center border ${step.done ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10' : 'border-white/10 text-white/35 bg-white/5'}">
+            <i data-lucide="${step.done ? 'check' : 'circle'}" class="w-3.5 h-3.5"></i>
+          </span>
+          <span class="text-xs font-semibold ${step.done ? 'text-emerald-100' : 'text-white/55'}">${escapeHtml(step.label || 'Step')}</span>
+        </div>
+      `).join('');
+      updated.innerText = data?.updatedAt ? `Updated ${formatDateTime(data.updatedAt)}` : 'Updated just now';
+      panel.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    async function loadBookingTracking(bookingId) {
+      if (!bookingId) return;
+      try {
+        const res = await fetch(`/api/booking/${bookingId}/tracking`, { cache: 'no-store' });
+        if (!res.ok) return;
+        renderBookingTracking(await res.json());
+      } catch (_) {}
     }
 
     function getContractAccess() {
@@ -1031,6 +1152,34 @@
       payButton.classList.add('opacity-60', 'cursor-not-allowed');
 
       try {
+        if (paymentType === 'talent') {
+          const walletRes = await fetch('/api/wallet/me');
+          const wallet = await walletRes.json().catch(() => ({}));
+          const escrowAmount = Number(activeBooking?.budget || 0);
+          if (walletRes.ok && Number(wallet.availableBalance || 0) >= escrowAmount) {
+            const reserveRes = await fetch(`/api/wallet/bookings/${activeBookingId}/reserve`, { method: 'POST' });
+            const reserveData = await reserveRes.json().catch(() => ({}));
+            if (!reserveRes.ok) throw new Error(reserveData.message || 'Could not reserve your wallet balance.');
+            await showSystemAlert('Talent fee is now held safely in escrow from your wallet.', 'Escrow Funded');
+            await refreshActiveBooking();
+            return;
+          }
+
+          const topUpRes = await fetch('/api/wallet/topups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: escrowAmount,
+              successUrl: `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`,
+              cancelUrl
+            })
+          });
+          const topUpData = await topUpRes.json().catch(() => ({}));
+          if (!topUpRes.ok || !topUpData.checkoutUrl) throw new Error(topUpData.message || 'Could not start the wallet top-up.');
+          window.location.href = topUpData.checkoutUrl;
+          return;
+        }
+
         const res = await fetch(`/api/booking/${activeBookingId}/checkout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1093,8 +1242,74 @@
         if (!res.ok) return;
         activeBooking = await res.json();
         applyBookingHeader(activeBooking);
+        await loadBookingTracking(activeBookingId);
       } catch (_) {
       }
+    }
+
+    function clearMessageAttachment() {
+      selectedMessageAttachment = null;
+      const input = document.getElementById('messageAttachmentInput');
+      const preview = document.getElementById('attachmentPreview');
+      if (input) input.value = '';
+      if (preview) {
+        preview.classList.add('hidden');
+        preview.innerHTML = '';
+      }
+    }
+
+    async function handleMessageAttachmentSelected(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'application/pdf', 'text/plain'];
+      if (!allowed.includes(file.type)) {
+        clearMessageAttachment();
+        await showSystemAlert('Please attach a PNG, JPG, WebP, PDF, or text file.', 'Attachment Error');
+        return;
+      }
+      if (file.size > 2_500_000) {
+        clearMessageAttachment();
+        await showSystemAlert('Attachment is too large. Please keep it below 2.5 MB.', 'Attachment Error');
+        return;
+      }
+
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read attachment.'));
+        reader.readAsDataURL(file);
+      }).catch(async error => {
+        await showSystemAlert(error.message || 'Could not read attachment.', 'Attachment Error');
+        return null;
+      });
+      if (!dataUrl) return;
+
+      selectedMessageAttachment = {
+        attachmentDataUrl: dataUrl,
+        attachmentName: file.name,
+        attachmentType: file.type
+      };
+      const preview = document.getElementById('attachmentPreview');
+      if (preview) {
+        preview.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <span class="inline-flex items-center gap-2 min-w-0"><i data-lucide="paperclip" class="w-4 h-4"></i><span class="truncate">${escapeHtml(file.name)}</span></span>
+            <button type="button" onclick="clearMessageAttachment()" class="text-white/45 hover:text-white">Remove</button>
+          </div>
+        `;
+        preview.classList.remove('hidden');
+        lucide.createIcons();
+      }
+    }
+
+    function renderMessageAttachment(message, ownMessage) {
+      if (!message?.attachmentDataUrl) return '';
+      const name = escapeHtml(message.attachmentName || 'Attachment');
+      const type = String(message.attachmentType || '');
+      if (type.startsWith('image/')) {
+        return `<a href="${message.attachmentDataUrl}" target="_blank" rel="noopener" class="block mt-2"><img src="${message.attachmentDataUrl}" alt="${name}" class="max-h-64 rounded-xl border ${ownMessage ? 'border-red-300/30' : 'border-white/10'} object-contain bg-black/20"></a>`;
+      }
+      return `<a href="${message.attachmentDataUrl}" download="${name}" class="mt-2 inline-flex items-center gap-2 rounded-xl border ${ownMessage ? 'border-red-300/30 bg-red-900/20 text-white' : 'border-white/10 bg-black/25 text-white/80'} px-3 py-2 text-xs font-semibold hover:bg-white/10 transition-colors"><i data-lucide="file-down" class="w-4 h-4"></i><span class="truncate max-w-[220px]">${name}</span></a>`;
     }
 
     async function requestBookingRefund() {
@@ -1165,7 +1380,8 @@
         return `
           <div class="flex flex-col gap-1 ${ownMessage ? 'items-end' : 'items-start'}">
             <div class="${ownMessage ? 'bg-red-600/90 border-red-500/30 rounded-tr-sm' : 'bg-white/10 border-white/5 rounded-tl-sm'} border rounded-2xl px-5 py-3 max-w-[85%] md:max-w-xl">
-              <p class="text-sm ${ownMessage ? 'text-white' : 'text-white/90'} leading-relaxed">${escapeHtml(message.message)}</p>
+              ${message.message ? `<p class="text-sm ${ownMessage ? 'text-white' : 'text-white/90'} leading-relaxed">${escapeHtml(message.message)}</p>` : ''}
+              ${renderMessageAttachment(message, ownMessage)}
             </div>
             <span class="text-[10px] text-white/40 ${ownMessage ? 'mr-1' : 'ml-1'}">${formatDateTime(message.createdAt)}</span>
           </div>
@@ -1185,7 +1401,7 @@
       const button = document.getElementById('sendMessageBtn');
       const text = input.value.trim();
 
-      if (!activeBookingId || !text) {
+      if (!activeBookingId || (!text && !selectedMessageAttachment)) {
         return;
       }
 
@@ -1199,7 +1415,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             senderId: userId,
-            message: text
+            message: text,
+            ...(selectedMessageAttachment || {})
           })
         });
 
@@ -1210,6 +1427,7 @@
 
         const data = await res.json().catch(() => ({}));
         input.value = '';
+        clearMessageAttachment();
         if (data?.sentMessage) {
           activeMessages = mergeMessages([...activeMessages, data.sentMessage]);
           renderMessages(activeMessages);

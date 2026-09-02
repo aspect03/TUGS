@@ -13,6 +13,7 @@
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
   <script src="/assets/js/mfa-settings.js"></script>
+  <script src="/assets/js/push-notifications.js"></script>
   <style>
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
@@ -188,6 +189,37 @@
             </div>
             <div id="artistBookingsContainer" class="space-y-4">
               <p class="text-sm text-white/45">Loading booking requests...</p>
+            </div>
+          </section>
+
+          <section class="bg-white/[0.03] border border-white/[0.07] p-6 rounded-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+              <div>
+                <h2 class="text-base font-bold text-white">Digital Wallet</h2>
+                <p class="text-sm text-white/45 mt-1">Track completed bookings, escrow, and released talent fees.</p>
+              </div>
+              <span id="artistWalletCompletedCount" class="text-xs font-semibold uppercase tracking-widest text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">0 completed</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
+              <div class="bg-black/30 border border-white/[0.07] rounded-xl p-4">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Released</p>
+                <p id="artistWalletReleased" class="text-xl font-bold text-emerald-300 mt-1">PHP 0</p>
+              </div>
+              <div class="bg-black/30 border border-white/[0.07] rounded-xl p-4">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">In Escrow</p>
+                <p id="artistWalletEscrow" class="text-xl font-bold text-amber-300 mt-1">PHP 0</p>
+              </div>
+              <div class="bg-black/30 border border-white/[0.07] rounded-xl p-4">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Awaiting</p>
+                <p id="artistWalletAwaiting" class="text-xl font-bold text-blue-300 mt-1">PHP 0</p>
+              </div>
+              <div class="bg-black/30 border border-white/[0.07] rounded-xl p-4">
+                <p class="text-[10px] uppercase tracking-widest text-white/40">Platform Fees</p>
+                <p id="artistWalletFees" class="text-xl font-bold text-white mt-1">PHP 0</p>
+              </div>
+            </div>
+            <div id="artistWalletTransactions" class="space-y-3">
+              <p class="text-sm text-white/45">Loading wallet activity...</p>
             </div>
           </section>
 
@@ -544,8 +576,22 @@
                   <div id="artistMfaSettings"></div>
                 </div>
 
+                <div id="artistPushNotificationsPanel" class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Push Notifications</h3>
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <p class="text-sm font-semibold text-white">Booking and payment alerts</p>
+                      <p data-push-status class="text-xs text-white/45 mt-1">Checking notification support...</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <button type="button" data-push-enable class="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-wider hover:bg-red-500 transition-colors">Enable</button>
+                      <button type="button" data-push-disable class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-colors">Disable</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">4. Security</h3>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">5. Security</h3>
                   <div class="rounded-2xl border border-white/10 bg-black/40 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white">Change Password</p>
@@ -558,7 +604,7 @@
                 </div>
 
                 <div class="mobile-form-card bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
-                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">5. Password Recovery</h3>
+                  <h3 class="text-sm font-bold uppercase tracking-widest text-white/50 mb-6 border-b border-white/10 pb-4">6. Password Recovery</h3>
                   <div class="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <p class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">Forgot your password?</p>
@@ -1171,8 +1217,16 @@
         : '/pages/auth/forgotpassword.html';
     }
 
+    function getTalentRole() {
+      return localStorage.getItem('userRole') === 'Sessionist' ? 'Sessionist' : 'Artist';
+    }
+
+    function talentApi(path) {
+      return `/api/${getTalentRole().toLowerCase()}${path}`;
+    }
+
     async function loadArtistProfile(userId) {
-      const res = await fetch(`/api/artist/${userId}`);
+      const res = await fetch(talentApi(`/${userId}`));
       if (!res.ok) return;
 
       const artist = await res.json();
@@ -1233,7 +1287,7 @@
       const role = localStorage.getItem('userRole');
       const userId = localStorage.getItem('userId');
 
-      if (!role || role !== 'Artist') return window.location.href = '/pages/auth/login.html';
+      if (!role || (role !== 'Artist' && role !== 'Sessionist')) return window.location.href = '/pages/auth/login.html';
       
       const firstName = localStorage.getItem('userFirstName') || 'Artist';
       document.getElementById('sidebarName').innerText = firstName;
@@ -1261,11 +1315,13 @@
         confirmTalentTicketPayment(ticketId);
       }
       window.initDashboardMfaSettings?.({ containerId: 'artistMfaSettings', title: 'Artist MFA' });
+      window.initPushNotificationControls?.('artistPushNotificationsPanel');
       syncArtistForgotPasswordLink();
 
       await Promise.allSettled([
         loadArtistProfile(userId),
         loadArtistBookings(userId),
+        loadArtistWallet(userId),
         loadArtistNotifications(userId),
         loadArtistCalendarBlocks()
       ]);
@@ -1489,8 +1545,7 @@
       const usedUnits = Array.isArray(t.usedTicketUnits) ? t.usedTicketUnits : [];
       const unitUsed = usedUnits.includes(talentActiveQrIndex);
 
-      const qrData = encodeURIComponent(`${t.ticketId}|${talentActiveQrIndex}`);
-      document.getElementById('talentTicketQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&ecc=H&data=${qrData}`;
+      document.getElementById('talentTicketQrImg').src = `/api/ticket/${encodeURIComponent(t.ticketId)}/qr-image?unit=${encodeURIComponent(talentActiveQrIndex)}`;
 
       const overlay = document.getElementById('talentQrUsedOverlay');
       const warning = document.getElementById('talentUsedWarning');
@@ -1894,7 +1949,7 @@
           const res = await fetch('/api/calendar/block', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, role: 'Artist', blockedDate: _calPendingDate, reason: reason || null })
+            body: JSON.stringify({ userId, role: getTalentRole(), blockedDate: _calPendingDate, reason: reason || null })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) throw new Error(data.message || 'Failed to block date.');
@@ -1917,7 +1972,7 @@
       artistCalendarBlocksLoading = true;
 
       try {
-        const res = await fetch(`/api/calendar/Artist/${userId}`);
+        const res = await fetch(`/api/calendar/${getTalentRole()}/${userId}`);
         if (!res.ok) throw new Error('Failed to load calendar blocks.');
         const data = await res.json();
         artistCalendarBlocks = Array.isArray(data.blocks) ? data.blocks : [];
@@ -2059,6 +2114,52 @@
       }
     }
 
+    function formatArtistWalletMoney(value) {
+      return new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        maximumFractionDigits: 0
+      }).format(Number(value || 0));
+    }
+
+    async function loadArtistWallet(userId) {
+      const list = document.getElementById('artistWalletTransactions');
+      if (!list) return;
+      try {
+        const [walletRes, ledgerRes] = await Promise.all([fetch('/api/wallet/me'), fetch('/api/wallet/me/transactions?limit=20')]);
+        if (!walletRes.ok || !ledgerRes.ok) throw new Error('Failed to load wallet.');
+        const wallet = await walletRes.json();
+        const transactions = await ledgerRes.json();
+
+        document.getElementById('artistWalletCompletedCount').innerText = `${transactions.filter(item => item.entryType === 'EscrowRelease').length} released`;
+        document.getElementById('artistWalletReleased').innerText = formatArtistWalletMoney(wallet.availableBalance);
+        document.getElementById('artistWalletEscrow').innerText = formatArtistWalletMoney(wallet.heldBalance);
+        document.getElementById('artistWalletAwaiting').innerText = formatArtistWalletMoney(wallet.pendingBalance);
+        document.getElementById('artistWalletFees').innerText = formatArtistWalletMoney(0);
+
+        if (!transactions.length) {
+          list.innerHTML = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No wallet activity yet.</p>`;
+          return;
+        }
+
+        list.innerHTML = transactions.slice(0, 6).map(item => `
+          <div class="p-4 bg-black/30 border border-white/[0.07] rounded-2xl flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-white">${escapeHtml(item.entryType || 'Wallet activity')}</p>
+              <p class="text-xs text-white/45 mt-1">${new Date(item.createdAt).toLocaleDateString()}</p>
+              <p class="text-[10px] uppercase tracking-widest text-white/35 mt-2">${escapeHtml(item.direction || 'Pending')}</p>
+            </div>
+            <div class="md:text-right">
+              <p class="text-sm font-bold text-emerald-300">${formatArtistWalletMoney(item.amount || 0)}</p>
+              <p class="text-[11px] text-white/40">${escapeHtml(item.referenceType || 'wallet')}</p>
+            </div>
+          </div>
+        `).join('');
+      } catch {
+        list.innerHTML = `<p class="text-sm text-red-500 p-4 bg-black/40 border border-red-500/20 rounded-2xl text-center">Failed to load wallet activity.</p>`;
+      }
+    }
+
     async function updateArtistBookingStatus(bookingId, status) {
       try {
         const res = await fetch(`/api/booking/${bookingId}/status`, {
@@ -2159,7 +2260,7 @@
         const res = await fetch('/api/community/posts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, role: 'Artist', content, imageUrl: artistPostImage || null })
+            body: JSON.stringify({ userId, role: getTalentRole(), content, imageUrl: artistPostImage || null })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to publish post.');
@@ -2231,7 +2332,7 @@
 
       artistAvailabilitySaveInFlight = true;
       try {
-        const res = await fetch(`/api/artist/${userId}/availability`, {
+        const res = await fetch(talentApi(`/${userId}/availability`), {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ isAvailable: nextValue })
@@ -2274,7 +2375,7 @@
         let res;
         let data;
         try {
-          res = await fetch(`/api/artist/${localStorage.getItem('userId')}/profile`, {
+          res = await fetch(talentApi(`/${localStorage.getItem('userId')}/profile`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -2282,7 +2383,7 @@
           data = await res.json().catch(() => ({}));
         } catch (networkError) {
           const fallbackPayload = { ...payload, profilePicture: null };
-          res = await fetch(`/api/artist/${localStorage.getItem('userId')}/profile`, {
+          res = await fetch(talentApi(`/${localStorage.getItem('userId')}/profile`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(fallbackPayload)
@@ -2396,7 +2497,7 @@
       button.innerText = 'Changing...';
 
       try {
-        const res = await fetch(`/api/artist/${localStorage.getItem('userId')}/change-password`, {
+        const res = await fetch(talentApi(`/${localStorage.getItem('userId')}/change-password`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2431,7 +2532,7 @@
         const res = await fetch('/api/calendar/block', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, role: 'Artist', blockDate: blockedDate, reason: reason || null })
+          body: JSON.stringify({ userId, role: getTalentRole(), blockDate: blockedDate, reason: reason || null })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to block date.');
@@ -2453,7 +2554,7 @@
         const idImageFront = await readArtistVerificationImage('artistVerificationIdFront', true);
         const idImageBack = await readArtistVerificationImage('artistVerificationIdBack', false);
         const selfieImage = await readArtistVerificationImage('artistVerificationSelfie', true);
-        const res = await fetch(`/api/artist/${userId}/verification-request`, {
+        const res = await fetch(talentApi(`/${userId}/verification-request`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

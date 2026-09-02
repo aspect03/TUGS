@@ -84,6 +84,7 @@
     let isScanning = true;
     let selectedEventId = null;
     let selectedEventTitle = '';
+    let scannerSessionToken = sessionStorage.getItem('tugs-scanner-session') || '';
     let cameraWarningShown = false;
     let mediaWarmupStream = null;
     let scannerStartInFlight = false;
@@ -103,18 +104,43 @@
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
-      if(localStorage.getItem('userRole') !== 'Organizer') {
-        await window.systemDialog.alert('Please sign in as an organizer before opening the ticket scanner.', {
-          title: 'Organizer Access Needed',
+      const params = new URLSearchParams(window.location.search);
+      const scannerLink = params.get('scannerLink');
+      const currentRole = localStorage.getItem('userRole');
+      let canAccessScanner = currentRole === 'Organizer' || currentRole === 'Admin';
+
+      if (scannerLink) {
+        try {
+          const response = await fetch('/api/scanner-link/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: scannerLink })
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.message || 'This scanner link is unavailable.');
+          selectedEventId = data.eventId;
+          selectedEventTitle = data.eventTitle || 'Selected Event';
+          scannerSessionToken = data.sessionToken;
+          sessionStorage.setItem('tugs-scanner-session', scannerSessionToken);
+          canAccessScanner = true;
+          history.replaceState({}, '', `/pages/tools/dashboardscanner.html?eventId=${encodeURIComponent(selectedEventId)}&eventTitle=${encodeURIComponent(selectedEventTitle)}`);
+        } catch (error) {
+          await window.systemDialog.alert(error.message || 'This scanner link is unavailable.', { title: 'Scanner Link Unavailable', kicker: 'Scanner Access' });
+          return;
+        }
+      } else {
+        selectedEventId = params.get('eventId');
+        selectedEventTitle = params.get('eventTitle') || 'Selected Event';
+      }
+
+      if (!canAccessScanner) {
+        await window.systemDialog.alert('Please use an assigned scanner link or sign in as an admin or organizer before opening the ticket scanner.', {
+          title: 'Scanner Access Needed',
           kicker: 'Scanner Access'
         });
         window.location.href = '/pages/auth/login.html';
         return;
       }
-
-      const params = new URLSearchParams(window.location.search);
-      selectedEventId = params.get('eventId');
-      selectedEventTitle = params.get('eventTitle') || 'Selected Event';
 
       const badge = document.getElementById('scannerEventBadge');
       if (selectedEventId) {
@@ -417,9 +443,11 @@
         const normalizedTicketPreview = extractTicketPreview(decodedText);
         resultDetails.innerText = normalizedTicketPreview ? `Ticket ID: ${normalizedTicketPreview}` : "Reading QR payload...";
 
+        const headers = { 'Content-Type': 'application/json' };
+        if (scannerSessionToken) headers['X-Scanner-Session'] = scannerSessionToken;
         const res = await fetch(`/api/ticket/scan?eventId=${encodeURIComponent(selectedEventId)}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ ticketValue: decodedText })
         });
         const data = await res.json();

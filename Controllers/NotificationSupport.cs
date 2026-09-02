@@ -1,10 +1,19 @@
 using Npgsql;
 using NpgsqlTypes;
+using System.Text.Json;
+using WebPush;
 
 namespace ImajinationAPI.Controllers
 {
     internal static class NotificationSupport
     {
+        private static IConfiguration? _configuration;
+
+        public static void Configure(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         public static async Task EnsureNotificationsTableExistsAsync(NpgsqlConnection connection)
         {
             const string sql = @"
@@ -22,6 +31,113 @@ namespace ImajinationAPI.Controllers
 
             await using var cmd = new NpgsqlCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task EnsurePushSchemaAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    id uuid PRIMARY KEY,
+                    user_id uuid NOT NULL,
+                    endpoint text NOT NULL,
+                    p256dh text NOT NULL,
+                    auth text NOT NULL,
+                    user_agent text NULL,
+                    created_at timestamptz NOT NULL DEFAULT NOW(),
+                    last_seen_at timestamptz NOT NULL DEFAULT NOW(),
+                    revoked_at timestamptz NULL,
+                    UNIQUE (user_id, endpoint)
+                );
+                CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);";
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        private static async Task SendBrowserPushAsync(
+            NpgsqlConnection connection,
+            Guid userId,
+            string type,
+            string title,
+            string message,
+            Guid? relatedId,
+            string? relatedType)
+        {
+            var publicKey = _configuration?["PushNotifications:VapidPublicKey"]
+                ?? _configuration?["PushNotifications__VapidPublicKey"];
+            var privateKey = _configuration?["PushNotifications:VapidPrivateKey"]
+                ?? _configuration?["PushNotifications__VapidPrivateKey"];
+            var subject = _configuration?["PushNotifications:VapidSubject"]
+                ?? _configuration?["PushNotifications__VapidSubject"]
+                ?? "mailto:support@tugs.local";
+
+            if (string.IsNullOrWhiteSpace(publicKey) || string.IsNullOrWhiteSpace(privateKey))
+            {
+                return;
+            }
+
+            await EnsurePushSchemaAsync(connection);
+
+            var subscriptions = new List<(string Endpoint, string P256dh, string Auth)>();
+            const string sql = @"
+                SELECT endpoint, p256dh, auth
+                FROM push_subscriptions
+                WHERE user_id = @userId
+                  AND revoked_at IS NULL;";
+
+            await using (var cmd = new NpgsqlCommand(sql, connection))
+            {
+                cmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    subscriptions.Add((reader.GetString(0), reader.GetString(1), reader.GetString(2)));
+                }
+            }
+
+            if (subscriptions.Count == 0)
+            {
+                return;
+            }
+
+            var client = new WebPushClient();
+            var vapid = new VapidDetails(subject, publicKey, privateKey);
+            var payload = JsonSerializer.Serialize(new
+            {
+                title,
+                body = message,
+                type,
+                relatedId,
+                relatedType,
+                url = relatedType?.Equals("booking", StringComparison.OrdinalIgnoreCase) == true
+                    ? "/pages/bookings/messages.html"
+                    : relatedType?.Equals("event", StringComparison.OrdinalIgnoreCase) == true && relatedId.HasValue
+                        ? $"/pages/details/EventDetailPage.html?id={relatedId}"
+                        : "/"
+            });
+
+            foreach (var sub in subscriptions)
+            {
+                try
+                {
+                    await client.SendNotificationAsync(
+                        new PushSubscription(sub.Endpoint, sub.P256dh, sub.Auth),
+                        payload,
+                        vapid);
+                }
+                catch (WebPushException ex) when ((int)ex.StatusCode == 404 || (int)ex.StatusCode == 410)
+                {
+                    await using var revokeCmd = new NpgsqlCommand(
+                        "UPDATE push_subscriptions SET revoked_at = NOW(), last_seen_at = NOW() WHERE user_id = @userId AND endpoint = @endpoint;",
+                        connection);
+                    revokeCmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
+                    revokeCmd.Parameters.Add("@endpoint", NpgsqlDbType.Text).Value = sub.Endpoint;
+                    await revokeCmd.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // In-app notifications should still succeed if a browser push endpoint fails.
+                }
+            }
         }
 
         public static async Task InsertNotificationAsync(
@@ -46,6 +162,7 @@ namespace ImajinationAPI.Controllers
             cmd.Parameters.Add("@relatedId", NpgsqlDbType.Uuid).Value = (object?)relatedId ?? DBNull.Value;
             cmd.Parameters.Add("@relatedType", NpgsqlDbType.Text).Value = (object?)relatedType ?? DBNull.Value;
             await cmd.ExecuteNonQueryAsync();
+            await SendBrowserPushAsync(connection, userId, type, title, message, relatedId, relatedType);
         }
 
         public static async Task InsertNotificationIfNotExistsAsync(
@@ -80,7 +197,11 @@ namespace ImajinationAPI.Controllers
             cmd.Parameters.Add("@relatedId", NpgsqlDbType.Uuid).Value = (object?)relatedId ?? DBNull.Value;
             cmd.Parameters.Add("@relatedType", NpgsqlDbType.Text).Value = (object?)relatedType ?? DBNull.Value;
             cmd.Parameters.Add("@dedupeHours", NpgsqlDbType.Integer).Value = dedupeHours;
-            await cmd.ExecuteNonQueryAsync();
+            var inserted = await cmd.ExecuteNonQueryAsync();
+            if (inserted > 0)
+            {
+                await SendBrowserPushAsync(connection, userId, type, title, message, relatedId, relatedType);
+            }
         }
 
         public static async Task GenerateEventReminderNotificationsAsync(NpgsqlConnection connection, Guid userId)

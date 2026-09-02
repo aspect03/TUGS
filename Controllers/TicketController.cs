@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Npgsql;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -50,11 +51,28 @@ namespace ImajinationAPI.Controllers
         private readonly ImajinationAPI.Services.EmailService _emailService;
         private readonly ImajinationAPI.Services.TicketPdfService _ticketPdfService;
         private readonly ImajinationAPI.Hubs.EventScanBroadcaster _scanBroadcaster;
+        private readonly ScannerLinkService _scannerLinkService;
         private const decimal PayMongoMinimumAmount = 20m;
         private const decimal TicketServiceFeeRate = 0.05m;
         private const decimal PlatformFeePerTicket = 10m;  // ₱10 platform revenue per ticket sold
 
-        public TicketController(IConfiguration configuration, ImajinationAPI.Services.EmailService emailService, ImajinationAPI.Services.TicketPdfService ticketPdfService, ImajinationAPI.Hubs.EventScanBroadcaster scanBroadcaster)
+        private static int CalculateAge(DateTime birthday, DateTime today)
+        {
+            var age = today.Year - birthday.Year;
+            if (birthday.Date > today.Date.AddYears(-age)) age--;
+            return age;
+        }
+
+        private static async Task EnsureEventAgeRestrictionColumnsAsync(NpgsqlConnection connection)
+        {
+            const string sql = @"
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS minimum_age integer NOT NULL DEFAULT 0;
+                ALTER TABLE events ADD COLUMN IF NOT EXISTS age_advisory text NULL;";
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public TicketController(IConfiguration configuration, ImajinationAPI.Services.EmailService emailService, ImajinationAPI.Services.TicketPdfService ticketPdfService, ImajinationAPI.Hubs.EventScanBroadcaster scanBroadcaster, ScannerLinkService scannerLinkService)
         {
             _configuration = configuration;
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
@@ -62,6 +80,7 @@ namespace ImajinationAPI.Controllers
             _emailService = emailService;
             _ticketPdfService = ticketPdfService;
             _scanBroadcaster = scanBroadcaster;
+            _scannerLinkService = scannerLinkService;
         }
 
         private static string GetPayMongoErrorMessage(string responseString, string fallbackMessage)
@@ -122,6 +141,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await EnsureEventAgeRestrictionColumnsAsync(connection);
                 // Ensure event_tiers table exists
                 try {
                     await using var ensureCmd = new NpgsqlCommand(
@@ -312,6 +332,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
+                await EnsureEventAgeRestrictionColumnsAsync(connection);
                 await EnsureTicketPaymentColumnsExist(connection);
                 await PaymentLedgerService.EnsureSchemaAsync(connection);
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
@@ -330,9 +351,10 @@ namespace ImajinationAPI.Controllers
                 int maxTicketsPerCustomer = 5;
                 int? saleQuantityLimit = null;
                 int saleQuantityUsed = 0;
+                int minimumAge = 0;
                 string getTitleSql = @"
                     SELECT title, organizer_id, base_price, tier_name, tier_price, bundles, event_time, sale_type, sale_value, sale_starts_at, sale_ends_at, COALESCE(max_tickets_per_customer, 5),
-                           sale_quantity_limit, COALESCE(sale_quantity_used, 0)
+                           sale_quantity_limit, COALESCE(sale_quantity_used, 0), COALESCE(minimum_age, 0)
                     FROM events
                     WHERE id = @id";
                 using (var titleCmd = new NpgsqlCommand(getTitleSql, connection))
@@ -355,6 +377,7 @@ namespace ImajinationAPI.Controllers
                         maxTicketsPerCustomer = reader.IsDBNull(11) ? 5 : Math.Clamp(reader.GetInt32(11), 3, 10);
                         saleQuantityLimit = reader.IsDBNull(12) ? null : (int?)reader.GetInt32(12);
                         saleQuantityUsed = reader.IsDBNull(13) ? 0 : reader.GetInt32(13);
+                        minimumAge = reader.IsDBNull(14) ? 0 : reader.GetInt32(14);
                     }
                     else
                     {
@@ -365,6 +388,22 @@ namespace ImajinationAPI.Controllers
                 if (organizerId != Guid.Empty && organizerId == parsedCustomerId)
                 {
                     return BadRequest(new { message = "Event organizers cannot buy tickets for their own event." });
+                }
+
+                if (minimumAge > 0)
+                {
+                    await using var customerCmd = new NpgsqlCommand(
+                        "SELECT birthday FROM users WHERE id = @id LIMIT 1;", connection);
+                    customerCmd.Parameters.AddWithValue("@id", parsedCustomerId);
+                    var birthdayValue = await customerCmd.ExecuteScalarAsync();
+                    if (birthdayValue is null || birthdayValue == DBNull.Value ||
+                        CalculateAge((DateTime)birthdayValue, DateTime.UtcNow) < minimumAge)
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new
+                        {
+                            message = $"AGE RESTRICTION: This event is for guests aged {minimumAge}+ only."
+                        });
+                    }
                 }
 
                 if (req.quantity < 1 || req.quantity > maxTicketsPerCustomer)
@@ -1412,9 +1451,27 @@ namespace ImajinationAPI.Controllers
         {
             try
             {
+                var scannerSession = await _scannerLinkService.ResolveSessionAsync(Request.Headers["X-Scanner-Session"]);
+                if (scannerSession.HasValue)
+                {
+                    eventId = scannerSession.Value.EventId;
+                }
+                else
+                {
+                    var scannerRole = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+                    if (!User.Identity?.IsAuthenticated == true)
+                    {
+                        return Unauthorized(new { message = "Use an assigned scanner link or sign in before scanning tickets." });
+                    }
+                    if (!string.Equals(scannerRole, "Admin", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(scannerRole, "Organizer", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Forbid();
+                    }
+                }
                 if (eventId == null || eventId == Guid.Empty)
                 {
-                    return BadRequest(new { message = "EVENT REQUIRED", details = "Open the scanner from a specific organizer event before validating tickets." });
+                    return BadRequest(new { message = "EVENT REQUIRED", details = "Open the scanner from a specific event before validating tickets." });
                 }
 
                 var parsedScan = ParseTicketScan(req?.ticketValue);
@@ -1430,6 +1487,7 @@ namespace ImajinationAPI.Controllers
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureTicketPaymentColumnsExist(connection);
+                await EnsureEventAgeRestrictionColumnsAsync(connection);
 
                 string checkSql = @"
                     SELECT t.is_used,
@@ -1441,7 +1499,9 @@ namespace ImajinationAPI.Controllers
                            e.id,
                            COALESCE(t.used_quantity, CASE WHEN COALESCE(t.is_used, FALSE) THEN COALESCE(t.quantity, 1) ELSE 0 END),
                            COALESCE(t.used_ticket_units, ''),
-                           COALESCE(t.refund_status, '')
+                           COALESCE(t.refund_status, ''),
+                           t.customer_id,
+                           COALESCE(e.minimum_age, 0)
                     FROM tickets t
                     JOIN events e ON t.event_id = e.id 
                     WHERE t.id = @id";
@@ -1465,6 +1525,8 @@ namespace ImajinationAPI.Controllers
                 int usedQuantity = reader.IsDBNull(7) ? (isUsed ? qty : 0) : reader.GetInt32(7);
                 var usedUnits = ParseUsedTicketUnits(reader.IsDBNull(8) ? "" : reader.GetString(8));
                 var refundStatus = reader.IsDBNull(9) ? "" : reader.GetString(9);
+                var customerId = reader.IsDBNull(10) ? Guid.Empty : reader.GetGuid(10);
+                var minimumAge = reader.IsDBNull(11) ? 0 : reader.GetInt32(11);
                 
                 await reader.CloseAsync();
 
@@ -1481,6 +1543,18 @@ namespace ImajinationAPI.Controllers
                         message = "WRONG EVENT",
                         details = $"This ticket is for \"{evTitle}\" — it cannot be used at this event."
                     });
+                }
+
+                if (minimumAge > 0 && customerId != Guid.Empty)
+                {
+                    await using var customerCmd = new NpgsqlCommand("SELECT birthday FROM users WHERE id = @id LIMIT 1;", connection);
+                    customerCmd.Parameters.AddWithValue("@id", customerId);
+                    var birthdayValue = await customerCmd.ExecuteScalarAsync();
+                    if (birthdayValue is null || birthdayValue == DBNull.Value ||
+                        CalculateAge((DateTime)birthdayValue, DateTime.UtcNow) < minimumAge)
+                    {
+                        return BadRequest(new { message = "AGE RESTRICTION", details = $"Entry is limited to guests aged {minimumAge}+ for this event." });
+                    }
                 }
 
                 if (eventStatus == "Finished" || DateTime.Now > eventTime.AddHours(24))
@@ -1570,11 +1644,62 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex) { return StatusCode(500, new { message = "Database Error: " + ex.Message }); }
         }
 
-        private static ParsedTicketScan? ParseTicketScan(string? ticketValue)
+        private string TicketQrSigningKey =>
+            _configuration["TicketQr:SigningKey"]
+            ?? _configuration["Jwt:Key"]
+            ?? _paymongoSecretKey
+            ?? _connectionString;
+
+        private string BuildSignedTicketQrPayload(Guid ticketId, int unitNumber)
+        {
+            var normalizedUnit = Math.Max(1, unitNumber);
+            var payload = $"tugs-ticket:v1:{ticketId:N}:{normalizedUnit}";
+            var signatureBytes = HMACSHA256.HashData(
+                Encoding.UTF8.GetBytes(TicketQrSigningKey),
+                Encoding.UTF8.GetBytes(payload));
+            var signature = Convert.ToHexString(signatureBytes).ToLowerInvariant()[..32];
+            return $"{payload}:{signature}";
+        }
+
+        private bool TryValidateSignedTicketQrPayload(string ticketValue, out ParsedTicketScan parsedScan)
+        {
+            parsedScan = new ParsedTicketScan(Guid.Empty, null);
+            var parts = ticketValue.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 5 ||
+                !parts[0].Equals("tugs-ticket", StringComparison.OrdinalIgnoreCase) ||
+                !parts[1].Equals("v1", StringComparison.OrdinalIgnoreCase) ||
+                !Guid.TryParseExact(parts[2], "N", out var ticketId) ||
+                !int.TryParse(parts[3], out var unitNumber) ||
+                unitNumber < 1)
+            {
+                return false;
+            }
+
+            var expected = BuildSignedTicketQrPayload(ticketId, unitNumber).Split(':')[4];
+            var providedBytes = Encoding.UTF8.GetBytes(parts[4]);
+            var expectedBytes = Encoding.UTF8.GetBytes(expected);
+            if (providedBytes.Length != expectedBytes.Length ||
+                !CryptographicOperations.FixedTimeEquals(providedBytes, expectedBytes))
+            {
+                return false;
+            }
+
+            parsedScan = new ParsedTicketScan(ticketId, unitNumber);
+            return true;
+        }
+
+        private ParsedTicketScan? ParseTicketScan(string? ticketValue)
         {
             if (string.IsNullOrWhiteSpace(ticketValue)) return null;
 
             var trimmed = ticketValue.Trim();
+            if (trimmed.StartsWith("tugs-ticket:", StringComparison.OrdinalIgnoreCase))
+            {
+                return TryValidateSignedTicketQrPayload(trimmed, out var signedScan)
+                    ? signedScan
+                    : null;
+            }
+
             if (Guid.TryParse(trimmed, out var directGuid))
             {
                 return new ParsedTicketScan(directGuid, null);
@@ -1795,6 +1920,9 @@ namespace ImajinationAPI.Controllers
 
                 var usedUnitsStr = reader.IsDBNull(13) ? "" : reader.GetString(13);
                 var usedUnitsSet = ParseUsedTicketUnits(usedUnitsStr).ToHashSet();
+                var ticketQuantity = reader.IsDBNull(9) ? 1 : reader.GetInt32(9);
+                var signedQrPayloads = Enumerable.Range(1, Math.Max(1, ticketQuantity))
+                    .ToDictionary(unit => unit, unit => BuildSignedTicketQrPayload(ticketId, unit));
 
                 var data = new ImajinationAPI.Services.TicketPdfService.TicketPdfData(
                     TicketId: ticketId,
@@ -1804,11 +1932,12 @@ namespace ImajinationAPI.Controllers
                     Venue: reader.IsDBNull(6) ? "" : reader.GetString(6),
                     City: reader.IsDBNull(7) ? "" : reader.GetString(7),
                     TierName: reader.IsDBNull(8) ? "General Admission" : reader.GetString(8),
-                    Quantity: reader.IsDBNull(9) ? 1 : reader.GetInt32(9),
+                    Quantity: ticketQuantity,
                     TotalPrice: reader.IsDBNull(10) ? 0m : reader.GetDecimal(10),
                     OrderRef: ticketId.ToString()[..8],
                     IsUsed: !reader.IsDBNull(11) && reader.GetBoolean(11),
-                    UsedUnits: usedUnitsSet
+                    UsedUnits: usedUnitsSet,
+                    QrPayloads: signedQrPayloads
                 );
 
                 var pdfBytes = _ticketPdfService.GenerateTicketPdf(data);
@@ -1818,6 +1947,84 @@ namespace ImajinationAPI.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to generate ticket PDF: " + ex.Message });
+            }
+        }
+
+        [HttpGet("{ticketId}/qr-image")]
+        public async Task<IActionResult> GetTicketQrImage(Guid ticketId, [FromQuery] int unit = 1)
+        {
+            try
+            {
+                if (unit < 1)
+                {
+                    return BadRequest(new { message = "Ticket unit must be at least 1." });
+                }
+
+                await using var connection = new NpgsqlConnection(_connectionString);
+                await connection.OpenAsync();
+
+                const string sql = @"
+                    SELECT
+                        t.customer_id,
+                        COALESCE(t.quantity, 1),
+                        e.organizer_id,
+                        EXISTS (
+                            SELECT 1 FROM payment_records pr
+                            WHERE pr.ticket_id = t.id
+                              AND LOWER(pr.status) = 'paid'
+                        ) AS is_paid
+                    FROM tickets t
+                    INNER JOIN events e ON e.id = t.event_id
+                    WHERE t.id = @id
+                    LIMIT 1;";
+
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", ticketId);
+                await using var reader = await cmd.ExecuteReaderAsync();
+
+                if (!await reader.ReadAsync())
+                {
+                    return NotFound(new { message = "Ticket not found." });
+                }
+
+                var customerId = reader.IsDBNull(0) ? Guid.Empty : reader.GetGuid(0);
+                var quantity = reader.IsDBNull(1) ? 1 : reader.GetInt32(1);
+                var organizerId = reader.IsDBNull(2) ? Guid.Empty : reader.GetGuid(2);
+                var isPaid = !reader.IsDBNull(3) && reader.GetBoolean(3);
+
+                if (unit > Math.Max(1, quantity))
+                {
+                    return BadRequest(new { message = "Ticket unit is outside this order quantity." });
+                }
+
+                var actorIdRaw = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var actorRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+                if (!Guid.TryParse(actorIdRaw, out var actorId))
+                {
+                    return Unauthorized(new { message = "Please sign in to view this ticket QR." });
+                }
+
+                var canView = actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                    || actorId == customerId
+                    || actorId == organizerId;
+                if (!canView)
+                {
+                    return StatusCode(403, new { message = "You are not authorised to view this ticket QR." });
+                }
+
+                if (!isPaid)
+                {
+                    return BadRequest(new { message = "Ticket payment has not been confirmed yet." });
+                }
+
+                var payload = BuildSignedTicketQrPayload(ticketId, unit);
+                var qrBytes = ImajinationAPI.Services.TicketPdfService.GenerateQrPng(payload);
+                Response.Headers.CacheControl = "private, no-store";
+                return File(qrBytes, "image/png");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to generate ticket QR: " + ex.Message });
             }
         }
 
