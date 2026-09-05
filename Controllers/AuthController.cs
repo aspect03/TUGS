@@ -262,11 +262,11 @@ namespace ImajinationAPI.Controllers
                     "SmtpRejected",
                     ex.Message);
                 var providerHint = ex.Message.IndexOf("sender", StringComparison.OrdinalIgnoreCase) >= 0
-                    ? "The mail provider rejected the sender identity. Verify the Brevo sender email or authenticated domain."
-                    : "The mail provider rejected the OTP email.";
+                    ? "We could not send a verification email right now. Please try again later."
+                    : "The email could not be delivered. Check the address and try again.";
                 return StatusCode(500, new
                 {
-                    message = ConfigurationFallbacks.BuildSafeErrorMessage(_config, providerHint, ex),
+                    message = providerHint,
                     attemptId
                 });
             }
@@ -295,6 +295,8 @@ namespace ImajinationAPI.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto req)
         {
+            var validationError = RegistrationValidation.Validate(req);
+            if (validationError is not null) return BadRequest(new { message = validationError });
             var normalizedEmail = NormalizeEmail(req.email);
             if (string.IsNullOrWhiteSpace(normalizedEmail))
             {
@@ -324,18 +326,18 @@ namespace ImajinationAPI.Controllers
                 return BadRequest(new { message = "Invalid OTP code." });
             }
 
-            if (req.birthday == default || req.birthday > DateTime.UtcNow)
+            // Birthdate is collected later in profile verification. Never invent an age.
+            int? computedAge = null;
+            if (req.birthday.HasValue)
             {
-                return BadRequest(new { message = "A valid birthday is required." });
-            }
-
-            var today = DateTime.UtcNow.Date;
-            var birthdayDate = req.birthday.Date;
-            var computedAge = today.Year - birthdayDate.Year;
-            if (birthdayDate > today.AddYears(-computedAge)) computedAge--;
-            if (computedAge < 13)
-            {
-                return BadRequest(new { message = "You must be at least 13 years old to register." });
+                if (req.birthday.Value == default || req.birthday.Value.Date > DateTime.UtcNow.Date)
+                    return BadRequest(new { message = "Enter a valid birthday." });
+                var today = DateTime.UtcNow.Date;
+                var birthdayDate = req.birthday.Value.Date;
+                computedAge = today.Year - birthdayDate.Year;
+                if (birthdayDate > today.AddYears(-computedAge.Value)) computedAge--;
+                if (computedAge < 13)
+                    return BadRequest(new { message = "You must be at least 13 years old to register." });
             }
 
             try
@@ -377,8 +379,8 @@ namespace ImajinationAPI.Controllers
                 cmd.Parameters.AddWithValue("@un", SecuritySupport.SanitizePlainText(req.username, 60, false) ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@em", normalizedEmail);
                 cmd.Parameters.AddWithValue("@cn", SecuritySupport.SanitizePlainText(req.contactNumber, 60, false) ?? (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@bd", req.birthday != default ? req.birthday : (object)DBNull.Value);
-                cmd.Parameters.AddWithValue("@ag", req.age);
+                cmd.Parameters.Add("@bd", NpgsqlTypes.NpgsqlDbType.Date).Value = (object?)req.birthday?.Date ?? DBNull.Value;
+                cmd.Parameters.Add("@ag", NpgsqlTypes.NpgsqlDbType.Integer).Value = (object?)computedAge ?? DBNull.Value;
                 cmd.Parameters.AddWithValue("@ph", passwordHash);
                 cmd.Parameters.AddWithValue("@sn", (object?)SecuritySupport.SanitizePlainText(req.stageName, 120, false) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@pn", (object?)SecuritySupport.SanitizePlainText(req.productionName, 160, false) ?? DBNull.Value);
@@ -1681,27 +1683,7 @@ namespace ImajinationAPI.Controllers
             return (email ?? string.Empty).Trim().ToLowerInvariant();
         }
 
-        private static bool IsValidEmailAddress(string email)
-        {
-            if (email.Length > 254 || email.Any(char.IsWhiteSpace))
-            {
-                return false;
-            }
-
-            try
-            {
-                var parsed = new MailAddress(email);
-                var atIndex = email.LastIndexOf('@');
-                return string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase)
-                    && atIndex > 0
-                    && atIndex < email.Length - 1
-                    && email[(atIndex + 1)..].Contains(".", StringComparison.Ordinal);
-            }
-            catch (FormatException)
-            {
-                return false;
-            }
-        }
+        private static bool IsValidEmailAddress(string email) => RegistrationValidation.IsValidEmail(email);
 
         private static string? NormalizeRegistrationRole(string? role)
         {

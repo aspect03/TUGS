@@ -1,0 +1,41 @@
+/* One focused login form, with both themes available before signing in. */
+.login-page { --login-bg: #12100f; --login-surface: #201b19; --login-input: #171412; --login-text: #faf7f5; --login-muted: #c2b7b1; --login-border: #51443e; background: var(--login-bg); color: var(--login-text); }
+.login-page .login-backdrop { background: radial-gradient(ellipse at 50% 0%, rgba(198,40,40,0.12), transparent 65%); }
+.login-page .login-backdrop > div { display: none; }
+.login-page nav { background: var(--login-surface); border-color: var(--login-border); }
+.login-page .login-section { width: 100%; flex: 1; display: flex; align-items: center; justify-content: center; padding: 28px 20px 40px; }
+.login-page .login-layout { width: 100%; max-width: 560px; min-width: 0; }
+.login-page .login-appearance { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: var(--login-muted); font-size: 0.8125rem; font-weight: 500; }
+.login-page .login-theme-options { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--login-border); border-radius: 12px; background: var(--login-surface); }
+.login-page .login-theme-options button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 12px; border-radius: 8px; color: var(--login-muted); font-size: 0.8125rem; }
+.login-page .login-theme-options svg { width: 16px; height: 16px; }
+.login-page .login-theme-options button[aria-pressed="true"] { background: #c62828; color: #fff; }
+.login-page .login-card { padding: 32px; border: 1px solid var(--login-border); border-radius: 24px; background: var(--login-surface); box-shadow: 0 16px 48px -24px rgba(0,0,0,0.3); }
+.login-page .login-card h1 { font-size: clamp(1.65rem, 3vw, 2rem); font-weight: 800; letter-spacing: -0.035em; }
+.login-page .text-white { color: var(--login-text); }
+.login-page [class*="text-white/"] { color: var(--login-muted); }
+.login-page [class*="border-white/"] { border-color: var(--login-border); }
+.login-page .login-card :is(input[type="email"],input[type="password"],input[type="text"]) { background: var(--login-input); color: var(--login-text); border-color: var(--login-border); min-height: 48px; font-size: 1rem; }
+.login-page input::placeholder { color: var(--login-muted); opacity: 0.8; }
+.login-page .login-card label { text-transform: none; letter-spacing: 0; font-size: 0.875rem; }
+.login-page .login-card a { color: #fca5a5; }
+.login-page .login-card a:hover { text-decoration: underline; }
+.login-page #passwordVisibilityButton { width: 40px; height: 40px; right: 6px; display: flex; align-items: center; justify-content: center; }
+.login-page #loginBtn { min-height: 48px; background: #c62828; color: #fff; font-size: 0.875rem; text-transform: none; letter-spacing: 0.02em; }
+.login-page #loginBtn:hover { background: #a91f24; }
+.login-page #loginBtn:disabled { background: #72413e; color: #fff; }
+.login-page .login-card .bg-neutral-900 { background: var(--login-surface); }
+.login-page #googleButtonWrap { padding: 12px 0; border: 0; background: transparent; }
+.login-page #googleSignInStatus { line-height: 1.6; }
+.login-page #lockoutMsg { color: #fca5a5; }
+.login-page :is(button,a,input):focus-visible { outline: 3px solid #ef7070; outline-offset: 3px; }
+html.light-mode .login-page { --login-bg: #f8f6f3; --login-surface: #fff; --login-input: #fcfbfa; --login-text: #292524; --login-muted: #625852; --login-border: #ded5cf; }
+html.light-mode .login-page .login-backdrop { background: radial-gradient(ellipse at 50% 0%, #fce8e6, transparent 65%); }
+html.light-mode .login-page .login-card a,
+html.light-mode .login-page .login-card [class*="text-red-"],
+html.light-mode .login-page #lockoutMsg { color: #b4232b; }
+@media (max-width: 480px) {
+  .login-page .login-section { padding: 20px 16px 28px; align-items: flex-start; }
+  .login-page .login-card { padding: 24px 20px; border-radius: 20px; }
+  .login-page .login-card a.uppercase { text-transform: none; letter-spacing: 0; }
+}

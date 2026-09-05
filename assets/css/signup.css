@@ -1,0 +1,73 @@
+/* Shared signup form and dialog presentation for every account role. */
+.signup-page { --signup-surface: #201b19; --signup-field: #171412; --signup-text: #faf7f5; --signup-muted: #c2b7b1; --signup-border: #51443e; }
+.signup-page main { width: 100%; max-width: 1080px; padding: 28px 24px 40px; }
+.signup-page .signup-layout { display: block; }
+.signup-page .signup-card { padding: 32px; background: var(--signup-surface); border: 1px solid var(--signup-border); border-radius: 24px; box-shadow: 0 12px 36px -20px rgba(0,0,0,0.25); }
+.signup-page .signup-card > div:first-child { margin-bottom: 24px; padding-bottom: 20px; }
+.signup-page .signup-card h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.signup-page .signup-card p { line-height: 1.6; }
+.signup-page #registerForm { gap: 20px; }
+.signup-page #registerForm label { text-transform: none; letter-spacing: 0.01em; font-size: 0.8125rem; }
+.signup-page .signup-name-label { display: block; margin-bottom: 8px; color: var(--signup-muted); font-weight: 600; }
+.signup-page .signup-field-hint { font-size: 0.75rem; color: var(--signup-muted); margin-top: 8px; }
+.signup-page .signup-field-error { font-size: 0.75rem; color: #fca5a5; margin-top: 6px; }
+.signup-page input:not([type="checkbox"]),
+.signup-page select, .signup-page textarea { min-height: 46px; color: var(--signup-text); background-color: var(--signup-field); border-color: var(--signup-border); font-size: 0.9375rem; }
+.signup-page input::placeholder { color: var(--signup-muted); opacity: 0.85; }
+.signup-page input[aria-invalid="true"] { border-color: #e45c5c !important; }
+.signup-page #agreeTerms { width: 20px; height: 20px; accent-color: #c62828; }
+.signup-page :is(button,a,input,select,textarea):focus-visible { outline: 3px solid #ef7070; outline-offset: 3px; }
+.signup-page #initiateBtn, .signup-page #confirmOtpBtn { min-height: 48px; letter-spacing: 0.025em; text-transform: none; font-size: 0.9375rem; }
+.signup-page #otpModal { overflow-y: auto; padding-block: 24px; }
+.signup-page #otpModal > div { max-width: 420px; padding: 28px; }
+.signup-page #otpInput { font-size: 1.5rem; letter-spacing: 0.3em; }
+.signup-page #otpModal > div, .signup-page #termsModal > div { background: var(--signup-surface) !important; color: var(--signup-text); border-color: var(--signup-border); }
+.signup-page #termsScrollArea { min-height: 0; overscroll-behavior: contain; }
+.signup-page #termsModal button { min-height: 44px; text-transform: none; letter-spacing: 0.01em; }
+/* Use exactly one arrow: the native select control in both themes. */
+.signup-page select,
+html.light-mode .signup-page select { appearance: auto !important; -webkit-appearance: menulist !important; background-image: none !important; padding-right: 16px !important; }
+html.light-mode body.signup-page { --signup-surface: #fff; --signup-field: #fcfbfa; --signup-text: #292524; --signup-muted: #625852; --signup-border: #ded5cf; background: #f8f6f3 !important; color: #292524 !important; }
+html.light-mode .signup-page .bg-global-backdrop { background: radial-gradient(ellipse at 50% 0%, #fce8e6, transparent 65%) !important; }
+html.light-mode .signup-page .text-white { color: #292524 !important; }
+html.light-mode .signup-page [class*="text-white/"] { color: #625852 !important; }
+html.light-mode .signup-page [class*="text-red-"],
+html.light-mode .signup-page .signup-field-error,
+html.light-mode .signup-page .password-note-bad { color: #b4232b !important; }
+html.light-mode .signup-page [class*="text-emerald-"],
+html.light-mode .signup-page .password-note-ok { color: #08734e !important; }
+html.light-mode .signup-page .password-note-mid { color: #8a4b08 !important; }
+html.light-mode .signup-page #registerForm [class*="bg-black/"],
+html.light-mode .signup-page #registerForm [class*="bg-white/"] { background-color: #f6f4f1 !important; border-color: #ded5cf !important; box-shadow: none; }
+html.light-mode .signup-page input:not([type="checkbox"]),
+html.light-mode .signup-page select { background-color: #fcfbfa !important; border-color: #cfc5bd !important; color: #292524 !important; color-scheme: light; }
+html.light-mode .signup-page input[aria-invalid="true"] { border-color: #b4232b !important; }
+html.light-mode .signup-page .password-meter-track { background: #e5dfd9; }
+html.light-mode .signup-page #termsModal,
+html.light-mode .signup-page #otpModal { background: rgba(24,20,18,0.55) !important; }
+html.light-mode .signup-page #termsModal [class*="border-white/"],
+html.light-mode .signup-page #otpModal [class*="border-white/"] { border-color: #ded5cf !important; }
+html.light-mode .signup-page #initiateBtn,
+html.light-mode .signup-page #confirmOtpBtn,
+html.light-mode .signup-page #acceptTermsBtn { background: #c62828 !important; color: #fff !important; }
+html.light-mode .signup-page #acceptTermsBtn:disabled { opacity: 1; background: #ede7e2 !important; color: #625852 !important; }
+@media (max-width: 640px) {
+  .signup-page main { padding: 20px 16px 28px; }
+  .signup-page .signup-card { padding: 22px 18px; border-radius: 20px; }
+  .signup-page #registerForm > .grid { gap: 16px; }
+  .signup-page #termsModal > div { max-height: 88dvh !important; }
+}
+
+/* Keep the legal text visible and scrollable independently of the page. */
+.signup-page #termsModal { position: fixed; inset: 0; z-index: 100; align-items: center; justify-content: center; padding: 24px 16px; background: rgba(0,0,0,.75); }
+.signup-page #termsModal > div { display: flex; flex-direction: column; width: 100%; max-width: 720px; height: min(760px, calc(100vh - 48px)); height: min(760px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px) !important; overflow: hidden; border-radius: 24px; }
+.signup-page #termsModal > div > :first-child,
+.signup-page #termsModal > div > :last-child { flex-shrink: 0; padding: 16px 24px; }
+.signup-page #termsScrollArea { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 20px 24px; color: var(--signup-muted); font-size: 14px; line-height: 1.7; }
+.signup-page #termsScrollArea > div + div { margin-top: 20px; }
+.signup-page #termsScrollArea h4 { color: var(--signup-text); font-weight: 700; margin-bottom: 8px; }
+@media (max-width: 640px) {
+  .signup-page #termsModal > div > :first-child,
+  .signup-page #termsModal > div > :last-child,
+  .signup-page #termsScrollArea { padding-left: 18px; padding-right: 18px; }
+}

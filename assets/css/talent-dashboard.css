@@ -1,0 +1,108 @@
+/* Shared artist and sessionist dashboard presentation. */
+.talent-dashboard .mobile-dashboard-main { min-width: 0; }
+.talent-dashboard .talent-content { width: 100%; max-width: 1600px; padding: 24px 28px 40px; }
+.talent-dashboard .talent-content > * + * { margin-top: 20px; }
+.talent-dashboard .talent-header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.talent-dashboard .talent-header h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; }
+.talent-dashboard .talent-home-link { flex-shrink: 0; }
+.talent-dashboard .talent-content [id^="view-"] { min-width: 0; }
+.talent-dashboard .talent-content section,
+.talent-dashboard .mobile-form-card { padding: 22px; border-radius: 18px; }
+.talent-dashboard .talent-stats > div { padding: 18px 20px; border-radius: 16px; }
+.talent-dashboard .talent-stats .text-4xl { font-size: 2rem; }
+.talent-dashboard .talent-stats .mb-4 { margin-bottom: 10px; }
+.talent-dashboard .talent-content [class*="text-[10px]"],
+.talent-dashboard .talent-content [class*="text-[9px]"] { font-size: 0.75rem; letter-spacing: 0.035em; }
+.talent-dashboard .talent-content [class*="text-[11px]"] { font-size: 0.8125rem; }
+.talent-dashboard .talent-content h3 { text-transform: none; letter-spacing: 0.01em; font-size: 0.9375rem; }
+.talent-dashboard .talent-content p { line-height: 1.5; }
+.talent-dashboard .talent-content .mb-6 { margin-bottom: 18px; }
+.talent-dashboard .talent-content .max-w-4xl,
+.talent-dashboard .talent-content .max-w-5xl { max-width: none; min-width: 0; }
+.talent-dashboard .talent-content :is(input:not([type="checkbox"]):not([type="file"]),select,textarea) { padding: 12px 14px; font-size: 0.875rem; }
+.talent-dashboard .talent-content button { line-height: 1.4; }
+.talent-dashboard .talent-ticket-card { min-width: 0; align-items: flex-start; }
+.talent-dashboard .talent-ticket-card .truncate { white-space: normal; overflow-wrap: anywhere; }
+.talent-dashboard .talent-ticket-card :is(button,a) { min-height: 40px; display: inline-flex; align-items: center; font-size: 0.75rem; text-transform: none; letter-spacing: 0; }
+.talent-dashboard .talent-ticket-status { display: inline-flex; padding: 4px 8px; text-transform: none; letter-spacing: 0; }
+.talent-dashboard :is(button,a,input,textarea,select):focus-visible { outline: 3px solid #e45c5c; outline-offset: 3px; }
+.talent-dashboard label:has(input.sr-only:focus-visible) { outline: 3px solid #e45c5c; outline-offset: 3px; }
+@media (min-width: 768px) {
+  .talent-dashboard .mobile-dashboard-sidebar { width: 224px; }
+  .talent-dashboard .mobile-dashboard-sidebar > div:first-child { padding: 20px 16px; }
+}
+@media (min-width: 1280px) {
+  .talent-dashboard #view-dashboard:not(.hidden) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 20px; }
+  .talent-dashboard #view-dashboard > * { margin: 0; min-width: 0; }
+  .talent-dashboard #view-dashboard > .talent-stats { grid-column: 1 / -1; }
+  .talent-dashboard #view-dashboard > section > .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .talent-dashboard #view-dashboard > section > div:first-child { align-items: flex-start; flex-wrap: wrap; }
+  .talent-dashboard #profileForm { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 20px; }
+  .talent-dashboard #profileForm > * { margin: 0; min-width: 0; grid-column: 1 / -1; }
+  .talent-dashboard #profileForm > [id$="-availability"],
+  .talent-dashboard #profileForm > [id$="-picture"] { grid-column: auto; }
+  .talent-dashboard #profileForm > [id$="-availability"] > .flex { flex-wrap: wrap; }
+  .talent-dashboard #profileForm .mobile-form-row { flex-wrap: wrap; }
+}
+@media (max-width: 767px) {
+  .talent-dashboard .talent-header { flex-direction: column; align-items: flex-start; padding: 0 !important; gap: 12px; }
+  .talent-dashboard .talent-home-link { order: -1; }
+  .talent-dashboard .talent-content section,
+  .talent-dashboard .mobile-form-card { padding: 16px; }
+  .talent-dashboard .talent-stats { gap: 10px; }
+  .talent-dashboard .talent-stats > div { padding: 14px; }
+}
+html.light-mode body.talent-dashboard { background: #f4f6f8 !important; color: #202b3a !important; }
+html.light-mode .talent-dashboard .bg-dashboard-backdrop { background: #f4f6f8 !important; }
+html.light-mode .talent-dashboard > .pointer-events-none:not(.bg-dashboard-backdrop) { display: none; }
+html.light-mode .talent-dashboard .dashboard-surface::before { display: none; }
+html.light-mode .talent-dashboard .mobile-dashboard-sidebar { background: #fff !important; border-color: #dce2e9 !important; }
+html.light-mode .talent-dashboard .text-white { color: #202b3a !important; }
+html.light-mode .talent-dashboard [class*="text-white/"] { color: #546174 !important; }
+html.light-mode .talent-dashboard [class*="text-red-"],
+html.light-mode .talent-dashboard [class*="text-rose-"] { color: #b4232b !important; }
+html.light-mode .talent-dashboard [class*="text-blue-"],
+html.light-mode .talent-dashboard [class*="text-sky-"],
+html.light-mode .talent-dashboard [class*="text-cyan-"] { color: #1e5a9a !important; }
+html.light-mode .talent-dashboard [class*="text-emerald-"],
+html.light-mode .talent-dashboard [class*="text-teal-"],
+html.light-mode .talent-dashboard [class*="text-green-"] { color: #08734e !important; }
+html.light-mode .talent-dashboard [class*="text-amber-"],
+html.light-mode .talent-dashboard [class*="text-yellow-"] { color: #8a4b08 !important; }
+html.light-mode .talent-dashboard [class*="text-violet-"],
+html.light-mode .talent-dashboard [class*="text-purple-"] { color: #6d35a7 !important; }
+html.light-mode .talent-dashboard .text-neutral-400 { color: #526071 !important; }
+html.light-mode .talent-dashboard .talent-content section,
+html.light-mode .talent-dashboard .mobile-form-card,
+html.light-mode .talent-dashboard .talent-stats > div,
+html.light-mode .talent-dashboard .talent-ticket-card { background: #fff !important; border-color: #dce2e9 !important; box-shadow: 0 2px 8px rgba(24,39,58,0.045) !important; }
+html.light-mode .talent-dashboard .talent-content [class*="bg-black/"],
+html.light-mode .talent-dashboard .talent-content [class*="bg-white/"] { background-color: #f2f5f8 !important; border-color: #dce2e9 !important; }
+html.light-mode .talent-dashboard .talent-content section,
+html.light-mode .talent-dashboard .talent-content .talent-ticket-card { background: #fff !important; }
+html.light-mode .talent-dashboard .mobile-dashboard-sidebar nav button { background: transparent !important; border: 1px solid transparent !important; color: #546174 !important; box-shadow: none !important; }
+html.light-mode .talent-dashboard .mobile-dashboard-sidebar nav button:hover { background: #f2f5f8 !important; }
+html.light-mode .talent-dashboard .mobile-dashboard-sidebar nav button[aria-current="page"] { background: #fff0ee !important; color: #a91f24 !important; box-shadow: inset 3px 0 #c62828 !important; font-weight: 700; }
+html.light-mode .talent-dashboard .talent-ticket-status[class*="text-amber-"] { background: #fff0cb !important; }
+html.light-mode .talent-dashboard .talent-ticket-status[class*="text-emerald-"] { background: #dff4e9 !important; }
+html.light-mode .talent-dashboard .talent-ticket-status[class*="text-red-"] { background: #fee8e7 !important; }
+html.light-mode .talent-dashboard .talent-ticket-status[class*="text-sky-"] { background: #e4efff !important; }
+html.light-mode .talent-dashboard .talent-ticket-status.text-neutral-400 { background: #e9edf2 !important; }
+html.light-mode .talent-dashboard :is(button,a)[class*="bg-red-600"],
+html.light-mode .talent-dashboard :is(button,a)[class*="bg-[#cc292b]"] { background: #c62828 !important; color: #fff !important; }
+html.light-mode .talent-dashboard :is(button,a)[class*="bg-gradient-to-r"] { background: #08734e !important; color: #fff !important; }
+html.light-mode .talent-dashboard [id$="BellBadge"] { color: #fff !important; background: #c62828 !important; }
+html.light-mode .talent-dashboard .talent-content :is(input:not([type="checkbox"]):not([type="file"]),select,textarea) { background: #fff !important; border-color: #c8d1dc !important; color: #263445 !important; box-shadow: none; color-scheme: light; }
+html.light-mode .talent-dashboard .talent-content input:disabled { opacity: 1; background: #edf1f5 !important; color: #546174 !important; }
+html.light-mode .talent-dashboard .talent-content :is(input,textarea)::placeholder { color: #687589 !important; }
+html.light-mode .talent-dashboard .border-black { border-color: #dce2e9; }
+
+@media (min-width: 1280px) {
+  .talent-dashboard #talentTicketsList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .talent-dashboard #talentTicketsList > * { margin: 0; }
+  .talent-dashboard #talentTicketsList > :not(.talent-ticket-card) { grid-column: 1 / -1; }
+  .talent-dashboard .talent-ticket-card { flex-direction: column; }
+  .talent-dashboard .talent-ticket-card > :last-child { margin-top: auto; }
+}
+html.light-mode .talent-dashboard .dashboard-ambient-orb { display: none; }
+html.light-mode .talent-dashboard .dashboard-surface:hover { transform: none; }

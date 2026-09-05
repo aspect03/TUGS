@@ -16,12 +16,13 @@
   <script src="/assets/js/performance-helpers.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="/assets/css/return-navigation.css">
+  <link rel="stylesheet" href="/assets/css/login.css">
 </head>
 
-<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white"
+<body class="login-page bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white"
   style="font-family: 'Montserrat', system-ui, sans-serif;">
 
-  <div class="pointer-events-none fixed inset-0 z-0">
+  <div class="login-backdrop pointer-events-none fixed inset-0 z-0">
     <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_60%)]"></div>
     <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black"></div>
   </div>
@@ -37,41 +38,48 @@
       </a>
     </nav>
 
-    <section id="auth" class="max-w-6xl mx-auto px-6 py-6 md:py-8 flex-1 flex items-center">
-      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,470px)_minmax(0,1fr)] gap-6 lg:gap-8 items-center w-full">
+    <section id="auth" class="login-section">
+      <div class="login-layout">
+        <div class="login-appearance">
+          <span>Appearance</span>
+          <div class="login-theme-options" role="group" aria-label="Page appearance">
+            <button type="button" data-login-theme="light" aria-pressed="false"><i data-lucide="sun" aria-hidden="true"></i>Light</button>
+            <button type="button" data-login-theme="dark" aria-pressed="false"><i data-lucide="moon" aria-hidden="true"></i>Dark</button>
+          </div>
+        </div>
 
-        <div class="bg-white/5 rounded-3xl border border-white/10 p-6 md:p-7 max-w-xl w-full mx-auto backdrop-blur-sm self-center shadow-[0_20px_60px_-30px_rgba(0,0,0,0.85)]">
+        <div class="login-card">
           <div class="mb-5">
             <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-red-400/80 mb-2">Account Access</p>
-            <h3 class="text-2xl font-semibold tracking-tight text-white">Welcome back</h3>
-            <p class="text-sm md:text-base text-white/60 mt-2">Enter your details to sign in.</p>
+            <h1 class="text-2xl font-semibold tracking-tight text-white">Sign in to Tugs!</h1>
+            <p class="text-sm md:text-base text-white/60 mt-2">Access your tickets, bookings, and favorite artists.</p>
           </div>
 
           <form id="loginForm" class="space-y-4">
             <div class="space-y-2">
-              <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Email address</label>
-              <input type="email" id="email" placeholder="name@example.com" required
+              <label for="email" class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Email address</label>
+              <input type="email" id="email" autocomplete="username" placeholder="name@example.com" required
                 class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-shadow">
             </div>
 
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-4">
-                <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Password</label>
+                <label for="password" class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Password</label>
                 <a href="/pages/auth/forgotpassword.html"
                   class="text-xs font-semibold uppercase tracking-[0.12em] text-white/60 hover:text-white">Forgot Password</a>
               </div>
 
               <div class="relative">
-                <input type="password" id="password" placeholder="••••••••" required
+                <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required
                   class="w-full pl-4 pr-12 py-3 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 transition-shadow">
-                <button type="button" onclick="togglePassword('password', 'eyeIcon')"
+                <button type="button" id="passwordVisibilityButton" aria-label="Show password" aria-pressed="false" onclick="togglePassword('password', 'eyeIcon')"
                   class="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 hover:text-white">
                   <i data-lucide="eye" id="eyeIcon" class="w-4 h-4"></i>
                 </button>
               </div>
             </div>
 
-            <p id="lockoutMsg" class="text-xs text-red-500 font-semibold hidden text-center mt-2"></p>
+            <p role="alert" id="lockoutMsg" class="text-xs text-red-500 font-semibold hidden text-center mt-2"></p>
             <button type="submit" id="loginBtn"
               class="w-full inline-flex items-center justify-center py-3 px-4 bg-red-600 text-white rounded-xl text-xs font-semibold uppercase tracking-[0.16em] hover:bg-red-500 transition-colors mt-2 disabled:bg-red-900 disabled:text-white/50 disabled:cursor-not-allowed">Sign
               in</button>
@@ -90,46 +98,17 @@
             <div id="googleButtonWrap" class="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-3">
               <div id="googleSignInButton" class="flex justify-center"></div>
             </div>
-            <p id="googleSignInStatus" class="hidden text-center text-xs font-medium text-white/60"></p>
+            <p role="status" aria-live="polite" id="googleSignInStatus" class="hidden text-center text-xs font-medium text-white/60"></p>
           </div>
 
           <p class="text-center text-sm text-white/60 mt-5">
-            Don't have an account?
-            <a href="/pages/auth/signuproles.html" class="font-semibold text-white hover:text-red-400 transition-colors">Sign up</a>
+            New to Tugs?
+            <a href="/pages/auth/signuproles.html" class="font-semibold text-white hover:text-red-400 transition-colors">Create an account</a>
           </p>
 
-          <div class="mt-4 border-t border-white/10 pt-4">
-            <p class="text-center text-[10px] text-white/40 uppercase">Dashboard access now requires a real sign-in session.</p>
-          </div>
+
         </div>
 
-        <div class="hidden lg:flex flex-col justify-center">
-          <div class="rounded-[2rem] border border-white/10 bg-black/20 backdrop-blur-sm p-8 xl:p-9 min-h-[520px] relative overflow-hidden">
-            <div class="absolute inset-0 bg-[radial-gradient(55%_45%_at_65%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_70%)]"></div>
-            <div class="relative z-10">
-              <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-white/45 mb-3">Member Portal</p>
-              <h2 class="text-4xl xl:text-[3.35rem] font-extrabold tracking-tight text-white leading-[0.95] mb-4">
-                Sign in and step back into the scene.
-                <span class="block text-red-600 mt-2">TUGS!</span>
-              </h2>
-              <p class="text-base text-white/70 leading-relaxed max-w-xl mb-6">
-                Track bookings, discover gigs, message collaborators, and move through your dashboard without extra steps.
-              </p>
-
-              <div class="grid grid-cols-2 gap-4 max-w-xl mb-6">
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p class="text-[10px] uppercase tracking-widest text-white/45">Live Discovery</p>
-                  <p class="text-lg font-semibold text-white mt-2">Events, artists, sessionists</p>
-                </div>
-                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p class="text-[10px] uppercase tracking-widest text-white/45">Fast Access</p>
-                  <p class="text-lg font-semibold text-white mt-2">Tickets, bookings, messages</p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
 
       </div>
     </section>
@@ -140,28 +119,11 @@
     let googleClientReady = false;
     let googleClientConfig = null;
 
-    function isLocalOrigin() {
-      const host = window.location.hostname || '';
-      return host === 'localhost' || host === '127.0.0.1' || host === '::1';
-    }
-
-    function buildLocalGoogleSetupHint() {
-      return `For local testing, add ${window.location.origin} to Authorized JavaScript origins for your Google Web client, then restart the app if you changed the local config.`;
-    }
-
     function formatGoogleStatusMessage(message) {
       const rawMessage = (message || '').trim();
-      if (!rawMessage) return 'Google Sign-In is unavailable right now.';
-
-      if (isOriginConfigurationError(rawMessage)) {
-        const baseHint = googleClientConfig?.setupHint || buildLocalGoogleSetupHint();
-        return `${rawMessage} ${baseHint}`.trim();
+      if (!rawMessage || /origin|oauth|client.?id|configur|database|supabase|host|library|network|fetch/i.test(rawMessage)) {
+        return 'Google sign-in is unavailable right now. Please use your email and password, or try again later.';
       }
-
-      if (/database host could not be resolved|requested name is valid|no data of the requested type was found|no such host is known/i.test(rawMessage)) {
-        return `${rawMessage} The local database connection is failing too, so update the Supabase host in your local environment before retrying Google Sign-In.`;
-      }
-
       return rawMessage;
     }
 
@@ -182,9 +144,6 @@
       throw new Error('Google Sign-In library did not load.');
     }
 
-    function isOriginConfigurationError(message) {
-      return /origin|registered origin|not allowed|403/i.test(message || '');
-    }
 
     async function readResponsePayload(response) {
       const contentType = response.headers.get('content-type') || '';
@@ -202,6 +161,21 @@
       };
     }
 
+    function syncLoginTheme() {
+      const theme = document.documentElement.classList.contains('light-mode') ? 'light' : 'dark';
+      document.querySelectorAll('[data-login-theme]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.loginTheme === theme));
+      });
+    }
+    document.querySelectorAll('[data-login-theme]').forEach(button => {
+      button.addEventListener('click', () => {
+        window.ImajiTheme.set(button.dataset.loginTheme);
+        syncLoginTheme();
+      });
+    });
+    syncLoginTheme();
+    new MutationObserver(syncLoginTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
     // TOGGLE PASSWORD VISIBILITY FUNCTION
     function togglePassword(inputId, iconId) {
       const input = document.getElementById(inputId);
@@ -213,6 +187,9 @@
         input.type = 'password';
         icon.setAttribute('data-lucide', 'eye');
       }
+      const visibilityButton = document.getElementById('passwordVisibilityButton');
+      visibilityButton.setAttribute('aria-label', input.type === 'password' ? 'Show password' : 'Hide password');
+      visibilityButton.setAttribute('aria-pressed', String(input.type === 'text'));
       lucide.createIcons();
     }
 
@@ -305,16 +282,12 @@
           size: 'large',
           shape: 'pill',
           text: 'continue_with',
-          width: Math.min(360, Math.max(260, buttonHost.clientWidth || 320))
+          width: Math.min(400, buttonHost.clientWidth || 280)
         });
 
         googleClientReady = true;
-        if (isLocalOrigin()) {
-          status.textContent = buildLocalGoogleSetupHint();
-          status.classList.remove('hidden');
-        } else {
-          status.classList.add('hidden');
-        }
+        status.textContent = '';
+        status.classList.add('hidden');
       } catch (error) {
         renderGoogleUnavailable(buttonHost, 'Google Sign-In Unavailable');
         status.textContent = formatGoogleStatusMessage(error?.message);
@@ -327,9 +300,7 @@
 
       try {
         if (!response?.credential) {
-          const originHint = googleClientConfig?.setupHint
-            || `Add ${window.location.origin} to Authorized JavaScript origins for your Google Web client.`;
-          throw new Error(`Google did not return a sign-in credential. If Google shows "origin not allowed", update the Google Cloud OAuth Web client. ${originHint}`);
+          throw new Error('Google sign-in was not completed. Please try again or use your email and password.');
         }
 
         status.textContent = 'Signing in with Google...';

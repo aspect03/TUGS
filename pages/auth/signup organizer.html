@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
-  <script src="/assets/js/signup-terms.js" defer></script>
+  <script src="/assets/js/signup-terms.js?v=20260905-terms2" defer></script>
   <script src="/assets/js/performance-helpers.js"></script>
   <style>
     #otpModal { transition: opacity 0.2s ease; }
@@ -31,9 +31,11 @@
     .password-note-mid { color: rgb(252 211 77 / 0.95); }
   </style>
   <link rel="stylesheet" href="/assets/css/return-navigation.css">
+  <link rel="stylesheet" href="/assets/css/signup.css?v=20260905-select3">
+  <script src="/assets/js/signup-validation.js" defer></script>
 </head>
-<body class="bg-neutral-950 text-white antialiased" style="font-family: 'Montserrat', sans-serif;">
-  
+<body class="signup-page bg-neutral-950 text-white antialiased" style="font-family: 'Montserrat', sans-serif;">
+
   <div class="bg-global-backdrop"></div>
 
   <nav class="relative z-10 w-full h-16 flex items-center justify-between px-6 border-b border-white/10 bg-black/30 backdrop-blur-md">
@@ -46,63 +48,42 @@
   </nav>
 
   <main class="relative z-10 max-w-6xl mx-auto px-6 py-8 md:py-10">
-    <div class="grid gap-6 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] items-start">
-      <aside class="rounded-[2rem] border border-white/10 bg-black/20 backdrop-blur-sm p-6 md:p-7 overflow-hidden relative lg:sticky lg:top-24">
-        <div class="absolute inset-0 bg-[radial-gradient(60%_50%_at_68%_20%,rgba(239,68,68,0.16),rgba(0,0,0,0)_75%)]"></div>
-        <div class="relative z-10">
-          <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-red-400/80 mb-3">Organizer Signup</p>
-          <h1 class="text-3xl font-extrabold tracking-tight text-white">Set up your event management account.</h1>
-          <p class="mt-3 text-sm leading-relaxed text-white/70">
-            Register your production identity, then move into event creation, ticket sales, lineup control, and reporting.
-          </p>
-          <div class="mt-6 space-y-3">
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p class="text-[10px] uppercase tracking-[0.18em] text-white/45">Built for hosts</p>
-              <p class="mt-2 text-sm text-white/75">Create events, monitor attendees, manage lineups, and track payments from a single organizer dashboard.</p>
-            </div>
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p class="text-[10px] uppercase tracking-[0.18em] text-white/45">Verification flow</p>
-              <p class="mt-2 text-sm text-white/75">Use your official production details. After email verification, organizer accounts still go through admin approval before sign in is enabled.</p>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <div class="bg-white/5 rounded-3xl border border-white/10 p-8 md:p-12 backdrop-blur-sm shadow-2xl">
+    <div class="signup-layout">
+<div class="signup-card">
       <div class="mb-8 border-b border-white/10 pb-6 flex items-center gap-4">
         <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
           <i data-lucide="building-2" class="h-6 w-6 text-red-500"></i>
         </div>
         <div>
           <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Organizer Registration</h2>
-          <p class="text-sm text-white/60 mt-1">Security-focused signup and verification.</p>
+          <p class="text-sm text-white/60 mt-1">Discover live events, save your favorites, and book talent.</p>
         </div>
       </div>
 
       <form id="registerForm" class="space-y-6">
         <div class="p-5 bg-black/20 rounded-2xl border border-white/5 mb-6">
           <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] mb-2">Production / Organization Name *</label>
-          <input type="text" id="productionName" placeholder="e.g. Metro Nights Production" required class="w-full px-4 py-3 bg-red-600/10 border border-red-500/30 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none text-white">
+          <input type="text" id="productionName" placeholder="e.g. Metro Nights Production" required class="w-full px-4 py-3 bg-red-600/10 border border-red-500/30 rounded-xl text-sm focus:ring-2 focus:ring-red-500 outline-none text-white" maxlength="160" aria-label="Production name">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em] mb-3">Representative Full Name</label>
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <input type="text" id="firstName" placeholder="First Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
-            <input type="text" id="middleName" placeholder="Middle Name" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
-            <input type="text" id="lastName" placeholder="Last Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
-            <input type="text" id="suffix" placeholder="Suffix" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="text" id="firstName" placeholder="First Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="50" aria-label="First name">
+            <input type="text" id="middleName" placeholder="Middle Name" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="50" aria-label="Middle name (optional)">
+            <input type="text" id="lastName" placeholder="Last Name *" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="50" aria-label="Last name">
+            <input type="text" id="suffix" placeholder="Suffix" class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="10" aria-label="Suffix (optional)">
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
             <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Username *</label>
-            <input type="text" id="username" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="text" id="username" minlength="3" autocomplete="username" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="30" aria-label="Username">
           </div>
           <div class="space-y-2">
             <label class="block text-xs font-semibold text-white/70 uppercase tracking-[0.14em]">Business Email *</label>
-            <input type="email" id="email" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none">
+            <input type="email" id="email" autocomplete="email" placeholder="name@example.com" required class="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-xl text-sm focus:ring-2 focus:ring-red-500/30 outline-none" maxlength="254" aria-label="Email address">
           </div>
         </div>
 
@@ -126,8 +107,6 @@
           </div>
         </div>
 
-        <input type="date" id="bday" value="1990-01-01" class="hidden">
-        <input type="number" id="age" value="30" class="hidden">
 
         <div class="pt-4 border-t border-white/10">
           <div class="flex items-start gap-3 mb-6">
@@ -157,7 +136,7 @@
       </div>
       <div id="termsScrollArea" class="overflow-y-auto flex-1 px-6 py-5 space-y-5 text-sm text-white/70 leading-relaxed">
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">1. Acceptance</h4><p>By creating an account on Imajination you agree to these Terms. If you do not agree, do not use the platform. We may update these terms at any time; continued use means acceptance.</p></div>
-        <div class="space-y-2"><h4 class="text-white font-bold text-sm">2. Account Security &amp; Privacy</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Passwords are stored as <strong class="text-white">bcrypt hashes</strong> — we never store your plain-text password.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Sessions use signed JWT tokens in secure cookies. Tokens expire and are invalidated on logout.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>We collect your name, email, and profile data only to operate the platform. We do not sell personal data.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Your <strong class="text-white">birthday can only be set once</strong> and cannot be changed after signup.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Security events are logged to protect your account from unauthorized access.</span></li></ul></div>
+        <div class="space-y-2"><h4 class="text-white font-bold text-sm">2. Account Security &amp; Privacy</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Passwords are stored as <strong class="text-white">bcrypt hashes</strong> — we never store your plain-text password.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Sessions use signed JWT tokens in secure cookies. Tokens expire and are invalidated on logout.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>We collect your name, email, and profile data only to operate the platform. We do not sell personal data.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Security events are logged to protect your account from unauthorized access.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">3. General Rules (All Users)</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>You must be at least <strong class="text-white">13 years old</strong>. Users under 18 need parental consent.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No multiple accounts, impersonation, or identity misrepresentation.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>No harassment, hate speech, illegal activity, or abusive behavior toward any member.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">4. Organizer Terms</h4><ul class="space-y-1.5"><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>Organizers may create events, set ticket tiers, manage artist lineups, and scan attendee tickets.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>Events must not promote illegal activities. Organizers are solely responsible for delivering the event as described.</span></li><li class="flex gap-2"><span class="text-emerald-400 shrink-0">✓</span><span>A ticket service fee (5%) is collected per transaction to maintain the platform.</span></li><li class="flex gap-2"><span class="text-red-400 shrink-0">✕</span><span>Cancelling an event after ticket sales requires immediate communication and a clear refund process.</span></li></ul></div>
         <div class="space-y-2"><h4 class="text-white font-bold text-sm">5. Payments &amp; Refunds</h4><p>All payments go through <strong class="text-white">PayMongo</strong>. Refund requests are reviewed by admins. Chargebacks initiated without first raising a dispute through Imajination may result in account suspension.</p></div>
@@ -183,7 +162,7 @@
         </div>
         <p class="text-[10px] font-bold uppercase tracking-[0.22em] text-red-300/90 mb-3">Organizer Verification</p>
         <h3 class="text-[1.75rem] font-extrabold tracking-tight mb-2">Check Your Email</h3>
-        <p class="text-sm leading-relaxed text-white/65 mb-6">A verification code was accepted for delivery to <span id="displayEmail" class="text-white font-semibold break-all">your email</span>. Enter it only after it arrives.</p>
+        <p class="text-sm leading-relaxed text-white/65 mb-6">We requested a verification code for <span id="displayEmail" class="text-white font-semibold break-all">your email</span>. Check your inbox and spam folder. You can continue only with the code from that email.</p>
         <input type="text" id="otpInput" placeholder="ENTER 6-DIGIT CODE" maxlength="6" class="otp-code-input w-full px-4 py-4 bg-black/60 text-center font-mono border border-red-500/40 rounded-2xl text-base focus:ring-2 focus:ring-red-500 outline-none mb-4 uppercase">
         <p class="text-[10px] uppercase tracking-[0.18em] text-white/35 mb-5">Use the code before it expires.</p>
         <button id="confirmOtpBtn" class="w-full py-3.5 bg-white text-black text-sm font-bold uppercase tracking-[0.16em] rounded-xl hover:bg-neutral-200 transition-colors">
@@ -197,32 +176,6 @@
     lucide.createIcons();
 
     // Terms & Conditions modal
-    function openTermsModal() {
-      document.getElementById('termsModal').style.display = 'flex';
-      lucide.createIcons();
-    }
-    function closeTermsModal() {
-      document.getElementById('termsModal').style.display = 'none';
-    }
-    document.getElementById('openTermsBtn').addEventListener('click', openTermsModal);
-    document.getElementById('closeTermsBtn').addEventListener('click', closeTermsModal);
-    document.getElementById('dismissTermsBtn').addEventListener('click', closeTermsModal);
-    document.getElementById('acceptTermsBtn').addEventListener('click', () => {
-      document.getElementById('agreeTerms').checked = true;
-      closeTermsModal();
-    });
-    document.getElementById('termsModal').addEventListener('click', (e) => {
-      if (e.target === document.getElementById('termsModal')) closeTermsModal();
-    });
-
-    async function showSystemAlert(message, title = 'Notice') {
-      if (window.systemDialog?.alert) {
-        await window.systemDialog.alert(message, { title, kicker: 'System Message' });
-        return;
-      }
-      window.alert(message);
-    }
-
     const pendingGoogleSignup = sessionStorage.getItem('pendingGoogleSignup');
     const fromGoogleSignup = new URLSearchParams(window.location.search).get('from') === 'google';
 
@@ -337,7 +290,7 @@
 
       const email = document.getElementById('email').value;
       const btn = document.getElementById('initiateBtn');
-      
+
       btn.innerText = "Sending Code...";
       btn.disabled = true;
 
@@ -370,9 +323,11 @@
 
     // 2. Final Registration Submission
     document.getElementById('confirmOtpBtn').addEventListener('click', async () => {
-      const otpCode = document.getElementById('otpInput').value;
-      if(otpCode.length !== 6) { await showSystemAlert("Please enter a valid 6-digit code.", 'Verification Error'); return; }
-      
+      if (!window.SignupValidation.validateForm()) return;
+      if (!document.getElementById('agreeTerms').checked) { openTermsModal(); return; }
+      const otpCode = document.getElementById('otpInput').value.trim();
+      if(!/^\d{6}$/.test(otpCode)) { await showSystemAlert("Please enter a valid 6-digit code.", 'Verification Error'); return; }
+
       const payload = {
         role: "Organizer",
         productionName: document.getElementById('productionName').value,
@@ -383,8 +338,7 @@
         username: document.getElementById('username').value,
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
-        birthday: document.getElementById('bday').value,
-        age: parseInt(document.getElementById('age').value),
+
         termsAccepted: document.getElementById('agreeTerms').checked,
         termsVersion: '2026-08-29',
         otp: otpCode 

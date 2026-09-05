@@ -23,9 +23,10 @@
     .receipt-paper::before { content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px; background: radial-gradient(circle at 10px 0, transparent 10px, #fdfdfd 11px) repeat-x; background-size: 20px 10px; }
   </style>
   <link rel="stylesheet" href="/assets/css/return-navigation.css">
+  <link rel="stylesheet" href="/assets/css/talent-dashboard.css">
 </head>
-<body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col min-h-screen" style="font-family: 'Montserrat', sans-serif;">
-  
+<body class="talent-dashboard mobile-screen bg-neutral-950 text-white antialiased flex flex-col min-h-screen" style="font-family: 'Montserrat', sans-serif;">
+
   <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
   <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden">
     <div class="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full bg-red-600/[0.06] blur-[120px]"></div>
@@ -95,7 +96,7 @@
     </div>
 
     <nav class="flex md:flex-col flex-nowrap md:flex-1 gap-1 px-3 py-4 overflow-x-auto md:overflow-y-auto">
-      <button onclick="switchTab('dashboard')" id="tabBtn-dashboard" class="w-full flex items-center gap-3 px-3 py-2.5 bg-red-500/10 border border-red-500/20 text-white rounded-xl text-sm font-semibold transition-all duration-150">
+      <button onclick="switchTab('dashboard')" id="tabBtn-dashboard" aria-current="page" class="w-full flex items-center gap-3 px-3 py-2.5 bg-red-500/10 border border-red-500/20 text-white rounded-xl text-sm font-semibold transition-all duration-150">
         <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-red-500/15 flex-shrink-0"><i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-red-400"></i></span>
         <span>Dashboard</span>
       </button>
@@ -135,16 +136,16 @@
   </aside>
 
   <main class="mobile-dashboard-main flex-1 overflow-y-auto relative z-10">
-    <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6">
-        <div><a href="/" class="return-link"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a></div>
-      
-      <header class="mobile-stack-header rounded-2xl bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.10),transparent_55%),rgba(255,255,255,0.02)] border border-white/[0.07] p-6 mb-2">
+    <div class="talent-content max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6">
+
+
+      <header class="mobile-stack-header talent-header"><div>
         <p class="text-[10px] font-bold text-red-400/80 uppercase tracking-[0.25em] mb-2">Sessionist Portal</p>
         <h1 class="text-3xl font-extrabold text-white">Welcome back</h1><span id="userNameDisplay" class="hidden"></span>
-      </header>
+      </div><div class="talent-home-link"><a href="/" class="return-link"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a></div></header>
 
       <div id="view-dashboard" class="tab-panel tab-panel-active space-y-5 block">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="talent-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div class="relative overflow-hidden bg-gradient-to-br from-red-500/[0.09] to-transparent border border-red-500/[0.18] rounded-2xl p-5 shadow-lg">
             <div class="flex items-center justify-between mb-4">
               <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Upcoming Gigs</p>
@@ -407,7 +408,7 @@
                     <input type="text" id="stageNameInput" placeholder="Public sessionist name" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
                   </div>
                 </div>
-                
+
                 <div class="space-y-3">
                   <label class="block text-[10px] font-bold text-white/70 uppercase tracking-[0.2em]">Instruments & Genres (Comma Separated)</label>
                   <input type="text" id="genresInput" placeholder="e.g. Lead Guitar, Drums, Rock, Pop" class="w-full px-5 py-4 bg-black/60 border border-white/5 rounded-xl text-sm focus:outline-none focus:border-red-500 text-white shadow-inner">
@@ -1295,6 +1296,7 @@
         [myTicketsBtn, tabName === 'my-tickets']
       ].forEach(([button, isActive]) => {
         if (!button) return;
+        button.setAttribute('aria-current', isActive ? 'page' : 'false');
         button.className = isActive
           ? 'w-full flex items-center gap-3 px-3 py-2.5 bg-red-500/10 border border-red-500/20 text-white rounded-xl text-sm font-semibold transition-all duration-150'
           : 'w-full flex items-center gap-3 px-3 py-2.5 text-white/45 hover:text-white hover:bg-white/[0.04] rounded-xl text-sm font-medium transition-all duration-150';
@@ -1343,7 +1345,7 @@
       document.getElementById('sidebarName').innerText = displayName;
       document.getElementById('userNameDisplay').innerText = displayName;
       document.getElementById('dropdownName').innerText = displayName;
-      
+
       if (artist.profilePicture) {
         document.getElementById('avatarPreview').src = artist.profilePicture;
         base64Image = artist.profilePicture;
@@ -1356,7 +1358,7 @@
           document.getElementById('profileInitialNav')?.classList.add('hidden');
         }
       }
-      
+
       document.getElementById('genresInput').value = genresValue !== 'Sessionist' ? genresValue : '';
       document.getElementById('spotifyInput').value = artist.spotifyLink || '';
       document.getElementById('bioInput').value = bioValue.includes("hasn't written") ? '' : bioValue;
@@ -1595,14 +1597,14 @@
       container.innerHTML = tickets.map((t,i) => {
         const evDate=new Date(t.eventTime).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
         const ref=String(t.ticketId||'').slice(0,8).toUpperCase(), canQr=!t.isAwaiting&&String(t.refundStatus||'')!=='Refunded';
-        let badge='',opacity='';
-        if(t.isAwaiting){badge='<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">Awaiting Payment</span>';opacity='opacity-50';}
-        else if(String(t.refundStatus||'')==='Refunded'){badge='<span class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold uppercase">Refunded</span>';opacity='opacity-60 grayscale';}
-        else if(t.isFullyUsed){badge='<span class="px-2 py-0.5 rounded bg-neutral-600/30 text-neutral-400 text-[9px] font-bold uppercase">Scanned</span>';opacity='opacity-50 grayscale';}
-        else if(t.used>0){badge=`<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">${t.used}/${t.qty} Scanned</span>`;}
-        else if(t.isExpired){badge='<span class="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-bold uppercase">Expired</span>';opacity='opacity-50 grayscale';}
-        else{badge='<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase">Valid</span>';}
-        return `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-white/[0.10] transition-colors ${opacity}">
+        let badge='';
+        if(t.isAwaiting){badge='<span class="talent-ticket-status px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">Awaiting Payment</span>';}
+        else if(String(t.refundStatus||'')==='Refunded'){badge='<span class="talent-ticket-status px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[9px] font-bold uppercase">Refunded</span>';}
+        else if(t.isFullyUsed){badge='<span class="talent-ticket-status px-2 py-0.5 rounded bg-neutral-600/30 text-neutral-400 text-[9px] font-bold uppercase">Scanned</span>';}
+        else if(t.used>0){badge=`<span class="talent-ticket-status px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase">${t.used}/${t.qty} Scanned</span>`;}
+        else if(t.isExpired){badge='<span class="talent-ticket-status px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] font-bold uppercase">Expired</span>';}
+        else{badge='<span class="talent-ticket-status px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase">Valid</span>';}
+        return `<div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-white/[0.10] transition-colors talent-ticket-card">
           <div class="flex-1 min-w-0 space-y-2">
             <div class="flex items-center gap-2 flex-wrap">${badge}<span class="text-[10px] text-red-400 font-bold uppercase">${escapeHtml(t.tierName||'General')} · ${t.qty} ticket${t.qty!==1?'s':''}</span></div>
             <p class="font-bold text-white text-sm truncate">${escapeHtml(t.eventTitle||'Event')}</p>

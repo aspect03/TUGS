@@ -27,7 +27,7 @@ namespace ImajinationAPI.Models
         public string email { get; set; } = string.Empty;
         public string? contactNumber { get; set; }
         public string? address { get; set; }
-        public DateTime birthday { get; set; }
+        public DateTime? birthday { get; set; }
         public int age { get; set; }
         public string password { get; set; } = string.Empty;
 
