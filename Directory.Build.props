@@ -1,11 +1,14 @@
 <Project>
   <!--
-    Redirect build output outside OneDrive so the compiler doesn't fight
-    the sync process on every file write. Cuts build time from ~200s → ~10s.
+    Keep build output inside the repo by default so `dotnet` works on any
+    machine without requiring access to a hardcoded C:\ path. Developers can
+    override this with IMAJINATION_BUILD_CACHE_ROOT when needed.
   -->
   <PropertyGroup>
-    <_BuildCacheRoot>C:\IMAJINATIONbuild</_BuildCacheRoot>
+    <_BuildCacheRoot Condition="'$(IMAJINATION_BUILD_CACHE_ROOT)' != ''">$(IMAJINATION_BUILD_CACHE_ROOT)</_BuildCacheRoot>
+    <_BuildCacheRoot Condition="'$(_BuildCacheRoot)' == ''">$(MSBuildThisFileDirectory).artifacts</_BuildCacheRoot>
     <BaseIntermediateOutputPath>$(_BuildCacheRoot)\obj\</BaseIntermediateOutputPath>
     <BaseOutputPath>$(_BuildCacheRoot)\bin\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildThisFileDirectory).artifacts\**\*;$(MSBuildThisFileDirectory).build-cache\**\*</DefaultItemExcludes>
   </PropertyGroup>
 </Project>

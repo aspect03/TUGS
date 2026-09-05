@@ -11,14 +11,88 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/theme.js"></script>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <style>
+    /* Page-specific light palette; keep the theme previews independent. */
+    html.light-mode body.signup-roles-page {
+      background: #f8f6f3 !important;
+      color: #292524 !important;
+    }
+    html.light-mode .signup-backdrop {
+      background: radial-gradient(ellipse at 50% 0%, #fce8e6 0%, transparent 60%);
+    }
+    html.light-mode .signup-backdrop > div { display: none; }
+    html.light-mode .signup-roles-page nav {
+      background: rgba(255, 255, 255, 0.92) !important;
+      border-color: #e7e1dc !important;
+    }
+    html.light-mode .signup-roles-page .role-card,
+    html.light-mode .signup-roles-page .theme-panel {
+      background: #fff !important;
+      box-shadow: 0 0 0 1px #e7e1dc, 0 12px 32px -16px rgba(58, 34, 29, 0.18);
+    }
+    html.light-mode .signup-roles-page .role-card {
+      --role-accent: #c62828;
+      --role-tint: #fff1f0;
+      --role-border: #f4ceca;
+    }
+    html.light-mode .signup-roles-page .role-card--sessionist {
+      --role-accent: #0e7490;
+      --role-tint: #ecf8fa;
+      --role-border: #c3e5ec;
+    }
+    html.light-mode .signup-roles-page .role-card:hover {
+      box-shadow: 0 0 0 1px var(--role-border), 0 18px 36px -18px rgba(58, 34, 29, 0.26);
+    }
+    html.light-mode .signup-roles-page .role-icon {
+      background: var(--role-tint) !important;
+      box-shadow: 0 0 0 1px var(--role-border);
+    }
+    html.light-mode .signup-roles-page .role-card [data-lucide] {
+      color: var(--role-accent) !important;
+      flex-shrink: 0;
+    }
+    html.light-mode .signup-roles-page .role-badge {
+      background: #f5f3f0 !important;
+      color: #625852 !important;
+      box-shadow: none;
+    }
+    html.light-mode .signup-roles-page main p:not(.theme-choice-card p),
+    html.light-mode .signup-roles-page .role-card ul { color: #625852 !important; }
+    html.light-mode .signup-roles-page .theme-panel .font-bold { color: #292524 !important; }
+    html.light-mode .signup-roles-page .role-signup-link {
+      background: var(--role-accent) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 10px -5px var(--role-accent);
+      transition: background-color 180ms ease, box-shadow 180ms ease;
+    }
+    html.light-mode .signup-roles-page .role-signup-link:hover { background: #a91f24 !important; }
+    html.light-mode .signup-roles-page .role-card--sessionist .role-signup-link:hover { background: #155e75 !important; }
+    html.light-mode .signup-roles-page .role-signup-link:focus-visible,
+    html.light-mode .signup-roles-page .theme-choice-card:focus-visible {
+      outline: 3px solid #b4232b;
+      outline-offset: 4px;
+    }
+    html.light-mode .signup-roles-page .theme-panel { border-color: transparent !important; }
+    html.light-mode .signup-roles-page .theme-choice-card--dark p { color: #b8b8b8 !important; }
+    html.light-mode .signup-roles-page .theme-choice-card--light p { color: #625852 !important; }
+    html.light-mode .signup-roles-page .theme-choice-card.active { border-color: #c62828; }
+    html.light-mode .signup-roles-page .theme-choice-card.active [data-lucide="check"] { color: #fff !important; }
+    html.light-mode .signup-roles-page #google-signup-banner {
+      background: #eff6ff !important;
+      border-color: #bfdbfe !important;
+      color: #1e40af !important;
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/css/return-navigation.css">
 </head>
-<body class="bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
-  <div class="pointer-events-none fixed inset-0 z-0">
+<body class="signup-roles-page bg-neutral-950 text-white antialiased selection:bg-red-500/30 selection:text-white" style="font-family: 'Montserrat', system-ui, sans-serif;">
+  <div class="signup-backdrop pointer-events-none fixed inset-0 z-0">
     <div class="absolute inset-0 bg-[radial-gradient(60%_55%_at_50%_25%,rgba(239,68,68,0.18),rgba(0,0,0,0)_60%)]"></div>
     <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/70 to-black"></div>
   </div>
 
-  <nav class="relative z-10 w-full h-16 flex items-center justify-center border-b border-white/10 bg-black/30 backdrop-blur-md">
+  <nav class="auth-return-nav relative z-10 w-full h-16 flex items-center justify-center border-b border-white/10 bg-black/30 backdrop-blur-md">
+      <a href="/" class="return-link"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a>
     <a href="/" class="flex items-center group transition-transform duration-300 hover:scale-105">
       <div class="h-9 w-32 sm:h-10 sm:w-36 flex items-center">
         <img src="/assets/images/logo.png?v=2" alt="Tugs! logo" class="h-full w-full object-contain object-left drop-shadow-[0_8px_24px_rgba(239,68,68,0.18)]" onerror="this.style.display='none'">
@@ -41,12 +115,12 @@
       </div>
 
       <div class="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 max-w-4xl mx-auto">
-        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+        <article class="role-card group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+            <div class="role-icon flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
               <i data-lucide="user" class="h-5 w-5 text-red-500"></i>
             </div>
-            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Audience</span>
+            <span class="role-badge rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Audience</span>
           </div>
           <div class="mt-5 flex flex-1 flex-col">
             <h3 class="text-xl font-semibold tracking-tight">Customer</h3>
@@ -64,12 +138,12 @@
           </a>
         </article>
 
-        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+        <article class="role-card group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
+            <div class="role-icon flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/15 ring-1 ring-red-600/30">
               <i data-lucide="music" class="h-5 w-5 text-red-500"></i>
             </div>
-            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Talents</span>
+            <span class="role-badge rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Talents</span>
           </div>
           <div class="mt-5 flex flex-1 flex-col">
             <h3 class="text-xl font-semibold tracking-tight">Artist</h3>
@@ -87,12 +161,12 @@
           </a>
         </article>
 
-        <article class="group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
+        <article class="role-card role-card--sessionist group flex h-full flex-col rounded-[1.6rem] bg-white/[0.04] p-6 ring-1 ring-white/10 hover:bg-white/[0.07] hover:-translate-y-1 transition-all duration-300">
           <div class="flex items-start justify-between gap-3">
-            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-600/15 ring-1 ring-cyan-500/30">
+            <div class="role-icon flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-600/15 ring-1 ring-cyan-500/30">
               <i data-lucide="guitar" class="h-5 w-5 text-cyan-400"></i>
             </div>
-            <span class="rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Session Players</span>
+            <span class="role-badge rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">For Session Players</span>
           </div>
           <div class="mt-5 flex flex-1 flex-col">
             <h3 class="text-xl font-semibold tracking-tight">Sessionist</h3>
@@ -113,7 +187,7 @@
 
       <!-- Theme Preference -->
       <div class="mt-10 max-w-2xl mx-auto">
-        <div class="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
+        <div class="theme-panel rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
           <div class="flex items-center gap-3 mb-5">
             <div class="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
               <i data-lucide="palette" class="w-4 h-4 text-white/60"></i>

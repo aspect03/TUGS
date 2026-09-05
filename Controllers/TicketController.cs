@@ -324,11 +324,6 @@ namespace ImajinationAPI.Controllers
                     return Forbid();
                 }
 
-                if (req.totalPrice < 20)
-                {
-                    return BadRequest(new { message = "PayMongo requires a minimum amount of ₱20.00." });
-                }
-
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await PlatformFeatureSupport.EnsureSharedBusinessSchemaAsync(connection);
@@ -383,6 +378,12 @@ namespace ImajinationAPI.Controllers
                     {
                         return NotFound(new { message = "Event not found." });
                     }
+                }
+
+                var customerBilling = await GetVerifiedCheckoutBillingAsync(connection, parsedCustomerId);
+                if (customerBilling is null)
+                {
+                    return BadRequest(new { message = "Add a valid Philippine mobile number and verified email to your account before purchasing tickets." });
                 }
 
                 if (organizerId != Guid.Empty && organizerId == parsedCustomerId)
@@ -447,6 +448,18 @@ namespace ImajinationAPI.Controllers
                 }
 
                 var normalizedTierName = string.IsNullOrWhiteSpace(req.tierName) ? "General Admission" : req.tierName.Trim();
+                if (normalizedTierName.Length > 120 ||
+                    !IsRecognizedTierName(normalizedTierName, primaryTierName, bundles))
+                {
+                    return BadRequest(new { message = "Select a valid ticket tier before checkout." });
+                }
+
+                if (!TryGetTrustedCheckoutReturnUrl(req.successUrl, out var trustedSuccessUrl) ||
+                    !TryGetTrustedCheckoutReturnUrl(req.cancelUrl, out var trustedCancelUrl))
+                {
+                    return BadRequest(new { message = "Checkout return URLs must stay on this site." });
+                }
+
                 var saleActive = IsSaleActive(saleStartsAt, saleEndsAt);
 
                 // Enforce promo ticket quantity limit
@@ -512,8 +525,8 @@ namespace ImajinationAPI.Controllers
                 }
 
                 // tickets_sold is incremented only on confirmed payment to avoid counting cancelled checkouts
-                var successUrl = AppendQuery(req.successUrl, $"ticketPaid=1&ticketId={newTicketGuid}");
-                var cancelUrl = AppendQuery(req.cancelUrl, $"ticketPending=1&ticketId={newTicketGuid}");
+                var successUrl = AppendQuery(trustedSuccessUrl, $"ticketPaid=1&ticketId={newTicketGuid}");
+                var cancelUrl = AppendQuery(trustedCancelUrl, $"ticketPending=1&ticketId={newTicketGuid}");
 
                 if (string.IsNullOrWhiteSpace(_paymongoSecretKey))
                 {
@@ -535,10 +548,21 @@ namespace ImajinationAPI.Controllers
                             show_description = true,
                             show_line_items = true,
                             payment_method_types = new[] { "gcash", "card", "paymaya" },
+                            payment_method_options = new
+                            {
+                                card = new { request_three_d_secure = "automatic" }
+                            },
+                            billing = new
+                            {
+                                name = customerBilling.Value.Name,
+                                email = customerBilling.Value.Email,
+                                phone = customerBilling.Value.Phone
+                            },
                             line_items = new[]
                             {
                                 new { currency = "PHP", amount = (int)(unitPrice * 100), name = $"{normalizedTierName} Ticket - {eventTitle}", quantity = req.quantity },
-                                new { currency = "PHP", amount = (int)(serviceFee * 100), name = $"Ticket Service Fee ({TicketServiceFeeRate * 100:0}%)", quantity = 1 }
+                                new { currency = "PHP", amount = (int)(serviceFee * 100), name = $"Ticket Service Fee ({TicketServiceFeeRate * 100:0}%)", quantity = 1 },
+                                new { currency = "PHP", amount = (int)(platformFee * 100), name = "Platform Fee", quantity = 1 }
                             },
                             success_url = successUrl,
                             cancel_url = cancelUrl
@@ -563,7 +587,7 @@ namespace ImajinationAPI.Controllers
                         responseString,
                         "PayMongo could not create the checkout session. Please verify the amount and payment settings."
                     );
-                    return StatusCode((int)response.StatusCode, new { message = payMongoMessage, details = responseString });
+                    return StatusCode((int)response.StatusCode, new { message = payMongoMessage });
                 }
 
                 using JsonDocument doc = JsonDocument.Parse(responseString);
@@ -573,6 +597,12 @@ namespace ImajinationAPI.Controllers
                 string checkoutReference = data.GetProperty("attributes").TryGetProperty("reference_number", out var referenceProp)
                     ? referenceProp.GetString()
                     : string.Empty;
+
+                if (!Uri.TryCreate(checkoutUrl, UriKind.Absolute, out var checkoutUri) ||
+                    !string.Equals(checkoutUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(502, new { message = "The payment provider returned an invalid checkout link." });
+                }
 
                 string ticketUpdateSql = @"
                     UPDATE tickets
@@ -624,6 +654,117 @@ namespace ImajinationAPI.Controllers
             }
         }
 
+        private static async Task<(string Name, string Email, string Phone)?> GetVerifiedCheckoutBillingAsync(NpgsqlConnection connection, Guid customerId)
+        {
+            const string sql = @"
+                SELECT firstname, lastname, email, contactnumber
+                FROM users
+                WHERE id = @id
+                LIMIT 1;";
+
+            await using var cmd = new NpgsqlCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@id", customerId);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync())
+            {
+                return null;
+            }
+
+            var firstName = reader.IsDBNull(0) ? string.Empty : reader.GetString(0).Trim();
+            var lastName = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
+            var email = reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim().ToLowerInvariant();
+            var phone = reader.IsDBNull(3) ? null : NormalizePhilippineMobileNumber(reader.GetString(3));
+            if (!IsValidCheckoutEmail(email) || phone is null)
+            {
+                return null;
+            }
+
+            var name = (firstName + " " + lastName).Trim();
+            return (string.IsNullOrWhiteSpace(name) ? "Ticket Holder" : name, email, phone);
+        }
+
+        // PayMongo billing uses the local Philippine mobile format: 09XXXXXXXXX.
+        private static string? NormalizePhilippineMobileNumber(string? value)
+        {
+            var digits = new string((value ?? string.Empty).Where(char.IsDigit).ToArray());
+            if (digits.StartsWith("63", StringComparison.Ordinal))
+            {
+                digits = digits[2..];
+            }
+
+            if (digits.StartsWith("9", StringComparison.Ordinal))
+            {
+                digits = "0" + digits;
+            }
+
+            return digits.Length == 11 && digits.StartsWith("09", StringComparison.Ordinal)
+                ? digits
+                : null;
+        }
+
+        private static bool IsValidCheckoutEmail(string email)
+        {
+            if (email.Length < 3 || email.Length > 254 || email.Any(char.IsWhiteSpace))
+            {
+                return false;
+            }
+
+            try
+            {
+                var parsed = new System.Net.Mail.MailAddress(email);
+                var atIndex = email.LastIndexOf("@", StringComparison.Ordinal);
+                return string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase) &&
+                       atIndex > 0 && atIndex < email.Length - 1 &&
+                       email[(atIndex + 1)..].Contains(".", StringComparison.Ordinal);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool TryGetTrustedCheckoutReturnUrl(string? rawUrl, out string trustedUrl)
+        {
+            trustedUrl = string.Empty;
+            if (!Uri.TryCreate(rawUrl, UriKind.Absolute, out var uri) ||
+                !string.IsNullOrEmpty(uri.UserInfo) ||
+                !uri.AbsolutePath.StartsWith("/pages/", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var request = HttpContext.Request;
+            var requestPort = request.Host.Port ?? (request.IsHttps ? 443 : 80);
+            var uriPort = uri.IsDefaultPort ? (uri.Scheme == Uri.UriSchemeHttps ? 443 : 80) : uri.Port;
+            if (!string.Equals(uri.Scheme, request.Scheme, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(uri.Host, request.Host.Host, StringComparison.OrdinalIgnoreCase) ||
+                uriPort != requestPort)
+            {
+                return false;
+            }
+
+            trustedUrl = uri.GetLeftPart(UriPartial.Path) + uri.Query;
+            return true;
+        }
+
+        private static bool IsRecognizedTierName(string tierName, string? primaryTierName, string? bundles)
+        {
+            if (!string.IsNullOrWhiteSpace(primaryTierName) &&
+                tierName.Equals(primaryTierName.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(bundles) &&
+                ParseBundleTierRecords(bundles).Any(tier => tierName.Equals(tier.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return string.IsNullOrWhiteSpace(primaryTierName) &&
+                   string.IsNullOrWhiteSpace(bundles) &&
+                   tierName.Equals("General Admission", StringComparison.OrdinalIgnoreCase);
+        }
         private static bool IsSaleActive(DateTime? startsAt, DateTime? endsAt)
         {
             var now = DateTime.UtcNow;
@@ -1032,7 +1173,7 @@ namespace ImajinationAPI.Controllers
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return StatusCode((int)response.StatusCode, new { message = "Failed to verify PayMongo checkout.", details = responseString });
+                    return StatusCode((int)response.StatusCode, new { message = "Payment verification is temporarily unavailable. Please try again shortly." });
                 }
 
                 using var doc = JsonDocument.Parse(responseString);

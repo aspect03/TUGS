@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/assets/js/system-dialogs.js"></script>
   <script src="/assets/js/performance-helpers.js"></script>
+  <link rel="stylesheet" href="/assets/css/return-navigation.css">
 </head>
 <body class="bg-neutral-950 text-white antialiased h-screen overflow-hidden flex flex-col" style="font-family: 'Montserrat', sans-serif;">
   <div class="bg-dashboard-backdrop"></div>
@@ -23,9 +24,7 @@
       <span class="hidden sm:inline text-xs font-semibold uppercase tracking-[0.18em] text-white/45">Messages</span>
     </div>
     <div class="ml-auto flex items-center gap-4">
-      <a id="backLink" href="javascript:history.back()" class="text-xs font-semibold text-white/70 uppercase tracking-[0.14em] hover:text-white transition-colors flex items-center gap-2">
-        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
-      </a>
+      <a href="/" class="return-link" id="backLink"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a>
     </div>
   </nav>
 
@@ -307,9 +306,17 @@
 
     function setBackLink() {
       const backLink = document.getElementById('backLink');
-      if (userRole === 'Artist') backLink.href = '/pages/dashboards/ArtistDashboard.html';
-      else if (userRole === 'Sessionist') backLink.href = '/pages/dashboards/SessionistDashboard.html';
-      else if (userRole === 'Customer') backLink.href = '/pages/dashboards/CustomerDashboard.html';
+      const dashboards = {
+        Artist: 'ArtistDashboard.html',
+        Sessionist: 'SessionistDashboard.html',
+        Customer: 'CustomerDashboard.html',
+        Organizer: 'OrganizerDashboard.html',
+        Admin: 'ProfileAdmin.html'
+      };
+      if (Object.hasOwn(dashboards, userRole)) {
+        backLink.href = '/pages/dashboards/' + dashboards[userRole];
+        backLink.querySelector('span').textContent = 'Back to dashboard';
+      }
     }
 
     function openContractPanel() {

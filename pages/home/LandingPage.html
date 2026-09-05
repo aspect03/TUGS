@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tugs! - Landing Page</title>
+  <script>
+    // Apply before rendering so returning users go straight to the events.
+    try {
+      const userId = (localStorage.getItem('userId') || '').trim();
+      const role = (localStorage.getItem('userRole') || '').trim();
+      document.documentElement.classList.toggle('signed-in', Boolean(userId && role));
+    } catch (_) {}
+  </script>
   <!-- PWA -->
   <!-- Inline SVG favicon — eliminates 404 for missing favicon.ico -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23cc292b'/><text x='50%25' y='54%25' dominant-baseline='central' text-anchor='middle' font-size='20' font-family='Arial' fill='white' font-weight='900'>T!</text></svg>">
@@ -30,6 +38,8 @@
   <script src="/assets/js/navbar-notifications.js"></script>
   <script src="/assets/js/navbar-profile-menu.js"></script>
   <style>
+    html.signed-in #landing { display: none; }
+
     @keyframes scan {
       0%, 100% { top: 0; }
       50% { top: 100%; }
@@ -806,8 +816,7 @@
         document.getElementById('authLoggedIn').classList.remove('hidden');
         document.getElementById('bottomCTASection').classList.add('hidden');
         
-        const heroSignInBtn = document.getElementById('heroSignInBtn');
-        if(heroSignInBtn) heroSignInBtn.classList.add('hidden');
+        document.documentElement.classList.add('signed-in');
 
         document.getElementById('profileInitial').innerText = displayName.charAt(0).toUpperCase();
         document.getElementById('dropdownName').innerText = displayName;

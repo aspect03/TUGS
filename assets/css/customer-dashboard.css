@@ -1,0 +1,105 @@
+/* Customer dashboard: readable surfaces and compact, responsive content. */
+.customer-dashboard .mobile-dashboard-main { min-width: 0; }
+.customer-dashboard .customer-content { width: 100%; max-width: 1600px; padding: 24px 28px 40px; }
+.customer-dashboard .customer-content > * + * { margin-top: 20px; }
+.customer-dashboard .mobile-stack-header { align-items: center; padding: 0; }
+.customer-dashboard .customer-home-link { flex-shrink: 0; }
+.customer-dashboard #pageTitle { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.2; }
+.customer-dashboard #pageSubtitle { max-width: 70ch; line-height: 1.6; }
+.customer-dashboard .customer-view [class*="rounded-[24px]"] { padding: 22px; border-radius: 18px; }
+.customer-dashboard .customer-stats > div { padding: 18px 20px; border-radius: 16px; min-height: 120px; }
+.customer-dashboard .customer-stats .text-4xl { font-size: 2rem; }
+.customer-dashboard .customer-stats p { margin-bottom: 8px; }
+.customer-dashboard .customer-view h2,
+.customer-dashboard .customer-view h3 { font-size: 0.9375rem; text-transform: none; letter-spacing: 0.01em; }
+.customer-dashboard .customer-view [class*="text-[10px]"] { font-size: 0.75rem; letter-spacing: 0.04em; }
+.customer-dashboard .customer-view p.uppercase:not(.font-bold) { text-transform: none; letter-spacing: 0.015em; line-height: 1.5; }
+.customer-dashboard .customer-view .mb-6 { margin-bottom: 18px; }
+.customer-dashboard .customer-view .gap-6 { gap: 20px; }
+.customer-dashboard .ticket-card { display: flex; flex-direction: column; min-width: 0; }
+.customer-dashboard .ticket-card > div:first-child { align-items: flex-start; padding: 14px 16px; }
+.customer-dashboard .ticket-card .ticket-info { padding: 14px 16px; }
+.customer-dashboard .ticket-title { font-size: 0.9375rem; }
+.customer-dashboard .ticket-info [class*="text-[11px]"] { font-size: 0.8125rem; line-height: 1.5; }
+.customer-dashboard .ticket-actions { padding: 0 16px 16px; margin-top: auto; }
+.customer-dashboard .ticket-actions a,
+.customer-dashboard .ticket-actions button { min-height: 40px; font-size: 0.75rem; text-transform: none; letter-spacing: 0; }
+.customer-dashboard .ticket-status { display: inline-flex; padding: 4px 8px; line-height: 1.4; text-transform: none; letter-spacing: 0; }
+.customer-dashboard #ticketsListContainer > :not(.ticket-card) { grid-column: 1 / -1; }
+.customer-dashboard .customer-profile-layout > .grid { align-items: start; }
+.customer-dashboard .customer-settings-layout { display: grid; gap: 20px; align-items: start; }
+.customer-dashboard .customer-settings-layout > * { min-width: 0; }
+.customer-dashboard #profileForm { margin: 0; }
+.customer-dashboard #profileForm input:not([type="file"]),
+.customer-dashboard #profileForm textarea { padding: 12px 14px; font-size: 0.875rem; }
+.customer-dashboard #profileForm h3 { margin-bottom: 16px; padding-bottom: 12px; }
+.customer-dashboard #saveBtn { min-height: 48px; padding: 14px; font-size: 0.875rem; letter-spacing: 0.025em; }
+.customer-dashboard .customer-empty-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 20px; }
+.customer-dashboard .customer-empty-actions p { width: 100%; text-align: center; font-size: 0.875rem; }
+.customer-dashboard :is(button, a, input, textarea):focus-visible { outline: 3px solid #e45c5c; outline-offset: 3px; }
+@media (min-width: 768px) {
+  .customer-dashboard .mobile-dashboard-sidebar { width: 224px; }
+  .customer-dashboard .mobile-dashboard-sidebar > div:first-child { padding: 20px 16px; }
+  .customer-dashboard .mobile-dashboard-sidebar nav { padding: 16px 12px; }
+}
+@media (min-width: 1200px) {
+  .customer-dashboard #ticketsListContainer { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customer-dashboard .customer-settings-layout { grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.7fr); grid-template-rows: auto 1fr; }
+  .customer-dashboard #profileForm { grid-column: 2; grid-row: 1 / span 2; }
+  .customer-dashboard .customer-settings-layout > :last-child { grid-column: 1; }
+  .customer-dashboard .customer-settings-layout #customerFavoritesProfileList { grid-template-columns: 1fr; }
+  .customer-dashboard .customer-profile-layout > .grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .customer-dashboard .customer-profile-layout > .grid > :first-child { grid-column: auto; }
+  .customer-dashboard .customer-profile-layout > .grid > :last-child { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .customer-dashboard .customer-profile-layout > .grid > :last-child > * { margin: 0; padding: 20px; }
+}
+@media (max-width: 767px) {
+  .customer-dashboard .mobile-stack-header { align-items: flex-start; padding: 0 !important; gap: 12px; }
+  .customer-dashboard .customer-home-link { order: -1; }
+  .customer-dashboard .customer-view [class*="rounded-[24px]"] { padding: 16px; }
+  .customer-dashboard .customer-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .customer-dashboard .customer-stats > div { padding: 14px; min-height: 112px; }
+  .customer-dashboard .ticket-card > div:first-child { flex-wrap: wrap; }
+  .customer-dashboard .customer-settings-layout .mobile-form-row { flex-wrap: wrap; }
+}
+/* Light mode uses solid text and status colors instead of transparency. */
+html.light-mode body.customer-dashboard { background: #f4f6f8 !important; color: #202b3a !important; }
+html.light-mode .customer-dashboard .bg-dashboard-backdrop { background: #f4f6f8 !important; }
+html.light-mode .customer-dashboard .mobile-dashboard-sidebar { background: #fff !important; border-color: #dce2e9 !important; }
+html.light-mode .customer-dashboard .text-white { color: #202b3a !important; }
+html.light-mode .customer-dashboard [class*="text-white/"] { color: #546174 !important; }
+html.light-mode .customer-dashboard [class*="text-red-"] { color: #b4232b !important; }
+html.light-mode .customer-dashboard [class*="text-blue-"],
+html.light-mode .customer-dashboard [class*="text-sky-"] { color: #1e5a9a !important; }
+html.light-mode .customer-dashboard [class*="text-emerald-"] { color: #08734e !important; }
+html.light-mode .customer-dashboard [class*="text-amber-"] { color: #8a4b08 !important; }
+html.light-mode .customer-dashboard [class*="text-violet-"] { color: #6d35a7 !important; }
+html.light-mode .customer-dashboard .text-neutral-400 { color: #526071 !important; }
+html.light-mode .customer-dashboard .customer-view [class*="bg-[#1a1515]"],
+html.light-mode .customer-dashboard .customer-stats > div,
+html.light-mode .customer-dashboard .ticket-card { background: #fff !important; border-color: #dce2e9 !important; box-shadow: 0 2px 8px rgba(24, 39, 58, 0.045) !important; }
+html.light-mode .customer-dashboard .customer-view [class*="bg-black/"],
+html.light-mode .customer-dashboard .customer-view [class*="bg-white/"] { background-color: #f2f5f8 !important; border-color: #dce2e9 !important; }
+html.light-mode .customer-dashboard .customer-view .ticket-card { background: #fff !important; }
+html.light-mode .customer-dashboard .ticket-card > div:first-child { background: #f8fafc; border-color: #e3e8ee !important; }
+html.light-mode .customer-dashboard .customer-nav-btn[aria-current="page"] { color: #a91f24 !important; background: #fff0ee !important; box-shadow: inset 3px 0 #c62828; font-weight: 700; }
+html.light-mode .customer-dashboard .customer-nav-btn:hover { background: #f2f5f8; }
+html.light-mode .customer-dashboard .customer-view .shadow-xl,
+html.light-mode .customer-dashboard .customer-view .shadow-2xl { box-shadow: 0 2px 8px rgba(24, 39, 58, 0.045) !important; }
+html.light-mode .customer-dashboard .ticket-status[class*="text-amber-"] { background: #fff0cb !important; }
+html.light-mode .customer-dashboard .ticket-status[class*="text-emerald-"] { background: #dff4e9 !important; }
+html.light-mode .customer-dashboard .ticket-status[class*="text-red-"] { background: #fee8e7 !important; }
+html.light-mode .customer-dashboard .ticket-status[class*="text-sky-"] { background: #e4efff !important; }
+html.light-mode .customer-dashboard .ticket-status.text-neutral-400 { background: #e9edf2 !important; }
+html.light-mode .customer-dashboard button[class*="bg-red-600"],
+html.light-mode .customer-dashboard a[class*="bg-red-600"],
+html.light-mode .customer-dashboard button[id^="btnFilter"][class*="bg-[#cc292b]"] { background: #c62828 !important; color: #fff !important; }
+html.light-mode .customer-dashboard button[class*="bg-red-600"]:hover,
+html.light-mode .customer-dashboard a[class*="bg-red-600"]:hover { background: #a91f24 !important; }
+html.light-mode .customer-dashboard #notificationBellBadge { color: #fff !important; background: #c62828 !important; }
+html.light-mode .customer-dashboard #profileForm input:not([type="file"]),
+html.light-mode .customer-dashboard #profileForm textarea { background: #fff !important; border-color: #c8d1dc !important; color: #263445 !important; box-shadow: none; color-scheme: light; }
+html.light-mode .customer-dashboard #profileForm input:disabled { opacity: 1; background: #edf1f5 !important; color: #546174 !important; }
+html.light-mode .customer-dashboard #profileForm input::placeholder,
+html.light-mode .customer-dashboard #profileForm textarea::placeholder { color: #687589 !important; }
+html.light-mode .customer-dashboard .border-black { border-color: #dce2e9; }

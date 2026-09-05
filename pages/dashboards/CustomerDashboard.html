@@ -32,8 +32,10 @@
     #profileDropdown { transition: opacity 0.2s ease, transform 0.2s ease; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #profileDropdown.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
   </style>
+  <link rel="stylesheet" href="/assets/css/return-navigation.css">
+  <link rel="stylesheet" href="/assets/css/customer-dashboard.css">
 </head>
-<body class="mobile-screen bg-neutral-950 text-white antialiased min-h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
+<body class="customer-dashboard mobile-screen bg-neutral-950 text-white antialiased min-h-screen flex flex-col" style="font-family: 'Montserrat', sans-serif;">
   
   <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
 
@@ -130,7 +132,7 @@
     </aside>
 
     <main class="mobile-dashboard-main flex-1 overflow-y-auto">
-      <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
+      <div class="customer-content max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
         <header class="mobile-stack-header flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <p class="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1">Customer Portal</p>
@@ -138,10 +140,11 @@
             <span id="userNameDisplay" class="hidden"></span>
             <p id="pageSubtitle" class="text-sm text-white/60 mt-1">Manage your tickets and track your upcoming gigs.</p>
           </div>
+          <div class="customer-home-link"><a href="/" class="return-link"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a></div>
         </header>
 
         <section id="view-dashboard" data-view-panel="dashboard" class="customer-view space-y-6">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="customer-stats grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-black/40 border border-white/5 rounded-3xl p-6 flex flex-col justify-between backdrop-blur-sm shadow-xl">
           <p class="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">Active Tickets</p>
           <div class="flex justify-between items-end">
@@ -255,7 +258,7 @@
         </section>
 
         <section id="view-profile" data-view-panel="profile" class="customer-view hidden">
-          <div class="max-w-4xl mx-auto space-y-6">
+          <div class="customer-profile-layout space-y-6">
             <div class="bg-[#1a1515] border border-white/5 rounded-[24px] p-8 backdrop-blur-md shadow-2xl">
               <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div class="flex items-center gap-5">
@@ -302,7 +305,7 @@
         </section>
 
         <section id="view-settings" data-view-panel="settings" class="customer-view hidden">
-          <div class="max-w-3xl mx-auto space-y-6">
+          <div class="customer-settings-layout">
             <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
               <div class="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
                 <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">1. Profile Picture</h3>
@@ -413,7 +416,7 @@
 
             <div class="bg-[#1a1515] border border-white/5 p-8 rounded-[24px] backdrop-blur-md shadow-2xl">
               <div class="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">5. Saved Favorites</h3>
+                <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">Saved Favorites</h3>
                 <span class="text-[10px] uppercase tracking-[0.18em] text-white/35">Profile Library</span>
               </div>
               <div id="customerFavoritesProfileList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -644,23 +647,23 @@
       const normalizedView = CUSTOMER_VIEWS.has(viewName) ? viewName : 'dashboard';
       const titles = {
         dashboard: {
-          title: 'Welcome,',
+          title: 'Your dashboard',
           subtitle: 'Manage your tickets and track your upcoming gigs.'
         },
         tickets: {
-          title: 'My tickets,',
+          title: 'My tickets',
           subtitle: 'Open each event from your saved tickets and review past or upcoming passes in one place.'
         },
         bookings: {
-          title: 'Your bookings,',
+          title: 'Your bookings',
           subtitle: 'Track talent inquiries, messages, and payment progress.'
         },
         profile: {
-          title: 'Your profile,',
+          title: 'Your profile',
           subtitle: 'View the public profile details tied to your customer account.'
         },
         settings: {
-          title: 'Edit your profile,',
+          title: 'Edit your profile',
           subtitle: 'Update account details, email, password, picture, and public bio.'
         }
       };
@@ -1645,7 +1648,7 @@
 
         customerBookings = await res.json();
         if (customerBookings.length === 0) {
-          const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No booking requests yet.</p>`;
+          const emptyState = `<p class="text-sm text-white/50 p-4 bg-black/40 border border-white/10 rounded-2xl text-center">No booking requests yet.</p><div class="customer-empty-actions"><p>Find an artist or session musician for your next event.</p><a class="return-link" href="/pages/browse/Artists.html">Browse artists</a><a class="return-link" href="/pages/browse/Sessionists.html">Find sessionists</a></div>`;
           container.innerHTML = emptyState;
           if (previewContainer) previewContainer.innerHTML = emptyState;
           return;
@@ -1895,7 +1898,7 @@
       document.getElementById('activeTicketsCount').innerText = activeTicketsCount;
 
       if(globalTickets.length === 0) {
-        const emptyState = `<div class="p-6 bg-black/40 border border-white/10 rounded-2xl text-center"><p class="text-white/50 text-sm">No tickets purchased yet. Go find some gigs!</p></div>`;
+        const emptyState = `<div class="p-6 bg-black/40 border border-white/10 rounded-2xl text-center"><p class="text-white/50 text-sm">Your next live experience starts here.</p><a class="return-link mt-4" href="/pages/browse/Events.html">Explore events</a></div>`;
         container.innerHTML = emptyState;
         previewContainer.innerHTML = emptyState;
         return;
@@ -1922,36 +1925,31 @@
         const evDate = new Date(t.eventTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour:'2-digit', minute:'2-digit' });
         
         let statusBadge = '';
-        let opacityClass = '';
         const refundStatus = String(t.refundStatus || '');
         const canRefundTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isUsed && !t.hasScannedUnits && !t.isExpired && !t.isAwaitingPayment;
         const canOpenQrTicket = refundStatus !== 'Refunded' && refundStatus !== 'Refund Pending' && !t.isAwaitingPayment;
 
         if (t.isAwaitingPayment) {
-            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Awaiting Payment</span>`;
-            opacityClass = 'opacity-50';
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Awaiting Payment</span>`;
         } else if (refundStatus === 'Refunded') {
-            statusBadge = `<span class="px-2 py-0.5 bg-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded">Refunded</span>`;
-            opacityClass = 'opacity-60 grayscale';
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-sky-500/20 text-sky-300 text-[10px] font-bold uppercase tracking-widest rounded">Refunded</span>`;
         } else if (refundStatus === 'Refund Pending') {
-            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Pending</span>`;
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Pending</span>`;
         } else if (refundStatus === 'Refund Failed') {
-            statusBadge = `<span class="px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Failed</span>`;
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-red-500/20 text-red-300 text-[10px] font-bold uppercase tracking-widest rounded">Refund Failed</span>`;
         } else if (t.isUsed) {
-            statusBadge = `<span class="px-2 py-0.5 bg-neutral-600/30 text-neutral-400 text-[10px] font-bold uppercase tracking-widest rounded">Scanned / Used</span>`;
-            opacityClass = 'opacity-50 grayscale';
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-neutral-600/30 text-neutral-400 text-[10px] font-bold uppercase tracking-widest rounded">Scanned / Used</span>`;
         } else if (t.hasScannedUnits) {
-            statusBadge = `<span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">${t.usedQuantity}/${t.quantity} Scanned</span>`;
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-widest rounded">${t.usedQuantity}/${t.quantity} Scanned</span>`;
         } else if (t.isExpired) {
-            statusBadge = `<span class="px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded">Expired</span>`;
-            opacityClass = 'opacity-50 grayscale border-red-500/20';
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold uppercase tracking-widest rounded">Expired</span>`;
         } else {
-            statusBadge = `<span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded">Valid Ticket</span>`;
+            statusBadge = `<span class="ticket-status px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest rounded">Valid Ticket</span>`;
         }
         
         const qrLabel = t.isUsed || t.isExpired || !canOpenQrTicket ? 'View Stub' : 'View QR';
         ticketMarkup.push(`
-          <div class="rounded-2xl border ${t.isExpired ? 'border-white/[0.05] bg-white/[0.01]' : 'border-white/[0.08] bg-white/[0.03]'} hover:border-white/[0.14] transition-all duration-200 overflow-hidden ${opacityClass}">
+          <div class="rounded-2xl border ${t.isExpired ? 'border-white/[0.05] bg-white/[0.01]' : 'border-white/[0.08] bg-white/[0.03]'} hover:border-white/[0.14] transition-all duration-200 overflow-hidden ticket-card">
             <!-- Top row: status + tier + price -->
             <div class="flex items-center justify-between gap-3 px-5 pt-4 pb-3 border-b border-white/[0.06]">
               <div class="flex items-center gap-2 flex-wrap min-w-0">
@@ -1963,8 +1961,8 @@
             </div>
 
             <!-- Middle: event info -->
-            <div class="px-5 py-3 cursor-pointer" onclick="window.location.href='/pages/details/EventDetailPage.html?id=${t.eventId || ''}'">
-              <p class="text-sm font-bold text-white hover:text-red-300 transition-colors leading-snug mb-2">${t.eventTitle}</p>
+            <div class="ticket-info px-5 py-3">
+              <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" class="ticket-title block text-sm font-bold text-white hover:text-red-300 transition-colors leading-snug mb-2">${t.eventTitle}</a>
               <div class="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-white/45">
                 <span class="flex items-center gap-1.5"><i data-lucide="map-pin" class="w-3 h-3 flex-shrink-0"></i>${t.location}</span>
                 <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-3 h-3 flex-shrink-0"></i>${evDate}</span>
@@ -1972,10 +1970,10 @@
             </div>
 
             <!-- Bottom: action buttons -->
-            <div class="flex flex-wrap items-center gap-2 px-5 pb-4">
+            <div class="ticket-actions flex flex-wrap items-center gap-2 px-5 pb-4">
               <a href="/pages/details/EventDetailPage.html?id=${t.eventId || ''}" onclick="event.stopPropagation()"
                  class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/[0.09] text-white/60 hover:text-white hover:bg-white/[0.09] text-[10px] font-bold uppercase tracking-wider transition-colors">
-                <i data-lucide="external-link" class="w-3 h-3"></i>Event
+                <i data-lucide="external-link" class="w-3 h-3"></i>Event details
               </a>
               <button onclick="event.stopPropagation(); showReceipt(${t.originalIndex}, ${t.isExpired})"
                       class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors
@@ -1985,7 +1983,7 @@
               ${canOpenQrTicket ? `
               <a href="/api/ticket/${t.ticketId}/download" target="_blank" onclick="event.stopPropagation()"
                  class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:text-white hover:bg-emerald-500/25 text-[10px] font-bold uppercase tracking-wider transition-colors">
-                <i data-lucide="download" class="w-3 h-3"></i>PDF
+                <i data-lucide="download" class="w-3 h-3"></i>Download PDF
               </a>` : ''}
               ${canOpenQrTicket && !t.isUsed ? `
               <button onclick="event.stopPropagation(); openTransferModal('${t.ticketId}')"

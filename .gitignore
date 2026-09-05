@@ -19,3 +19,10 @@ docker-compose.backup.yml
 docs/BACKUPS.md
 scripts/backup-db.ps1
 scripts/restore-mirror.ps1
+
+# Local .NET caches and temporary files
+.artifacts/
+.build-cache/
+.local-appdata/
+.nuget-packages/
+.tmp/

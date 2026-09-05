@@ -22,6 +22,7 @@
     .receipt-paper { background: #fdfdfd; color: #111; font-family: 'Courier New', Courier, monospace; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; }
     .receipt-paper::before { content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px; background: radial-gradient(circle at 10px 0, transparent 10px, #fdfdfd 11px) repeat-x; background-size: 20px 10px; }
   </style>
+  <link rel="stylesheet" href="/assets/css/return-navigation.css">
 </head>
 <body class="mobile-screen bg-neutral-950 text-white antialiased flex flex-col min-h-screen" style="font-family: 'Montserrat', sans-serif;">
   <div class="bg-dashboard-backdrop pointer-events-none fixed inset-0 z-0"></div>
@@ -133,6 +134,7 @@
 
     <main class="mobile-dashboard-main flex-1 overflow-y-auto relative z-10">
       <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10 space-y-6">
+        <div><a href="/" class="return-link"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7M5 12h14"/></svg><span>Back to home</span></a></div>
         <header class="mobile-stack-header rounded-2xl bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.10),transparent_55%),rgba(255,255,255,0.02)] border border-white/[0.07] p-6 mb-2">
           <p class="text-[10px] font-bold text-red-400/80 uppercase tracking-[0.25em] mb-2">Artist Portal</p>
           <h1 class="text-3xl font-extrabold text-white">Welcome back</h1><span id="userNameDisplay" class="hidden"></span>

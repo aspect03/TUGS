@@ -1,5 +1,6 @@
 using Npgsql;
 using NpgsqlTypes;
+using System.Threading;
 
 namespace ImajinationAPI.Services;
 
@@ -18,9 +19,26 @@ public sealed record WalletLedgerItem(
 
 public static class EscrowService
 {
+    private const long SchemaLockKey = 740451167217191409;
+    private static readonly SemaphoreSlim SchemaInitializationGate = new(1, 1);
+    private static volatile bool _schemaReady;
+
     public static async Task EnsureSchemaAsync(NpgsqlConnection connection)
     {
-        const string sql = @"
+        if (_schemaReady) return;
+
+        await SchemaInitializationGate.WaitAsync();
+        try
+        {
+            if (_schemaReady) return;
+
+            await using var lockCommand = new NpgsqlCommand("SELECT pg_advisory_lock(@lockKey);", connection);
+            lockCommand.Parameters.Add("@lockKey", NpgsqlDbType.Bigint).Value = SchemaLockKey;
+            await lockCommand.ExecuteNonQueryAsync();
+
+            try
+            {
+                const string sql = @"
             CREATE TABLE IF NOT EXISTS escrow_transactions (
                 id uuid PRIMARY KEY,
                 booking_id uuid NOT NULL UNIQUE,
@@ -110,8 +128,21 @@ public static class EscrowService
             CREATE UNIQUE INDEX IF NOT EXISTS uq_bookings_escrow_transaction
                 ON bookings(escrow_transaction_id) WHERE escrow_transaction_id IS NOT NULL;";
 
-        await using var cmd = new NpgsqlCommand(sql, connection);
-        await cmd.ExecuteNonQueryAsync();
+                await using var cmd = new NpgsqlCommand(sql, connection);
+                await cmd.ExecuteNonQueryAsync();
+                _schemaReady = true;
+            }
+            finally
+            {
+                await using var unlockCommand = new NpgsqlCommand("SELECT pg_advisory_unlock(@lockKey);", connection);
+                unlockCommand.Parameters.Add("@lockKey", NpgsqlDbType.Bigint).Value = SchemaLockKey;
+                await unlockCommand.ExecuteNonQueryAsync();
+            }
+        }
+        finally
+        {
+            SchemaInitializationGate.Release();
+        }
     }
 
     public static async Task<Guid> CreatePendingAsync(
