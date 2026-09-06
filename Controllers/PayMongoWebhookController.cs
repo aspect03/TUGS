@@ -1,3 +1,4 @@
+using ImajinationAPI.Services;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -65,6 +66,7 @@ namespace ImajinationAPI.Controllers
                     : null;
 
                 if (string.IsNullOrWhiteSpace(eventId) || string.IsNullOrWhiteSpace(eventType)) return BadRequest();
+                if (liveMode == _isTestMode) return BadRequest(new { message = "Payment environment does not match." });
 
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync(cancellationToken);
@@ -81,6 +83,12 @@ namespace ImajinationAPI.Controllers
                 command.Parameters.Add("@livemode", NpgsqlDbType.Boolean).Value = liveMode;
                 await command.ExecuteNonQueryAsync(cancellationToken);
 
+                // Retry-safe reconciliation also runs on duplicate delivery, recovering interrupted attempts.
+                if (eventType == "checkout_session.payment.paid" && resource.ValueKind == JsonValueKind.Object)
+                    await BookingPaymentReconciliationService.ReconcileAsync(connection, resource);
+                else if (eventType is "refund.paid" or "refund.pending" or "refund.failed" && resource.ValueKind == JsonValueKind.Object)
+                    await ReconcileRefundEventAsync(connection, eventType, resource, cancellationToken);
+
                 _logger.LogInformation("Verified PayMongo webhook {EventType} ({EventId}) received.", eventType, eventId);
                 return Ok(new { received = true });
             }
@@ -93,6 +101,126 @@ namespace ImajinationAPI.Controllers
                 _logger.LogError(ex, "Unable to record a verified PayMongo webhook.");
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
+        }
+
+        private static async Task ReconcileRefundEventAsync(
+            NpgsqlConnection connection,
+            string eventType,
+            JsonElement resource,
+            CancellationToken cancellationToken)
+        {
+            var refundId = resource.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+            if (string.IsNullOrWhiteSpace(refundId)) return;
+
+            await EscrowService.EnsureSchemaAsync(connection);
+            await PaymentLedgerService.EnsureSchemaAsync(connection);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            const string lookupSql = @"
+                SELECT id, refund_scope, payment_scope, booking_id, ticket_id, metadata, status
+                FROM refund_requests
+                WHERE provider_refund_id = @refundId AND status IN ('Requested', 'ManualReview', 'Refund Pending', 'Refunded', 'Failed')
+                ORDER BY created_at DESC LIMIT 1 FOR UPDATE;";
+            Guid requestId;
+            string refundScope;
+            string paymentScope;
+            Guid? bookingId;
+            Guid? ticketId;
+            bool isPartial;
+            await using (var lookupCmd = new NpgsqlCommand(lookupSql, connection))
+            {
+                lookupCmd.Parameters.Add("@refundId", NpgsqlDbType.Text).Value = refundId;
+                await using var reader = await lookupCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync()) return;
+                // Replay completed refunds to recover interrupted local settlement. Older
+                // pending/failed deliveries must never undo a successful provider refund.
+                var storedStatus = reader.GetString(6);
+                if (storedStatus == "Refunded") eventType = "refund.paid";
+                else if (storedStatus == "Failed" && eventType != "refund.paid") return;
+                requestId = reader.GetGuid(0);
+                refundScope = reader.GetString(1);
+                paymentScope = reader.GetString(2);
+                bookingId = reader.IsDBNull(3) ? null : reader.GetGuid(3);
+                ticketId = reader.IsDBNull(4) ? null : reader.GetGuid(4);
+                isPartial = false;
+                if (!reader.IsDBNull(5))
+                {
+                    try
+                    {
+                        using var metadata = JsonDocument.Parse(reader.GetString(5));
+                        isPartial = metadata.RootElement.TryGetProperty("partialRefund", out var partialProp) &&
+                                    partialProp.ValueKind == JsonValueKind.True;
+                    }
+                    catch (JsonException)
+                    {
+                        isPartial = false;
+                    }
+                }
+            }
+
+            string requestStatus;
+            string providerStatus;
+            switch (eventType)
+            {
+                case "refund.paid":
+                    requestStatus = "Refunded";
+                    providerStatus = "succeeded";
+                    break;
+                case "refund.pending":
+                    requestStatus = "ManualReview";
+                    providerStatus = "pending";
+                    break;
+                default:
+                    requestStatus = "Failed";
+                    providerStatus = "failed";
+                    break;
+            }
+
+            await PaymentRefundService.UpdateRefundRequestAsync(connection, requestId, requestStatus, refundId, providerStatus,
+                eventType is "refund.paid" or "refund.pending" ? null : "provider_refund_failed",
+                eventType is "refund.paid" or "refund.pending" ? null : "PayMongo reported this refund as failed.");
+
+            if (string.Equals(refundScope, "booking", StringComparison.OrdinalIgnoreCase) && bookingId.HasValue)
+            {
+                if (requestStatus == "Refunded")
+                {
+                    await PaymentLedgerService.MarkRefundedAsync(connection, paymentScope, null, bookingId.Value, "Refunded");
+                    if (string.Equals(paymentScope, "booking_talent_fee", StringComparison.OrdinalIgnoreCase))
+                        await EscrowService.ApplyRefundOutcomeAsync(connection, bookingId.Value, transaction);
+                }
+                var componentStatus = requestStatus == "Refunded"
+                    ? (isPartial ? "Partially Refunded" : "Refunded")
+                    : requestStatus == "ManualReview"
+                        ? "Refund Pending"
+                        : "Refund Failed";
+                await SetBookingComponentRefundStatusAsync(connection, bookingId.Value, paymentScope, componentStatus);
+                await BookingController.RecomputeBookingPaymentStatusAsync(connection, bookingId.Value);
+            }
+            else if (string.Equals(refundScope, "ticket", StringComparison.OrdinalIgnoreCase) &&
+                     ticketId.HasValue && requestStatus == "Refunded")
+            {
+                await PaymentLedgerService.MarkRefundedAsync(connection, paymentScope, ticketId.Value, null, "Refunded");
+            }
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        private static async Task SetBookingComponentRefundStatusAsync(
+            NpgsqlConnection connection,
+            Guid bookingId,
+            string paymentScope,
+            string status)
+        {
+            var column = paymentScope switch
+            {
+                "booking_talent_fee" => "talent_fee_status",
+                "booking_service_fee" => "service_fee_status",
+                "booking_talent_platform_fee" => "talent_platform_fee_status",
+                _ => null
+            };
+            if (column is null) return;
+            await using var command = new NpgsqlCommand($"UPDATE bookings SET {column} = @status, updated_at = NOW() WHERE id = @id;", connection);
+            command.Parameters.Add("@status", NpgsqlDbType.Text).Value = status;
+            command.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+            await command.ExecuteNonQueryAsync();
         }
 
         private bool TryVerifySignature(string? headerValue, byte[] rawBody)

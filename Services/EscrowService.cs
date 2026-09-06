@@ -17,11 +17,26 @@ public sealed record WalletLedgerItem(
     string ReferenceId,
     DateTime CreatedAt);
 
+public sealed record PartialSettlementOutcome(
+    bool Settled,
+    string Provider,
+    string? ProviderPaymentId,
+    decimal CustomerRefundAmount,
+    decimal TalentAmount);
+
 public static class EscrowService
 {
     private const long SchemaLockKey = 740451167217191409;
     private static readonly SemaphoreSlim SchemaInitializationGate = new(1, 1);
     private static volatile bool _schemaReady;
+    private static TimeSpan _releaseWindow = TimeSpan.FromHours(72);
+
+    public static TimeSpan ReleaseWindow => _releaseWindow;
+
+    public static void InitializeReleaseWindow(TimeSpan window)
+    {
+        _releaseWindow = window > TimeSpan.Zero ? window : TimeSpan.Zero;
+    }
 
     public static async Task EnsureSchemaAsync(NpgsqlConnection connection)
     {
@@ -123,6 +138,7 @@ public static class EscrowService
             CREATE INDEX IF NOT EXISTS idx_escrow_resolutions_escrow
                 ON escrow_resolutions(escrow_transaction_id);
 
+            ALTER TABLE bookings ADD COLUMN IF NOT EXISTS dispute_hold boolean NOT NULL DEFAULT FALSE;
             ALTER TABLE bookings ADD COLUMN IF NOT EXISTS escrow_transaction_id uuid NULL;
             ALTER TABLE bookings ADD COLUMN IF NOT EXISTS escrow_status varchar(40) NULL;
             CREATE UNIQUE INDEX IF NOT EXISTS uq_bookings_escrow_transaction
@@ -196,6 +212,27 @@ public static class EscrowService
         await using var transaction = await connection.BeginTransactionAsync();
         try
         {
+            const string bookingSql = @"
+                SELECT escrow_transaction_id FROM bookings
+                WHERE id = @id AND customer_id = @payer AND target_user_id = @beneficiary
+                  AND status = 'Confirmed' AND budget = @amount AND COALESCE(dispute_hold, FALSE) = FALSE
+                FOR UPDATE;";
+            await using (var bookingCmd = new NpgsqlCommand(bookingSql, connection, transaction))
+            {
+                bookingCmd.Parameters.AddWithValue("@id", bookingId);
+                bookingCmd.Parameters.AddWithValue("@payer", payerUserId);
+                bookingCmd.Parameters.AddWithValue("@beneficiary", beneficiaryUserId);
+                bookingCmd.Parameters.AddWithValue("@amount", amount);
+                var existing = await bookingCmd.ExecuteScalarAsync();
+                if (existing is null) throw new InvalidOperationException("The booking changed or is on hold. Refresh before funding it.");
+                if (existing is Guid existingEscrowId)
+                {
+                    await using var existingCmd = new NpgsqlCommand("SELECT EXISTS (SELECT 1 FROM escrow_transactions WHERE id = @id AND provider = 'Wallet' AND status = 'Held')", connection, transaction);
+                    existingCmd.Parameters.AddWithValue("@id", existingEscrowId);
+                    if ((bool)(await existingCmd.ExecuteScalarAsync())!)
+                    { await transaction.CommitAsync(); return existingEscrowId; }
+                }
+            }
             var walletId = await EnsureWalletAccountAsync(connection, transaction, payerUserId, "PHP");
             const string balanceSql = @"
                 SELECT COALESCE(SUM(CASE WHEN direction = 'Credit' THEN amount ELSE -amount END), 0)
@@ -232,8 +269,16 @@ public static class EscrowService
 
             await InsertLedgerEntryAsync(connection, transaction, walletId, escrowId, bookingId,
                 "EscrowReserve", "Debit", amount, "booking_escrow", bookingId.ToString(), $"escrow:{escrowId}:reserve");
+            await using (var bookingCmd = new NpgsqlCommand(@"
+                UPDATE bookings SET escrow_transaction_id = @escrowId, escrow_status = 'Held',
+                    payment_status = 'TalentFeeHeldInEscrow', talent_fee_status = 'HeldInEscrow',
+                    talent_fee_paid_at = COALESCE(talent_fee_paid_at, NOW()), updated_at = NOW() WHERE id = @id;", connection, transaction))
+            {
+                bookingCmd.Parameters.AddWithValue("@id", bookingId);
+                bookingCmd.Parameters.AddWithValue("@escrowId", escrowId);
+                await bookingCmd.ExecuteNonQueryAsync();
+            }
             await transaction.CommitAsync();
-            await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "Held");
             return escrowId;
         }
         catch
@@ -376,16 +421,20 @@ public static class EscrowService
         try
         {
             const string lockSql = @"
-                SELECT e.id, e.beneficiary_user_id, e.net_amount, e.currency, e.status
+                SELECT e.id, e.beneficiary_user_id, e.net_amount, e.currency, e.status, e.release_ready_at
                 FROM escrow_transactions e
                 INNER JOIN bookings b ON b.id = e.booking_id
                 WHERE e.booking_id = @bookingId AND COALESCE(b.dispute_hold, FALSE) = FALSE
+                  AND b.status = 'Completed' AND b.customer_completed_at IS NOT NULL
+                  AND b.target_completed_at IS NOT NULL
+                  AND COALESCE(b.talent_platform_fee_status, 'Unpaid') IN ('Paid', 'NotRequired')
                 FOR UPDATE;";
             Guid escrowId;
             Guid beneficiaryId;
             decimal netAmount;
             string currency;
             string status;
+            DateTime? releaseReadyAt;
             await using (var lockCmd = new NpgsqlCommand(lockSql, connection, transaction))
             {
                 lockCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
@@ -396,6 +445,7 @@ public static class EscrowService
                 netAmount = reader.GetDecimal(2);
                 currency = reader.GetString(3);
                 status = reader.GetString(4);
+                releaseReadyAt = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5);
             }
 
             if (status == "Released")
@@ -404,6 +454,27 @@ public static class EscrowService
                 return true;
             }
             if (status is not ("Held" or "ReleaseReady")) return false;
+
+            if (_releaseWindow > TimeSpan.Zero)
+            {
+                var windowElapsed = releaseReadyAt.HasValue &&
+                    DateTime.UtcNow >= releaseReadyAt.Value.Add(_releaseWindow);
+                if (!windowElapsed)
+                {
+                    if (status == "Held")
+                    {
+                        const string readySql = @"
+                            UPDATE escrow_transactions
+                            SET status = 'ReleaseReady', release_ready_at = COALESCE(release_ready_at, NOW()), updated_at = NOW()
+                            WHERE id = @id;";
+                        await using var readyCmd = new NpgsqlCommand(readySql, connection, transaction);
+                        readyCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
+                        await readyCmd.ExecuteNonQueryAsync();
+                    }
+                    await transaction.CommitAsync();
+                    return false;
+                }
+            }
 
             const string accountSql = @"
                 INSERT INTO wallet_accounts (id, user_id, currency, status)
@@ -444,14 +515,15 @@ public static class EscrowService
             const string releaseSql = @"
                 UPDATE escrow_transactions
                 SET status = 'Released', released_at = COALESCE(released_at, NOW()), updated_at = NOW()
-                WHERE id = @id;";
+                WHERE id = @id;
+                UPDATE bookings SET escrow_status = 'Released', talent_fee_status = 'Released',
+                    payment_status = 'Paid', updated_at = NOW() WHERE escrow_transaction_id = @id;";
             await using (var releaseCmd = new NpgsqlCommand(releaseSql, connection, transaction))
             {
                 releaseCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
                 await releaseCmd.ExecuteNonQueryAsync();
             }
             await transaction.CommitAsync();
-            await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "Released");
             return true;
         }
         catch
@@ -476,16 +548,22 @@ public static class EscrowService
     public static async Task ClearDisputeAsync(NpgsqlConnection connection, Guid bookingId)
     {
         const string sql = @"
-            UPDATE escrow_transactions SET status = 'Held', updated_at = NOW()
+            UPDATE escrow_transactions SET status = CASE WHEN funded_at IS NULL THEN 'PendingPayment' ELSE 'Held' END, updated_at = NOW()
             WHERE booking_id = @bookingId AND status = 'Disputed'
-            RETURNING id;";
+            RETURNING id, status;";
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-        var value = await cmd.ExecuteScalarAsync();
-        if (value is Guid escrowId) await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "Held");
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            var escrowId = reader.GetGuid(0);
+            var status = reader.GetString(1);
+            await reader.CloseAsync();
+            await SetBookingEscrowStateAsync(connection, bookingId, escrowId, status);
+        }
     }
 
-    public static async Task MarkRefundPendingAsync(NpgsqlConnection connection, Guid bookingId)
+    public static async Task<bool> MarkRefundPendingAsync(NpgsqlConnection connection, Guid bookingId)
     {
         const string sql = @"
             UPDATE escrow_transactions SET status = 'RefundPending', updated_at = NOW()
@@ -494,7 +572,9 @@ public static class EscrowService
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
         var value = await cmd.ExecuteScalarAsync();
-        if (value is Guid escrowId) await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "RefundPending");
+        if (value is not Guid escrowId) return false;
+        await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "RefundPending");
+        return true;
     }
 
     public static async Task<bool> IsWalletFundedAsync(NpgsqlConnection connection, Guid bookingId)
@@ -512,51 +592,255 @@ public static class EscrowService
         await using var transaction = await connection.BeginTransactionAsync();
         try
         {
-            const string lockSql = @"
-                SELECT id, payer_user_id, gross_amount, currency, provider, status
-                FROM escrow_transactions WHERE booking_id = @bookingId FOR UPDATE;";
-            Guid escrowId;
-            Guid payerUserId;
-            decimal amount;
-            string currency;
-            string provider;
-            string status;
-            await using (var lockCmd = new NpgsqlCommand(lockSql, connection, transaction))
-            {
-                lockCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-                await using var reader = await lockCmd.ExecuteReaderAsync();
-                if (!await reader.ReadAsync()) return;
-                escrowId = reader.GetGuid(0);
-                payerUserId = reader.GetGuid(1);
-                amount = reader.GetDecimal(2);
-                currency = reader.GetString(3);
-                provider = reader.GetString(4);
-                status = reader.GetString(5);
-            }
-            if (status == "Refunded") { await transaction.CommitAsync(); return; }
-            if (status is not ("RefundPending" or "Held" or "ReleaseReady" or "Disputed")) return;
-
-            if (provider.Equals("Wallet", StringComparison.OrdinalIgnoreCase))
-            {
-                var walletId = await EnsureWalletAccountAsync(connection, transaction, payerUserId, currency);
-                await InsertLedgerEntryAsync(connection, transaction, walletId, escrowId, bookingId,
-                    "EscrowRefund", "Credit", amount, "booking_escrow_refund", bookingId.ToString(), $"escrow:{escrowId}:refund");
-            }
-
-            const string updateSql = @"
-                UPDATE escrow_transactions SET status = 'Refunded', refunded_at = COALESCE(refunded_at, NOW()), updated_at = NOW()
-                WHERE id = @id;";
-            await using (var updateCmd = new NpgsqlCommand(updateSql, connection, transaction))
-            {
-                updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
-                await updateCmd.ExecuteNonQueryAsync();
-            }
+            await MarkRefundedCoreAsync(connection, transaction, bookingId);
             await transaction.CommitAsync();
-            await SetBookingEscrowStateAsync(connection, bookingId, escrowId, "Refunded");
         }
         catch
         {
             await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    private static async Task MarkRefundedCoreAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, Guid bookingId)
+    {
+        const string lockSql = @"
+            SELECT id, payer_user_id, gross_amount, currency, provider, status
+            FROM escrow_transactions WHERE booking_id = @bookingId FOR UPDATE;";
+        Guid escrowId;
+        Guid payerUserId;
+        decimal amount;
+        string currency;
+        string provider;
+        string status;
+        await using (var lockCmd = new NpgsqlCommand(lockSql, connection, transaction))
+        {
+            lockCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+            await using var reader = await lockCmd.ExecuteReaderAsync();
+            if (!await reader.ReadAsync()) return;
+            escrowId = reader.GetGuid(0);
+            payerUserId = reader.GetGuid(1);
+            amount = reader.GetDecimal(2);
+            currency = reader.GetString(3);
+            provider = reader.GetString(4);
+            status = reader.GetString(5);
+        }
+        if (status == "Refunded") return;
+        if (status is not ("RefundPending" or "Held" or "ReleaseReady" or "Disputed")) return;
+
+        if (provider.Equals("Wallet", StringComparison.OrdinalIgnoreCase))
+        {
+            var walletId = await EnsureWalletAccountAsync(connection, transaction, payerUserId, currency);
+            await InsertLedgerEntryAsync(connection, transaction, walletId, escrowId, bookingId,
+                "EscrowRefund", "Credit", amount, "booking_escrow_refund", bookingId.ToString(), $"escrow:{escrowId}:refund");
+        }
+
+        const string updateSql = @"
+            UPDATE escrow_transactions SET status = 'Refunded', refunded_at = COALESCE(refunded_at, NOW()), updated_at = NOW()
+            WHERE id = @id;
+            UPDATE bookings SET escrow_status = 'Refunded', talent_fee_status = 'Refunded',
+                payment_status = 'Refunded', updated_at = NOW() WHERE escrow_transaction_id = @id;";
+        await using (var updateCmd = new NpgsqlCommand(updateSql, connection, transaction))
+        {
+            updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
+            await updateCmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    public static async Task<PartialSettlementOutcome> SettlePartialAsync(
+        NpgsqlConnection connection,
+        Guid bookingId,
+        Guid resolvedBy,
+        Guid? disputeId,
+        decimal customerRefundAmount,
+        string? notes,
+        NpgsqlTransaction? existingTransaction = null)
+    {
+        if (customerRefundAmount <= 0) throw new InvalidOperationException("A partial settlement must refund more than zero.");
+        await EnsureSchemaAsync(connection);
+        await using var ownedTransaction = existingTransaction is null ? await connection.BeginTransactionAsync() : null;
+        var transaction = existingTransaction ?? ownedTransaction!;
+        try
+        {
+            const string lockSql = @"
+                SELECT e.id, e.payer_user_id, e.beneficiary_user_id, e.gross_amount, e.platform_fee,
+                       e.currency, e.provider, e.status, e.provider_payment_id
+                FROM escrow_transactions e
+                WHERE e.booking_id = @bookingId
+                FOR UPDATE;";
+            Guid escrowId;
+            Guid payerId;
+            Guid beneficiaryId;
+            decimal gross;
+            decimal platformFee;
+            string currency;
+            string provider;
+            string status;
+            string? providerPaymentId;
+            await using (var lockCmd = new NpgsqlCommand(lockSql, connection, transaction))
+            {
+                lockCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                await using var reader = await lockCmd.ExecuteReaderAsync();
+                if (!await reader.ReadAsync()) throw new InvalidOperationException("There is no escrow to settle for this booking.");
+                escrowId = reader.GetGuid(0);
+                payerId = reader.GetGuid(1);
+                beneficiaryId = reader.GetGuid(2);
+                gross = reader.GetDecimal(3);
+                platformFee = reader.GetDecimal(4);
+                currency = reader.GetString(5);
+                provider = reader.GetString(6);
+                status = reader.GetString(7);
+                providerPaymentId = reader.IsDBNull(8) ? null : reader.GetString(8);
+            }
+            if (status is "Released" or "Refunded")
+            {
+                if (ownedTransaction is not null) await transaction.CommitAsync();
+                return new PartialSettlementOutcome(false, provider, providerPaymentId, 0, 0);
+            }
+            if (status is not ("Held" or "ReleaseReady" or "Disputed" or "RefundPending"))
+                throw new InvalidOperationException("This escrow cannot be partially settled in its current state.");
+
+            var talentAmount = gross - platformFee - customerRefundAmount;
+            if (talentAmount <= 0)
+                throw new InvalidOperationException("The refund amount leaves nothing for talent. Choose a smaller refund or a full refund.");
+
+            const string resolutionSql = @"
+                INSERT INTO escrow_resolutions (
+                    id, escrow_transaction_id, dispute_id, resolved_by, resolution_type,
+                    talent_amount, customer_refund_amount, notes
+                ) VALUES (
+                    @id, @escrowId, @disputeId, @resolvedBy, 'Partial',
+                    @talentAmount, @refundAmount, @notes
+                );";
+            await using (var resolutionCmd = new NpgsqlCommand(resolutionSql, connection, transaction))
+            {
+                resolutionCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = Guid.NewGuid();
+                resolutionCmd.Parameters.Add("@escrowId", NpgsqlDbType.Uuid).Value = escrowId;
+                resolutionCmd.Parameters.Add("@disputeId", NpgsqlDbType.Uuid).Value = (object?)disputeId ?? DBNull.Value;
+                resolutionCmd.Parameters.Add("@resolvedBy", NpgsqlDbType.Uuid).Value = resolvedBy;
+                resolutionCmd.Parameters.Add("@talentAmount", NpgsqlDbType.Numeric).Value = talentAmount;
+                resolutionCmd.Parameters.Add("@refundAmount", NpgsqlDbType.Numeric).Value = customerRefundAmount;
+                resolutionCmd.Parameters.Add("@notes", NpgsqlDbType.Text).Value = (object?)notes ?? DBNull.Value;
+                await resolutionCmd.ExecuteNonQueryAsync();
+            }
+
+            if (provider.Equals("Wallet", StringComparison.OrdinalIgnoreCase))
+            {
+                var payerWalletId = await EnsureWalletAccountAsync(connection, transaction, payerId, currency);
+                var talentWalletId = await EnsureWalletAccountAsync(connection, transaction, beneficiaryId, currency);
+                await InsertLedgerEntryAsync(connection, transaction, payerWalletId, escrowId, bookingId,
+                    "EscrowRefund", "Credit", customerRefundAmount, "booking_escrow_refund", bookingId.ToString(),
+                    $"escrow:{escrowId}:partial-refund:{customerRefundAmount:0.##}");
+                await InsertLedgerEntryAsync(connection, transaction, talentWalletId, escrowId, bookingId,
+                    "EscrowRelease", "Credit", talentAmount, "escrow_partial_settlement", bookingId.ToString(),
+                    $"escrow:{escrowId}:partial-release:{talentAmount:0.##}");
+                const string releaseSql = @"
+                    UPDATE escrow_transactions SET status = 'Released', released_at = COALESCE(released_at, NOW()), updated_at = NOW()
+                    WHERE id = @id;
+                    UPDATE bookings SET escrow_status = 'Released', talent_fee_status = 'Partially Refunded',
+                        payment_status = 'Partially Refunded', updated_at = NOW() WHERE escrow_transaction_id = @id;";
+                await using (var releaseCmd = new NpgsqlCommand(releaseSql, connection, transaction))
+                {
+                    releaseCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
+                    await releaseCmd.ExecuteNonQueryAsync();
+                }
+            }
+            else
+            {
+                const string pendingSql = @"
+                    UPDATE escrow_transactions SET status = 'RefundPending', updated_at = NOW()
+                    WHERE id = @id;
+                    UPDATE bookings SET escrow_status = 'RefundPending', talent_fee_status = 'Refund Pending',
+                        payment_status = 'Refund Pending', updated_at = NOW() WHERE escrow_transaction_id = @id;";
+                await using (var pendingCmd = new NpgsqlCommand(pendingSql, connection, transaction))
+                {
+                    pendingCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
+                    await pendingCmd.ExecuteNonQueryAsync();
+                }
+            }
+            if (ownedTransaction is not null) await transaction.CommitAsync();
+            return new PartialSettlementOutcome(true, provider, providerPaymentId, customerRefundAmount, talentAmount);
+        }
+        catch
+        {
+            if (ownedTransaction is not null) await transaction.RollbackAsync();
+            throw;
+        }
+    }
+
+    public static async Task ApplyRefundOutcomeAsync(NpgsqlConnection connection, Guid bookingId, NpgsqlTransaction? existingTransaction = null)
+    {
+        await EnsureSchemaAsync(connection);
+        await using var ownedTransaction = existingTransaction is null ? await connection.BeginTransactionAsync() : null;
+        var transaction = existingTransaction ?? ownedTransaction!;
+        try
+        {
+            const string partialSql = @"
+                SELECT r.talent_amount
+                FROM escrow_resolutions r
+                INNER JOIN escrow_transactions e ON e.id = r.escrow_transaction_id
+                WHERE e.booking_id = @bookingId AND r.resolution_type = 'Partial' AND r.talent_amount > 0
+                ORDER BY r.created_at DESC LIMIT 1;";
+            decimal? partialTalentAmount;
+            await using (var partialCmd = new NpgsqlCommand(partialSql, connection, transaction))
+            {
+                partialCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                partialTalentAmount = await partialCmd.ExecuteScalarAsync() as decimal?;
+            }
+
+            if (partialTalentAmount.HasValue)
+            {
+                const string lockSql = @"
+                    SELECT id, beneficiary_user_id, currency, status
+                    FROM escrow_transactions WHERE booking_id = @bookingId FOR UPDATE;";
+                Guid escrowId;
+                Guid beneficiaryId;
+                string currency;
+                string status;
+                await using (var lockCmd = new NpgsqlCommand(lockSql, connection, transaction))
+                {
+                    lockCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
+                    await using var reader = await lockCmd.ExecuteReaderAsync();
+                    if (!await reader.ReadAsync())
+                    {
+                        if (ownedTransaction is not null) await transaction.RollbackAsync();
+                        return;
+                    }
+                    escrowId = reader.GetGuid(0);
+                    beneficiaryId = reader.GetGuid(1);
+                    currency = reader.GetString(2);
+                    status = reader.GetString(3);
+                }
+                if (status is "Released" or "Refunded" or "PendingPayment")
+                {
+                    if (ownedTransaction is not null) await transaction.CommitAsync();
+                    return;
+                }
+                var talentWalletId = await EnsureWalletAccountAsync(connection, transaction, beneficiaryId, currency);
+                var talentAmount = partialTalentAmount.Value;
+                await InsertLedgerEntryAsync(connection, transaction, talentWalletId, escrowId, bookingId,
+                    "EscrowRelease", "Credit", talentAmount, "escrow_partial_settlement", bookingId.ToString(),
+                    $"escrow:{escrowId}:partial:{talentAmount:0.##}");
+                const string releaseSql = @"
+                    UPDATE escrow_transactions SET status = 'Released', released_at = COALESCE(released_at, NOW()), updated_at = NOW()
+                    WHERE id = @id;
+                    UPDATE bookings SET escrow_status = 'Released', talent_fee_status = 'Partially Refunded',
+                        payment_status = 'Partially Refunded', updated_at = NOW() WHERE escrow_transaction_id = @id;";
+                await using (var releaseCmd = new NpgsqlCommand(releaseSql, connection, transaction))
+                {
+                    releaseCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = escrowId;
+                    await releaseCmd.ExecuteNonQueryAsync();
+                }
+                if (ownedTransaction is not null) await transaction.CommitAsync();
+                return;
+            }
+
+            await MarkRefundedCoreAsync(connection, transaction, bookingId);
+            if (ownedTransaction is not null) await transaction.CommitAsync();
+        }
+        catch
+        {
+            if (ownedTransaction is not null) await transaction.RollbackAsync();
             throw;
         }
     }

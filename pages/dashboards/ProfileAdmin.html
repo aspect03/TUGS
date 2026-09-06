@@ -565,6 +565,7 @@
               <select id="reportStatusFilter" class="px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-xs text-white/70 outline-none">
                 <option value="">All Statuses</option>
                 <option value="Pending">Pending</option>
+                <option value="Escalated">Escalated</option>
                 <option value="Resolved">Resolved</option>
                 <option value="Dismissed">Dismissed</option>
                 <option value="ActionTaken">Action Taken</option>
@@ -764,8 +765,8 @@
                 <label class="block text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Resolution</label>
                 <select id="resolveDisputeResolution" class="w-full px-3 py-3 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white outline-none focus:border-orange-500/40">
                   <option value="Dismissed">Dismissed — No action taken</option>
-                  <option value="Refunded">Refunded — Full refund issued</option>
-                  <option value="PartialRefund">Partial Refund</option>
+                  <option value="Refunded">Refunded — Confirm an already completed refund</option>
+                  <option value="EscalatedToAdmin">Escalate — keep funds on hold</option>
                   <option value="WarningIssued">Warning Issued to party</option>
                   <option value="NoAction">No Action Required</option>
                 </select>
@@ -4615,7 +4616,7 @@
         const disputes = await res.json();
 
         const badge = document.getElementById('openDisputesBadge');
-        const openCount = disputes.filter(d => d.status === 'Open').length;
+        const openCount = disputes.filter(d => ['Open', 'Escalated'].includes(d.status)).length;
         if (badge) { badge.innerText = openCount; badge.classList.toggle('hidden', openCount === 0); }
 
         if (!disputes.length) {
@@ -4636,11 +4637,14 @@
                   </div>
                   <p class="text-sm font-bold text-white">${escapeHtml(d.eventTitle)}</p>
                   <p class="text-xs text-white/50">${escapeHtml(d.reporterName)} · ${new Date(d.createdAt).toLocaleDateString('en-PH', {month:'short', day:'numeric', year:'numeric'})}</p>
+                  <p class="text-xs text-white/70 whitespace-pre-wrap">${escapeHtml(d.description || '')}</p>
+                  ${d.evidence ? `<p class="text-xs text-white/50 break-all">Evidence: ${escapeHtml(d.evidence)}</p>` : ''}
+                  ${d.adminNotes ? `<p class="text-xs text-white/50">Admin notes: ${escapeHtml(d.adminNotes)}</p>` : ''}
                   ${d.resolution ? `<p class="text-xs text-emerald-400">Resolution: ${escapeHtml(d.resolution)}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                   <a href="/pages/bookings/messages.html?bookingId=${escapeHtml(d.bookingId)}" class="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-colors">View Booking</a>
-                  ${d.status === 'Open' ? `<button onclick="openResolveDisputeModal('${escapeHtml(d.id)}')" class="px-3 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/25 text-[10px] font-bold uppercase tracking-wider text-orange-300 hover:bg-orange-500/25 transition-colors">Resolve</button>` : ''}
+                  ${['Open', 'Escalated'].includes(d.status) ? `<button onclick="openResolveDisputeModal('${escapeHtml(d.id)}')" class="px-3 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/25 text-[10px] font-bold uppercase tracking-wider text-orange-300 hover:bg-orange-500/25 transition-colors">Resolve</button>` : ''}
                 </div>
               </div>
             </div>`;

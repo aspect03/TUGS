@@ -183,7 +183,7 @@ namespace ImajinationAPI.Services
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", base64Auth);
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("https://api.paymongo.com/refunds", content);
+            var response = await client.PostAsync("https://api.paymongo.com/v1/refunds", content);
             var responseString = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)

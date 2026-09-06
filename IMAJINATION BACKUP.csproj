@@ -36,6 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="tests\**\*.cs" />
     <Compile Remove=".artifacts\**\*.cs" />
     <Compile Remove=".build-cache\**\*.cs" />
     <Compile Remove="bin\**\*.cs" />

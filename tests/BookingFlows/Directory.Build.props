@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Isolate this test harness from the web app's shared .artifacts obj/bin so its
+    intermediates and outputs can never collide with the main project's build.
+  -->
+  <PropertyGroup>
+    <_TestCacheRoot Condition="'$(IMAJINATION_BUILD_CACHE_ROOT)' != ''">$(IMAJINATION_BUILD_CACHE_ROOT)\tests\BookingFlows</_TestCacheRoot>
+    <_TestCacheRoot Condition="'$(_TestCacheRoot)' == ''">$(MSBuildThisFileDirectory)..\..\.artifacts\tests\BookingFlows</_TestCacheRoot>
+    <BaseIntermediateOutputPath>$(_TestCacheRoot)\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(_TestCacheRoot)\bin\</BaseOutputPath>
+  </PropertyGroup>
+</Project>

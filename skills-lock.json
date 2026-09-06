@@ -1,17 +1,95 @@
 {
   "version": 1,
   "skills": {
+    "brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/brainstorming/SKILL.md",
+      "computedHash": "0eb8e9ba100985eb4da20c46807268cafd72ec1c4ea58132edf9be6c469867fe"
+    },
+    "code-reviewer": {
+      "source": "sickn33/agentic-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-reviewer/SKILL.md",
+      "computedHash": "5dc4646d11cff9914f71d50879c08c0325787326886ea2ce592af7ac45233400"
+    },
+    "create-datadriven-aspnetcore": {
+      "source": "dotnet/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-data/skills/create-datadriven-aspnetcore/SKILL.md",
+      "computedHash": "f0361dc87f87fec319cc1c33d18896c6c5a98ea0bcc8c3ac055d6be2791dafb8"
+    },
+    "dotnet-csharp": {
+      "source": "novotnyllc/dotnet-artisan",
+      "sourceType": "github",
+      "skillPath": "plugins/dotnet-artisan/skills/dotnet-csharp/SKILL.md",
+      "computedHash": "a5c642373eb317b41cc2ce1f415c825e5eb3b7ce4245296b9ce47eacd189d10c"
+    },
+    "find-security-vulnerabilities-in-code": {
+      "source": "usestrix/strix",
+      "sourceType": "github",
+      "skillPath": "skills/find-security-vulnerabilities-in-code/SKILL.md",
+      "computedHash": "b9aaebedb74653bed108ad54790be164fc70e60ca6fbca844e379cb0408498cf"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "106acf230014cbb43ca34e6410371321b56ca742f9ee0442e8ec05bf02eb0384"
     },
+    "postgresql-optimization": {
+      "source": "sickn33/agentic-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/postgresql-optimization/SKILL.md",
+      "computedHash": "e12753fdc341ac4806c30f8326328297492c4849c52ae49c988f9c528d519daf"
+    },
+    "requesting-code-review": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/requesting-code-review/SKILL.md",
+      "computedHash": "004f340ae65811095d6a9bb0a759c87d0a8085c5e705dbb019b011626293d2e9"
+    },
+    "subagent-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/subagent-driven-development/SKILL.md",
+      "computedHash": "988e6ae6fa0e6a3ab7cba613662d75e80f193259576f2ede379461bfc40aa7d7"
+    },
     "systematic-debugging": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/systematic-debugging/SKILL.md",
       "computedHash": "a2750dfbaed1690da73b120254892c4f926b4576cb82eb16fc877783941fe39b"
+    },
+    "test-driven-development": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/test-driven-development/SKILL.md",
+      "computedHash": "a4126a9c5f17be3c228aa9e5755898ade283448b86099f56f40852e8c14532be"
+    },
+    "token-saver": {
+      "source": "rubenaquispe/token-saver",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "0bb3c26eb759732765e9beb7a9b6a29efd3612c4b3eb361934cd50623e1c60f5"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/using-superpowers/SKILL.md",
+      "computedHash": "c7abe8bdc2099bbe4f245454d32c7563ccd2bb41dcc218b02b461c2acc3c6ae6"
+    },
+    "vanilla-web": {
+      "source": "janjaszczak/cursor",
+      "sourceType": "github",
+      "skillPath": "skills/vanilla-web/SKILL.md",
+      "computedHash": "57b8fdfc7a2fe95f89346b3b1bb1bee23d7725e63cb340ed62866b5221d5bfac"
+    },
+    "verification-before-completion": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/verification-before-completion/SKILL.md",
+      "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",

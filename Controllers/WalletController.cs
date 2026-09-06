@@ -55,6 +55,8 @@ public class WalletController : ControllerBase
     public async Task<IActionResult> CreateTopUp([FromBody] WalletTopUpRequest req)
     {
         if (!Guid.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var userId)) return Unauthorized();
+        if (req.amount > 1000000m || decimal.Round(req.amount, 2) != req.amount)
+            return BadRequest(new { message = "Use an amount up to PHP 1,000,000 with at most two decimal places." });
         if (req.amount < 15m) return BadRequest(new { message = "Wallet top-ups must be at least PHP 15.00." });
         if (string.IsNullOrWhiteSpace(req.successUrl) || string.IsNullOrWhiteSpace(req.cancelUrl))
             return BadRequest(new { message = "Success and cancel URLs are required." });
@@ -105,11 +107,18 @@ public class WalletController : ControllerBase
         await using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync();
         await EscrowService.EnsureSchemaAsync(connection);
-        const string sql = "SELECT provider_checkout_id FROM wallet_topups WHERE id=@id AND user_id=@userId LIMIT 1;";
+        const string sql = "SELECT provider_checkout_id, amount FROM wallet_topups WHERE id=@id AND user_id=@userId LIMIT 1;";
         await using var cmd = new NpgsqlCommand(sql, connection);
         cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = topUpId;
         cmd.Parameters.Add("@userId", NpgsqlDbType.Uuid).Value = userId;
-        var checkoutId = await cmd.ExecuteScalarAsync() as string;
+        string? checkoutId;
+        decimal expectedAmount;
+        await using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            if (!await reader.ReadAsync()) return NotFound(new { message = "Wallet top-up not found." });
+            checkoutId = reader.IsDBNull(0) ? null : reader.GetString(0);
+            expectedAmount = reader.GetDecimal(1);
+        }
         if (string.IsNullOrWhiteSpace(checkoutId)) return NotFound(new { message = "Wallet top-up not found." });
         using var client = new HttpClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(_paymongoSecretKey)));
@@ -119,7 +128,9 @@ public class WalletController : ControllerBase
         var attributes = doc.RootElement.GetProperty("data").GetProperty("attributes");
         if (!attributes.TryGetProperty("payments", out var payments) || payments.ValueKind != JsonValueKind.Array || payments.GetArrayLength() == 0)
             return Ok(new { message = "Top-up payment is still pending.", paymentStatus = "PendingPayment" });
-        var paymentId = payments[0].TryGetProperty("id", out var id) ? id.GetString() : null;
+        if (!PayMongoPaymentVerification.TryGetPaidPayment(attributes, expectedAmount, out var paidPayment))
+            return Conflict(new { message = "No paid payment matches the expected top-up amount and currency." });
+        var paymentId = paidPayment.GetProperty("id").GetString();
         var confirmed = await EscrowService.ConfirmTopUpAsync(connection, topUpId, userId, paymentId);
         if (!confirmed) return Conflict(new { message = "This top-up cannot be confirmed in its current state." });
         var wallet = await EscrowService.GetWalletSummaryAsync(connection, userId);
@@ -155,18 +166,12 @@ public class WalletController : ControllerBase
         if (userId != customerId) return Forbid();
         if (!bookingStatus.Equals("Confirmed", StringComparison.OrdinalIgnoreCase) || amount <= 0)
             return BadRequest(new { message = "Only confirmed bookings with an agreed talent fee can be funded from a wallet." });
-        if (talentFeeStatus is "HeldInEscrow" or "ReadyForRelease" or "Released")
+        if (talentFeeStatus is "ReadyForRelease" or "Released")
             return Conflict(new { message = "The talent fee is already secured for this booking." });
 
         try
         {
             await EscrowService.ReserveFromWalletAsync(connection, bookingId, customerId, targetUserId, amount);
-            const string updateSql = @"
-                UPDATE bookings SET payment_status = 'TalentFeeHeldInEscrow', talent_fee_status = 'HeldInEscrow',
-                    talent_fee_paid_at = COALESCE(talent_fee_paid_at, NOW()) WHERE id = @id;";
-            await using var updateCmd = new NpgsqlCommand(updateSql, connection);
-            updateCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
-            await updateCmd.ExecuteNonQueryAsync();
             var wallet = await EscrowService.GetWalletSummaryAsync(connection, userId);
             return Ok(new { message = "Talent fee reserved in escrow from your wallet.", availableBalance = wallet.AvailableBalance, heldBalance = wallet.HeldBalance });
         }

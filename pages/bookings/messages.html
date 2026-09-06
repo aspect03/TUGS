@@ -127,6 +127,9 @@
                 <button id="payBookingBtn" type="button" class="px-4 py-2.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-500 transition-colors">
                   Pay Now
                 </button>
+                <button id="walletTopUpBtn" type="button" class="hidden px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-emerald-500/20 transition-colors">
+                  Top Up Wallet
+                </button>
               </div>
             </div>
             <div id="bookingTrackingPanel" class="hidden mt-5 pt-4 border-t border-white/10">
@@ -140,10 +143,14 @@
         </div>
 
         <div id="messageList" class="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+          <div id="loadOlderMessagesRow" class="hidden justify-center pt-1">
+            <button id="loadOlderMessagesBtn" type="button" class="px-4 py-2 bg-white/5 border border-white/10 text-white/60 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-white/10 hover:text-white transition-colors">Load Older Messages</button>
+          </div>
           <p class="text-sm text-white/50">Loading messages...</p>
         </div>
 
         <footer class="p-4 bg-black/40 border-t border-white/10 shrink-0 backdrop-blur-md">
+          <div id="typingIndicator" class="hidden max-w-5xl mx-auto px-1 pb-1.5 text-[11px] text-white/45 italic">They are typing…</div>
           <form id="messageForm" class="max-w-5xl mx-auto space-y-2">
             <div id="attachmentPreview" class="hidden rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70"></div>
             <div class="flex items-end gap-3">
@@ -252,6 +259,10 @@
     let activeMessages = [];
     let activeConversationRequest = 0;
     let isSendingMessage = false;
+    let conversationHasMore = false;
+    let oldestLoadedMessageId = null;
+    let loadingOlderMessages = false;
+    let typingEchoTimer = null;
     let selectedMessageAttachment = null;
     let liveMessageStream = null;
     let liveMessagePollHandle = null;
@@ -275,7 +286,12 @@
       document.getElementById('messageForm').addEventListener('submit', sendMessage);
       document.getElementById('attachMessageBtn')?.addEventListener('click', () => document.getElementById('messageAttachmentInput')?.click());
       document.getElementById('messageAttachmentInput')?.addEventListener('change', handleMessageAttachmentSelected);
+      document.getElementById('messageInput')?.addEventListener('input', notifyTyping);
+      document.getElementById('messageInput')?.addEventListener('blur', () => clearTimeout(typingEchoTimer));
+      document.getElementById('loadOlderMessagesBtn')?.addEventListener('click', loadOlderMessages);
+      document.getElementById('messageList')?.addEventListener('scroll', handleMessageListScroll);
       document.getElementById('payBookingBtn').addEventListener('click', startBookingPayment);
+      document.getElementById('walletTopUpBtn').addEventListener('click', startWalletTopUp);
       document.getElementById('completeBookingBtn').addEventListener('click', markBookingCompleted);
       document.getElementById('refundBookingBtn').addEventListener('click', requestBookingRefund);
       document.getElementById('saveContractBtn').addEventListener('click', saveContractDraft);
@@ -494,6 +510,7 @@
         return false;
       }
 
+      if (Number(booking.budget || 0) > 0 && !['HeldInEscrow', 'ReadyForRelease', 'Released'].includes(booking.talentFeeStatus)) return false;
       const completionDate = new Date(completionValue);
       if (Number.isNaN(completionDate.getTime())) {
         return false;
@@ -579,11 +596,7 @@
       const list = document.getElementById('conversationList');
       const term = document.getElementById('conversationSearch').value.trim().toLowerCase();
       const dedupedConversations = Array.from(conversations.reduce((map, conversation) => {
-        const key = [
-          conversation.counterpartId || '',
-          (conversation.counterpartRole || '').toLowerCase(),
-          (conversation.eventTitle || '').trim().toLowerCase()
-        ].join('|');
+        const key = String(conversation.bookingId);
         const existing = map.get(key);
         const existingTime = existing?.lastActivity ? new Date(existing.lastActivity).getTime() : 0;
         const nextTime = conversation?.lastActivity ? new Date(conversation.lastActivity).getTime() : 0;
@@ -610,7 +623,7 @@
         <button type="button" onclick="openConversation('${conversation.bookingId}')" class="w-full text-left p-4 rounded-xl border transition-colors ${String(conversation.bookingId) === String(activeBookingId) ? 'bg-red-600/10 border-red-500/20' : 'hover:bg-white/5 border-transparent'}">
           <div class="flex justify-between items-start gap-3 mb-1">
             <p class="font-semibold text-sm text-white">${escapeHtml(conversation.counterpartName || 'Conversation')}</p>
-            <span class="text-[10px] ${String(conversation.bookingId) === String(activeBookingId) ? 'text-red-400' : (conversation.hasMessages ? 'text-white/50' : 'text-amber-300')} font-medium whitespace-nowrap">${String(conversation.bookingId) === String(activeBookingId) ? 'Active' : (conversation.hasMessages ? 'Open' : 'New')}</span>
+            <span class="text-[10px] ${String(conversation.bookingId) === String(activeBookingId) ? 'text-red-400' : (conversation.hasMessages ? 'text-white/50' : 'text-amber-300')} font-medium whitespace-nowrap">${String(conversation.bookingId) === String(activeBookingId) ? 'Active' : (conversation.unreadCount > 0 ? `${conversation.unreadCount} unread` : (conversation.hasMessages ? 'Open' : 'New'))}</span>
           </div>
           <p class="text-[10px] uppercase tracking-widest text-white/40 mb-2">${escapeHtml(conversation.eventTitle || 'Booking inquiry')}</p>
           <p class="text-xs text-white/60 truncate">${escapeHtml(conversation.lastMessage || 'No messages yet. Open this thread to start the conversation.')}</p>
@@ -703,12 +716,17 @@
       }
 
       try {
-        const res = await fetch(`/api/message/booking/${activeBookingId}`, { cache: 'no-store' });
+        const bookingId = activeBookingId;
+        const requestId = activeConversationRequest;
+        const res = await fetch(`/api/message/booking/${bookingId}`, { cache: 'no-store' });
         if (!res.ok) {
           return;
         }
 
-        const messages = await res.json().catch(() => []);
+        const messagePayload = await res.json().catch(() => ({}));
+        const messages = Array.isArray(messagePayload) ? messagePayload : (messagePayload.messages || []);
+        conversationHasMore = !Array.isArray(messagePayload) && !!messagePayload.hasMore;
+        if (requestId !== activeConversationRequest || bookingId !== activeBookingId) return;
         activeMessages = mergeMessages(messages);
         renderMessages(activeMessages);
         loadBookingTracking(activeBookingId);
@@ -725,6 +743,8 @@
         return;
       }
 
+      if (activeBooking?.conversationClosedAt || getCancelledConversationState(activeBooking).isClosed) return;
+      liveMessagePollHandle = window.setInterval(refreshConversationMessagesSilently, 10000);
       const stream = new EventSource(`/api/message/booking/${bookingId}/stream`);
       liveMessageStream = stream;
 
@@ -732,11 +752,8 @@
         if (String(bookingId) !== String(activeBookingId)) {
           return;
         }
-        if (liveMessagePollHandle) {
-          window.clearInterval(liveMessagePollHandle);
-          liveMessagePollHandle = null;
-        }
-        updateLiveChatStatus(activeBooking?.status || 'Live', 'green');
+        updateLiveChatStatus('Live', 'green');
+        refreshConversationMessagesSilently();
       });
 
       stream.addEventListener('booking-message', (event) => {
@@ -745,6 +762,24 @@
         }
 
         const payload = JSON.parse(event.data || '{}');
+        if (payload?.type === 'messages_read') {
+          applyReadReceipts(payload.receipts);
+          return;
+        }
+        if (payload?.type === 'typing') {
+          if (String(payload.senderId) !== String(userId)) {
+            showTypingIndicator();
+          }
+          return;
+        }
+        if (payload?.type === 'message_updated') {
+          applyMessageUpdate(payload.message);
+          return;
+        }
+        if (payload?.type === 'message_deleted') {
+          applyMessageDelete(payload);
+          return;
+        }
         if (payload?.type !== 'message_created' || !payload?.message) {
           return;
         }
@@ -753,6 +788,13 @@
         renderMessages(activeMessages);
         loadBookingTracking(activeBookingId);
         syncConversationPreview(payload.message);
+        if (String(payload.message.receiverId) === String(userId)) {
+          const conversation = conversations.find(item => String(item.bookingId) === String(activeBookingId));
+          if (conversation) {
+            conversation.unreadCount = (conversation.unreadCount || 0) + 1;
+            renderConversationList();
+          }
+        }
       });
 
       stream.onerror = () => {
@@ -813,7 +855,9 @@
         }
 
         const booking = await bookingRes.json();
-        const messages = await messageRes.json();
+        const messagePayload = await messageRes.json().catch(() => ({}));
+        const messages = Array.isArray(messagePayload) ? messagePayload : (messagePayload.messages || []);
+        conversationHasMore = !Array.isArray(messagePayload) && !!messagePayload.hasMore;
 
         if (requestId !== activeConversationRequest || String(bookingId) !== String(activeBookingId)) {
           return;
@@ -824,6 +868,7 @@
         applyBookingHeader(activeBooking);
         await loadBookingTracking(bookingId);
         await loadBookingContract(bookingId);
+        if (requestId !== activeConversationRequest || String(bookingId) !== String(activeBookingId)) return;
         renderMessages(activeMessages);
         startLiveConversationUpdates(bookingId);
       } catch (error) {
@@ -859,16 +904,16 @@
       const serviceFeeStatus = normalizeServiceFeeStatus(booking.serviceFeeStatus, booking.paymentStatus);
       const talentFeeStatus = normalizeTalentFeeStatus(booking.talentFeeStatus);
       const platformFeeStatus = normalizeTalentFeeStatus(booking.talentPlatformFeeStatus);
-      const canPayServiceFee = userRole === 'Customer' && serviceFeeStatus !== 'Paid' && !(booking.status || '').startsWith('Cancelled');
+      const canPayServiceFee = String(booking.customerId) === String(userId) && !['Paid', 'NotRequired', 'Refunded'].includes(serviceFeeStatus) && !(booking.status || '').startsWith('Cancelled');
       const isBookableSettlementState = booking.status === 'Confirmed' || isCompletionPendingStatus(booking.status);
-      const canPayTalentFee = userRole === 'Customer'
-        && serviceFeeStatus === 'Paid'
+      const canPayTalentFee = String(booking.customerId) === String(userId)
+        && ['Paid', 'NotRequired'].includes(serviceFeeStatus)
         && booking.status === 'Confirmed'
         && Number(booking.budget || 0) > 0
         && !['Paid', 'HeldInEscrow', 'ReadyForRelease', 'Released'].includes(talentFeeStatus)
         && !(booking.status || '').startsWith('Cancelled');
-      const canPayPlatformFee = (userRole === 'Artist' || userRole === 'Sessionist')
-        && isBookableSettlementState
+      const canPayPlatformFee = String(booking.targetUserId) === String(userId)
+        && (isBookableSettlementState || booking.status === 'Completed')
         && Number(booking.talentPlatformFee || 0) > 0
         && ['HeldInEscrow', 'ReadyForRelease'].includes(talentFeeStatus)
         && platformFeeStatus !== 'Paid'
@@ -899,27 +944,30 @@
       refundButton.innerText = canRequestTalentRefund ? 'Report Customer No-Show' : 'Report Talent No-Show';
       applyMessageComposerState(booking);
 
+      const walletTopUpBtn = document.getElementById('walletTopUpBtn');
+      walletTopUpBtn?.classList.toggle('hidden', !canPayTalentFee);
+
       if (canPayServiceFee) {
         payButton.dataset.paymentType = 'service';
         payButton.innerText = serviceFeeStatus === 'AwaitingPayment' ? 'Continue Fee Payment' : `Pay ${formatPeso(booking.bookingFee || 15)} Fee`;
+        payButton.classList.remove('hidden');
         paymentRow.classList.remove('hidden');
       } else if (canPayTalentFee) {
         payButton.dataset.paymentType = 'talent';
         payButton.innerText = `Fund ${formatPeso(booking.budget || 0)} Talent Escrow`;
+        payButton.classList.remove('hidden');
         paymentRow.classList.remove('hidden');
       } else if (canPayPlatformFee) {
         payButton.dataset.paymentType = 'platform';
         payButton.innerText = platformFeeStatus === 'AwaitingPayment' ? 'Continue Platform Fee Payment' : `Pay ${formatPeso(booking.talentPlatformFee || 0)} Platform Fee`;
+        payButton.classList.remove('hidden');
         paymentRow.classList.remove('hidden');
       } else {
         payButton.dataset.paymentType = 'service';
         payButton.classList.add('hidden');
-        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden') && refundButton.classList.contains('hidden'));
-        return;
+        paymentRow.classList.toggle('hidden', completeButton.classList.contains('hidden') && refundButton.classList.contains('hidden') && (!disputeBtn || disputeBtn.classList.contains('hidden')));
+        walletTopUpBtn?.classList.add('hidden');
       }
-
-      payButton.classList.remove('hidden');
-      paymentRow.classList.remove('hidden');
     }
 
     function renderBookingTracking(data) {
@@ -942,7 +990,7 @@
           <span class="text-xs font-semibold ${step.done ? 'text-emerald-100' : 'text-white/55'}">${escapeHtml(step.label || 'Step')}</span>
         </div>
       `).join('');
-      updated.innerText = data?.updatedAt ? `Updated ${formatDateTime(data.updatedAt)}` : 'Updated just now';
+      updated.innerText = (data?.disputeHold ? 'Dispute under review · Funds on hold. ' : data?.escrowStatus ? `Escrow: ${data.escrowStatus}. ` : '') + (data?.updatedAt ? `Updated ${formatDateTime(data.updatedAt)}` : 'Updated just now');
       panel.classList.remove('hidden');
       lucide.createIcons();
     }
@@ -952,7 +1000,8 @@
       try {
         const res = await fetch(`/api/booking/${bookingId}/tracking`, { cache: 'no-store' });
         if (!res.ok) return;
-        renderBookingTracking(await res.json());
+        const data = await res.json();
+        if (String(bookingId) === String(activeBookingId)) renderBookingTracking(data);
       } catch (_) {}
     }
 
@@ -1172,19 +1221,8 @@
             return;
           }
 
-          const topUpRes = await fetch('/api/wallet/topups', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amount: escrowAmount,
-              successUrl: `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`,
-              cancelUrl
-            })
-          });
-          const topUpData = await topUpRes.json().catch(() => ({}));
-          if (!topUpRes.ok || !topUpData.checkoutUrl) throw new Error(topUpData.message || 'Could not start the wallet top-up.');
-          window.location.href = topUpData.checkoutUrl;
-          return;
+          // Pay the booking directly when wallet funds are insufficient.
+          // This lets the signed webhook secure escrow even if the browser never returns.
         }
 
         const res = await fetch(`/api/booking/${activeBookingId}/checkout`, {
@@ -1204,6 +1242,37 @@
       } finally {
         payButton.disabled = false;
         payButton.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+
+    async function startWalletTopUp() {
+      if (!activeBookingId) return;
+      const amount = await window.systemDialog.prompt(
+        `How much would you like to add to your wallet? The talent escrow for this booking is ${formatPeso(Number(activeBooking?.budget || 0))}.`,
+        { title: 'Top Up Wallet', kicker: 'Digital Wallet', placeholder: 'Enter amount in PHP', okText: 'Continue' }
+      );
+      if (!amount) return;
+      const numeric = Number(String(amount).replace(/[^0-9.]/g, ''));
+      if (!numeric || numeric <= 0) {
+        await showSystemAlert('Please enter a valid amount.', 'Invalid Amount');
+        return;
+      }
+      const successUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`;
+      const cancelUrl = `${window.location.origin}/pages/bookings/messages.html?bookingId=${activeBookingId}`;
+      const btn = document.getElementById('walletTopUpBtn');
+      if (btn) { btn.disabled = true; btn.classList.add('opacity-60', 'cursor-not-allowed'); }
+      try {
+        const res = await fetch('/api/wallet/topups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: numeric, successUrl, cancelUrl })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.checkoutUrl) throw new Error(data.message || 'Could not start wallet top-up.');
+        window.location.href = data.checkoutUrl;
+      } catch (error) {
+        await showSystemAlert(error.message || 'Could not start wallet top-up.', 'Wallet Error');
+        if (btn) { btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-not-allowed'); }
       }
     }
 
@@ -1384,19 +1453,189 @@
 
       list.innerHTML = uniqueMessages.map(message => {
         const ownMessage = String(message.senderId) === String(userId);
+        const deleted = !!message.deletedAt;
+        const canManage = ownMessage && !deleted && message.editable !== false && (new Date(message.createdAt).getTime() > Date.now() - 24 * 60 * 60 * 1000);
         return `
           <div class="flex flex-col gap-1 ${ownMessage ? 'items-end' : 'items-start'}">
             <div class="${ownMessage ? 'bg-red-600/90 border-red-500/30 rounded-tr-sm' : 'bg-white/10 border-white/5 rounded-tl-sm'} border rounded-2xl px-5 py-3 max-w-[85%] md:max-w-xl">
-              ${message.message ? `<p class="text-sm ${ownMessage ? 'text-white' : 'text-white/90'} leading-relaxed">${escapeHtml(message.message)}</p>` : ''}
-              ${renderMessageAttachment(message, ownMessage)}
+              ${deleted
+                ? '<p class="text-sm italic text-white/40">This message was deleted.</p>'
+                : `${message.message ? `<p class="text-sm ${ownMessage ? 'text-white' : 'text-white/90'} leading-relaxed">${escapeHtml(message.message)}</p>` : ''}
+                   ${renderMessageAttachment(message, ownMessage)}`}
+              ${canManage ? `<div class="flex items-center gap-2 mt-2 ${ownMessage ? 'justify-end' : 'justify-start'}">
+                <button type="button" onclick="editMessage('${message.id}')" class="text-[10px] font-semibold uppercase tracking-widest text-white/45 hover:text-white transition-colors">Edit</button>
+                <button type="button" onclick="deleteMessage('${message.id}')" class="text-[10px] font-semibold uppercase tracking-widest text-red-300/70 hover:text-red-300 transition-colors">Delete</button>
+              </div>` : ''}
             </div>
-            <span class="text-[10px] text-white/40 ${ownMessage ? 'mr-1' : 'ml-1'}">${formatDateTime(message.createdAt)}</span>
+            <span class="text-[10px] text-white/40 ${ownMessage ? 'mr-1' : 'ml-1'}">${formatDateTime(message.createdAt)}${message.editedAt ? ' · Edited' : ''}${ownMessage ? (message.readAt ? ' · Read' : ' · Sent') : ''}</span>
           </div>
         `;
       }).join('');
 
+      const loadRow = document.getElementById('loadOlderMessagesRow');
+      if (loadRow) {
+        loadRow.classList.toggle('hidden', !conversationHasMore);
+        loadRow.classList.toggle('flex', !!conversationHasMore);
+        if (loadingOlderMessages) {
+          loadRow.querySelector('#loadOlderMessagesBtn').innerText = 'Loading…';
+          loadRow.querySelector('#loadOlderMessagesBtn').disabled = true;
+        } else {
+          loadRow.querySelector('#loadOlderMessagesBtn').innerText = 'Load Older Messages';
+          loadRow.querySelector('#loadOlderMessagesBtn').disabled = false;
+        }
+      }
+
       list.scrollTop = list.scrollHeight;
+      markVisibleMessagesRead();
     }
+
+    function handleMessageListScroll() {
+      const list = document.getElementById('messageList');
+      if (!list || !conversationHasMore || loadingOlderMessages || list.scrollTop > 40) return;
+      loadOlderMessages();
+    }
+
+    async function loadOlderMessages() {
+      if (!activeBookingId || !conversationHasMore || loadingOlderMessages) return;
+      loadingOlderMessages = true;
+      const bookingId = activeBookingId;
+      const beforeId = activeMessages[0]?.id || null;
+      const row = document.getElementById('loadOlderMessagesRow');
+      const btn = document.getElementById('loadOlderMessagesBtn');
+      if (row) row.classList.remove('hidden');
+      if (btn) { btn.innerText = 'Loading…'; btn.disabled = true; }
+      try {
+        const res = await fetch(`/api/message/booking/${bookingId}?beforeId=${beforeId}&limit=60`, { cache: 'no-store' });
+        if (!res.ok) throw new Error();
+        const data = await res.json().catch(() => ({}));
+        const messages = Array.isArray(data) ? data : (data.messages || []);
+        conversationHasMore = !Array.isArray(data) && !!data.hasMore;
+        if (String(bookingId) !== String(activeBookingId)) return;
+        const scrollHeightBefore = document.getElementById('messageList').scrollHeight;
+        activeMessages = mergeMessages([...messages, ...activeMessages]);
+        const list = document.getElementById('messageList');
+        renderMessages(activeMessages);
+        list.scrollTop = list.scrollHeight - scrollHeightBefore;
+      } catch {
+        if (String(bookingId) === String(activeBookingId)) await showSystemAlert('Failed to load older messages.', 'Message Error');
+      } finally {
+        loadingOlderMessages = false;
+        if (String(bookingId) === String(activeBookingId) && btn) {
+          btn.innerText = 'Load Older Messages';
+          btn.disabled = false;
+        }
+      }
+    }
+
+    function notifyTyping() {
+      if (!activeBookingId || typingEchoTimer) return;
+      clearTimeout(typingEchoTimer);
+      typingEchoTimer = setTimeout(() => { typingEchoTimer = null; }, 2500);
+      fetch(`/api/message/booking/${activeBookingId}/typing`, { method: 'POST' }).catch(() => {});
+    }
+
+    function showTypingIndicator() {
+      const el = document.getElementById('typingIndicator');
+      const list = document.getElementById('messageList');
+      if (!el || !list) return;
+      el.classList.remove('hidden');
+      list.scrollTop = list.scrollHeight;
+      clearTimeout(showTypingIndicator._hide);
+      showTypingIndicator._hide = setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function editMessage(messageId) {
+      const message = activeMessages.find(item => String(item.id) === String(messageId));
+      if (!message || String(message.senderId) !== String(userId)) return;
+      const newText = await window.systemDialog.prompt('Edit this message:', {
+        title: 'Edit Message',
+        kicker: 'Booking Messages',
+        placeholder: message.message || '',
+        defaultValue: message.message || '',
+        okText: 'Save'
+      });
+      if (!newText || newText.trim() === message.message) return;
+      const text = newText.trim();
+      if (!text) return;
+      try {
+        const res = await fetch(`/api/message/booking/${activeBookingId}/${messageId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to edit message.');
+        message.message = text;
+        message.editedAt = new Date().toISOString();
+        renderMessages(activeMessages);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to edit message.', 'Message Error');
+      }
+    }
+
+    async function deleteMessage(messageId) {
+      const message = activeMessages.find(item => String(item.id) === String(messageId));
+      if (!message || String(message.senderId) !== String(userId)) return;
+      const confirmed = await window.systemDialog.confirm('Delete this message? This cannot be undone.', {
+        title: 'Delete Message', kicker: 'Booking Messages', okText: 'Delete', cancelText: 'Cancel', danger: true
+      });
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`/api/message/booking/${activeBookingId}/${messageId}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to delete message.');
+        message.deletedAt = new Date().toISOString();
+        renderMessages(activeMessages);
+      } catch (error) {
+        await showSystemAlert(error.message || 'Failed to delete message.', 'Message Error');
+      }
+    }
+
+    function applyMessageUpdate(updatedMessage) {
+      if (!updatedMessage) return;
+      const index = activeMessages.findIndex(item => String(item.id) === String(updatedMessage.id));
+      if (index >= 0) {
+        activeMessages[index] = { ...activeMessages[index], ...updatedMessage };
+        renderMessages(activeMessages);
+      }
+    }
+
+    function applyMessageDelete(updatedMessage) {
+      if (!updatedMessage) return;
+      const message = activeMessages.find(item => String(item.id) === String(updatedMessage.messageId || updatedMessage.id));
+      if (message) {
+        message.deletedAt = new Date().toISOString();
+        renderMessages(activeMessages);
+      }
+    }
+
+    let markingRead = false;
+    function applyReadReceipts(receipts) {
+      const byId = new Map((receipts || []).map(receipt => [String(receipt.id), receipt.readAt]));
+      activeMessages.forEach(message => { if (byId.has(String(message.id))) message.readAt = byId.get(String(message.id)); });
+      if (byId.size) renderMessages(activeMessages);
+    }
+    async function markVisibleMessagesRead() {
+      if (markingRead || document.hidden || !activeBookingId) return;
+      const bookingId = activeBookingId;
+      const ids = activeMessages.filter(message => String(message.receiverId) === String(userId) && !message.readAt).map(message => message.id).slice(0, 200);
+      if (!ids.length) return;
+      markingRead = true;
+      try {
+        const response = await fetch('/api/message/booking/' + bookingId + '/read', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ids)
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (bookingId !== activeBookingId) return;
+        applyReadReceipts(data.receipts);
+        const conversation = conversations.find(item => String(item.bookingId) === String(bookingId));
+        if (conversation) conversation.unreadCount = Math.max(0, (conversation.unreadCount || 0) - ids.length);
+        renderConversationList();
+      } catch (_) { /* Retried on the next message reconciliation. */ }
+      finally { markingRead = false; }
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshConversationMessagesSilently(); });
 
     async function sendMessage(event) {
       event.preventDefault();
@@ -1412,12 +1651,13 @@
         return;
       }
 
+      const sendingBookingId = activeBookingId;
       isSendingMessage = true;
       button.disabled = true;
       button.classList.add('opacity-60', 'cursor-not-allowed');
 
       try {
-        const res = await fetch(`/api/message/booking/${activeBookingId}`, {
+        const res = await fetch(`/api/message/booking/${sendingBookingId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1433,6 +1673,7 @@
         }
 
         const data = await res.json().catch(() => ({}));
+        if (sendingBookingId !== activeBookingId) return;
         input.value = '';
         clearMessageAttachment();
         if (data?.sentMessage) {

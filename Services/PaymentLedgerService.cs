@@ -216,9 +216,9 @@ namespace ImajinationAPI.Services
                     checkout_reference = NULL,
                     payment_reference_hash = @paymentReferenceHash,
                     checkout_reference_hash = @checkoutReferenceHash,
-                    paid_at = COALESCE(@paidAt, NOW()),
+                    paid_at = COALESCE(paid_at, @paidAt, NOW()),
                     updated_at = NOW()
-                WHERE payment_scope = @paymentScope
+                WHERE payment_scope = @paymentScope AND status <> 'Refunded'
                   AND (
                     (@ticketId IS NOT NULL AND ticket_id = @ticketId)
                     OR (@bookingId IS NOT NULL AND booking_id = @bookingId)

@@ -20,6 +20,7 @@ namespace ImajinationAPI.Controllers
     {
         public string? resolution { get; set; }   // Refunded | Dismissed | PartialRefund | EscalatedToAdmin
         public string? adminNotes { get; set; }
+        public decimal? customerRefundAmount { get; set; }   // required for PartialRefund
     }
 
     [Route("api/[controller]")]
@@ -28,11 +29,13 @@ namespace ImajinationAPI.Controllers
     {
         private readonly string _connectionString;
         private readonly EmailService _emailService;
+        private readonly string _paymongoSecretKey;
 
         public DisputeController(IConfiguration configuration, EmailService emailService)
         {
             _connectionString = ConfigurationFallbacks.GetRequiredSupabaseConnectionString(configuration);
             _emailService = emailService;
+            _paymongoSecretKey = configuration["PayMongo:SecretKey"] ?? string.Empty;
         }
 
         private static async Task EnsureSchemaAsync(NpgsqlConnection connection)
@@ -89,11 +92,13 @@ namespace ImajinationAPI.Controllers
                 await EnsureSchemaAsync(connection);
                 await EscrowService.EnsureSchemaAsync(connection);
 
+                await using var transaction = await connection.BeginTransactionAsync();
+                // Serialize dispute creation against completion and release.
                 // Verify reporter is part of this booking
                 const string bookingSql = @"
                     SELECT customer_id, target_user_id, COALESCE(event_title,'Booking'),
                            COALESCE(status,''), COALESCE(customer_id::text,''), COALESCE(target_user_id::text,'')
-                    FROM bookings WHERE id = @id LIMIT 1;";
+                    FROM bookings WHERE id = @id LIMIT 1 FOR UPDATE;";
                 await using var bCmd = new NpgsqlCommand(bookingSql, connection);
                 bCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = req.bookingId;
                 await using var bRdr = await bCmd.ExecuteReaderAsync();
@@ -110,7 +115,7 @@ namespace ImajinationAPI.Controllers
                     return Forbid();
 
                 // Check for existing open dispute
-                const string checkSql = "SELECT id FROM booking_disputes WHERE booking_id=@id AND status='Open' LIMIT 1;";
+                const string checkSql = "SELECT id FROM booking_disputes WHERE booking_id=@id AND status IN ('Open', 'Escalated') LIMIT 1;";
                 await using var checkCmd = new NpgsqlCommand(checkSql, connection);
                 checkCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = req.bookingId;
                 var existing = await checkCmd.ExecuteScalarAsync();
@@ -132,18 +137,14 @@ namespace ImajinationAPI.Controllers
                 insertCmd.Parameters.Add("@evidence", NpgsqlDbType.Text).Value = (object?)evidenceUrls ?? DBNull.Value;
                 await insertCmd.ExecuteNonQueryAsync();
 
-                // Freeze booking — add dispute hold status
-                const string holdSql = @"
-                    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS dispute_hold boolean NOT NULL DEFAULT FALSE;
-                    UPDATE bookings SET dispute_hold = TRUE WHERE id = @id;";
-                try
+                const string holdSql = "UPDATE bookings SET dispute_hold = TRUE WHERE id = @id;";
+                await using (var holdCmd = new NpgsqlCommand(holdSql, connection, transaction))
                 {
-                    await using var holdCmd = new NpgsqlCommand(holdSql, connection);
                     holdCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = req.bookingId;
                     await holdCmd.ExecuteNonQueryAsync();
-                    await EscrowService.MarkDisputedAsync(connection, req.bookingId);
                 }
-                catch { /* column may already exist */ }
+                await EscrowService.MarkDisputedAsync(connection, req.bookingId);
+                await transaction.CommitAsync();
 
                 // Notify both parties and admin
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
@@ -175,6 +176,13 @@ namespace ImajinationAPI.Controllers
                 await connection.OpenAsync();
                 await EnsureSchemaAsync(connection);
                 await EscrowService.EnsureSchemaAsync(connection);
+                const string accessSql = "SELECT EXISTS (SELECT 1 FROM bookings WHERE id = @id AND (customer_id = @actorId OR target_user_id = @actorId));";
+                await using var accessCmd = new NpgsqlCommand(accessSql, connection);
+                accessCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
+                accessCmd.Parameters.Add("@actorId", NpgsqlDbType.Uuid).Value = GetActorId() ?? Guid.Empty;
+                if (!GetActorRole().Equals("Admin", StringComparison.OrdinalIgnoreCase) && !(bool)(await accessCmd.ExecuteScalarAsync())!)
+                    return Forbid();
+
 
                 const string sql = @"
                     SELECT d.id, d.dispute_type, d.description, d.status, d.resolution,
@@ -229,7 +237,8 @@ namespace ImajinationAPI.Controllers
                     SELECT d.id, d.booking_id, d.dispute_type, d.status, d.resolution,
                            d.created_at, d.resolved_at,
                            COALESCE(b.event_title,'Booking'),
-                           COALESCE(ru.firstname,''), COALESCE(ru.lastname,''), COALESCE(ru.email,'')
+                           COALESCE(ru.firstname,''), COALESCE(ru.lastname,''), COALESCE(ru.email,''),
+                           d.description, d.evidence_urls, d.admin_notes
                     FROM booking_disputes d
                     INNER JOIN bookings b ON b.id = d.booking_id
                     LEFT JOIN users ru ON ru.id = d.reporter_id
@@ -240,7 +249,7 @@ namespace ImajinationAPI.Controllers
                 await using var cmd = new NpgsqlCommand(sql, connection);
                 if (!string.IsNullOrWhiteSpace(status))
                     cmd.Parameters.Add("@status", NpgsqlDbType.Text).Value = status;
-                cmd.Parameters.Add("@offset", NpgsqlDbType.Integer).Value = (page - 1) * 20;
+                cmd.Parameters.Add("@offset", NpgsqlDbType.Integer).Value = (Math.Clamp(page, 1, 100000) - 1) * 20;
 
                 var results = new List<object>();
                 await using var rdr = await cmd.ExecuteReaderAsync();
@@ -257,7 +266,10 @@ namespace ImajinationAPI.Controllers
                         resolvedAt = rdr.IsDBNull(6) ? null : (DateTime?)rdr.GetDateTime(6),
                         eventTitle = rdr.GetString(7),
                         reporterName = $"{rdr.GetString(8)} {rdr.GetString(9)}".Trim(),
-                        reporterEmail = rdr.GetString(10)
+                        reporterEmail = rdr.GetString(10),
+                        description = rdr.GetString(11),
+                        evidence = rdr.IsDBNull(12) ? null : rdr.GetString(12),
+                        adminNotes = rdr.IsDBNull(13) ? null : rdr.GetString(13)
                     });
                 }
 
@@ -278,17 +290,41 @@ namespace ImajinationAPI.Controllers
             try
             {
                 var allowedResolutions = new[] { "Refunded", "Dismissed", "PartialRefund", "EscalatedToAdmin", "WarningIssued", "NoAction" };
-                var resolution = allowedResolutions.Contains(req.resolution ?? "") ? req.resolution! : "NoAction";
+                if (!allowedResolutions.Contains(req.resolution ?? ""))
+                    return BadRequest(new { message = "Choose a valid dispute resolution." });
+                var resolution = req.resolution!;
 
                 await using var connection = new NpgsqlConnection(_connectionString);
                 await connection.OpenAsync();
                 await EnsureSchemaAsync(connection);
                 await EscrowService.EnsureSchemaAsync(connection);
+                await using var transaction = await connection.BeginTransactionAsync();
+                const string lockSql = @"
+                    SELECT b.id FROM bookings b JOIN booking_disputes d ON d.booking_id = b.id
+                    WHERE d.id = @id AND d.status IN ('Open', 'Escalated') FOR UPDATE OF b, d;";
+                await using var lockCmd = new NpgsqlCommand(lockSql, connection, transaction);
+                lockCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = disputeId;
+                if (await lockCmd.ExecuteScalarAsync() is not Guid lockedBookingId)
+                    return Conflict(new { message = "This dispute was already resolved or does not exist." });
+                if (resolution == "Refunded")
+                {
+                    const string refundSql = "SELECT EXISTS (SELECT 1 FROM escrow_transactions WHERE booking_id = @id AND status = 'Refunded');";
+                    await using var refundCmd = new NpgsqlCommand(refundSql, connection, transaction);
+                    refundCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = lockedBookingId;
+                    if (!(bool)(await refundCmd.ExecuteScalarAsync())!)
+                        return Conflict(new { message = "Complete and verify the refund before resolving this dispute as refunded." });
+                }
+                else if (resolution == "PartialRefund")
+                {
+                    if (!req.customerRefundAmount.HasValue || req.customerRefundAmount.Value <= 0)
+                        return BadRequest(new { message = "A refund amount is required for a partial settlement." });
+                }
+
 
                 const string sql = @"
                     UPDATE booking_disputes
-                    SET status = 'Resolved', resolution = @resolution,
-                        admin_notes = @notes, resolved_at = NOW(), updated_at = NOW()
+                    SET status = CASE WHEN @resolution = 'EscalatedToAdmin' THEN 'Escalated' ELSE 'Resolved' END, resolution = @resolution,
+                        admin_notes = @notes, resolved_at = CASE WHEN @resolution = 'EscalatedToAdmin' THEN NULL ELSE NOW() END, updated_at = NOW()
                     WHERE id = @id
                     RETURNING booking_id;";
                 await using var cmd = new NpgsqlCommand(sql, connection);
@@ -301,14 +337,16 @@ namespace ImajinationAPI.Controllers
                     return NotFound(new { message = "Dispute not found." });
 
                 // Release dispute hold
-                const string holdSql = "UPDATE bookings SET dispute_hold = FALSE WHERE id = @id;";
+                const string holdSql = "UPDATE bookings SET dispute_hold = @hold WHERE id = @id;";
                 await using var holdCmd = new NpgsqlCommand(holdSql, connection);
                 holdCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId.Value;
+                holdCmd.Parameters.Add("@hold", NpgsqlDbType.Boolean).Value = resolution == "EscalatedToAdmin";
                 await holdCmd.ExecuteNonQueryAsync();
 
                 if (resolution is "Dismissed" or "NoAction" or "WarningIssued")
                 {
                     await EscrowService.ClearDisputeAsync(connection, bookingId.Value);
+                    await transaction.CommitAsync();
 
                     const string releaseCheckSql = @"
                         SELECT COALESCE(status, ''), COALESCE(talent_platform_fee_status, 'Unpaid')
@@ -329,6 +367,58 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
+                PartialSettlementOutcome? settlement = null;
+                if (resolution == "PartialRefund")
+                {
+                    try
+                    {
+                        settlement = await EscrowService.SettlePartialAsync(
+                            connection, bookingId.Value, GetActorId() ?? Guid.Empty, disputeId,
+                            req.customerRefundAmount!.Value,
+                            SecuritySupport.SanitizePlainText(req.adminNotes, 1000, true), transaction);
+                        if (!settlement.Settled)
+                            return Conflict(new { message = "The escrow has already been settled." });
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        return Conflict(new { message = ex.Message });
+                    }
+                }
+
+                if (resolution is not ("Dismissed" or "NoAction" or "WarningIssued"))
+                    await transaction.CommitAsync();
+
+                if (resolution == "PartialRefund")
+                {
+                    var adminId = GetActorId() ?? Guid.Empty;
+                    var adminNotesClean = SecuritySupport.SanitizePlainText(req.adminNotes, 1000, true);
+                    try
+                    {
+                        if (!settlement!.Provider.Equals("Wallet", StringComparison.OrdinalIgnoreCase) &&
+                            !string.IsNullOrWhiteSpace(settlement.ProviderPaymentId))
+                        {
+                            var refundRequestId = await PaymentRefundService.CreateRefundRequestAsync(
+                                connection, "booking", "booking_talent_fee", bookingId.Value, null,
+                                adminId, null, "Admin", "booking_dispute_partial", adminNotesClean,
+                                settlement.CustomerRefundAmount, settlement.ProviderPaymentId,
+                                new { componentType = "talent", partialRefund = true });
+                            var refundResult = await PaymentRefundService.CreatePayMongoRefundAsync(
+                                _paymongoSecretKey, settlement.ProviderPaymentId, settlement.CustomerRefundAmount,
+                                "booking_dispute_partial", adminNotesClean);
+                            await PaymentRefundService.UpdateRefundRequestAsync(connection, refundRequestId,
+                                status: string.Equals(refundResult.Status, "Refunded", StringComparison.OrdinalIgnoreCase) ? "Refunded" : string.Equals(refundResult.Status, "Refund Pending", StringComparison.OrdinalIgnoreCase) ? "ManualReview" : "Failed",
+                                providerRefundId: refundResult.RefundId, providerStatus: refundResult.ProviderStatus,
+                                errorCode: refundResult.ErrorCode, errorMessage: refundResult.ErrorMessage);
+                            if (string.Equals(refundResult.Status, "Refunded", StringComparison.OrdinalIgnoreCase))
+                                await EscrowService.ApplyRefundOutcomeAsync(connection, bookingId.Value);
+                        }
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        return Conflict(new { message = ex.Message });
+                    }
+                }
+
                 // Notify both booking parties
                 await NotificationSupport.EnsureNotificationsTableExistsAsync(connection);
                 const string partiesSql = "SELECT customer_id, target_user_id FROM bookings WHERE id=@id LIMIT 1;";
@@ -343,13 +433,14 @@ namespace ImajinationAPI.Controllers
                     foreach (var uid in new[] { cid, tid })
                     {
                         await NotificationSupport.InsertNotificationAsync(connection, uid,
-                            "dispute_resolved", "Dispute Resolved",
-                            $"Your dispute has been reviewed and resolved: {resolution}. {(string.IsNullOrWhiteSpace(req.adminNotes) ? "" : "Admin note: " + req.adminNotes)}",
+                            resolution == "EscalatedToAdmin" ? "dispute_escalated" : "dispute_resolved",
+                            resolution == "EscalatedToAdmin" ? "Dispute Escalated" : "Dispute Resolved",
+                            $"Your dispute has been reviewed: {resolution}. {(string.IsNullOrWhiteSpace(req.adminNotes) ? "" : "Admin note: " + req.adminNotes)}",
                             bookingId.Value, "booking");
                     }
                 }
 
-                return Ok(new { message = "Dispute resolved." });
+                return Ok(new { message = resolution == "EscalatedToAdmin" ? "Dispute escalated. Funds remain on hold." : "Dispute resolved." });
             }
             catch (Exception ex)
             {

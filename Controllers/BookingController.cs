@@ -726,7 +726,8 @@ namespace ImajinationAPI.Controllers
                            COALESCE(service_fee_status, 'Unpaid'), COALESCE(talent_fee_status, 'Unpaid'),
                            COALESCE(talent_platform_fee_status, 'Unpaid'), event_date, event_end_time,
                            customer_completed_at, target_completed_at, updated_at,
-                           (SELECT MAX(created_at) FROM booking_messages WHERE booking_id = @bookingId)
+                           (SELECT MAX(created_at) FROM booking_messages WHERE booking_id = @bookingId),
+                           COALESCE(escrow_status, ''), COALESCE(dispute_hold, FALSE)
                     FROM bookings
                     WHERE id = @bookingId;";
                 await using var cmd = new NpgsqlCommand(sql, connection);
@@ -745,6 +746,8 @@ namespace ImajinationAPI.Controllers
                 return Ok(new
                 {
                     bookingId,
+                    escrowStatus = reader.GetString(11),
+                    disputeHold = reader.GetBoolean(12),
                     status,
                     paymentStatus,
                     serviceFeeStatus,
@@ -1106,6 +1109,19 @@ namespace ImajinationAPI.Controllers
                     normalizedStatus = "Cancelled by Customer";
                 }
 
+                var isAdminTransition = actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+                if (normalizedStatus != "Confirmed" && normalizedStatus != "Completed" &&
+                    normalizedStatus != "Cancelled by Customer" && normalizedStatus != $"Cancelled by {targetRole}")
+                    return BadRequest(new { message = "Unsupported booking status." });
+                if (!isAdminTransition &&
+                    ((normalizedStatus == "Confirmed" || normalizedStatus == $"Cancelled by {targetRole}") && actorUserId.Value != targetUserId ||
+                     normalizedStatus == "Cancelled by Customer" && actorUserId.Value != customerId))
+                    return Forbid();
+                if (normalizedStatus == "Confirmed" && (currentStatus == "Confirmed" || IsCompletionPendingStatus(currentStatus)))
+                    return Conflict(new { message = "This booking has already been accepted." });
+                if (normalizedStatus == "Completed" && budget > 0 && talentFeeStatus is not ("HeldInEscrow" or "ReadyForRelease" or "Released"))
+                    return Conflict(new { message = "The agreed talent fee must be secured before completion can be confirmed." });
+
                 if (currentStatus.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new { message = "This booking has already been completed and settled." });
@@ -1195,7 +1211,7 @@ namespace ImajinationAPI.Controllers
                         nextPaymentStatus = budget > 0 &&
                             (talentFeeStatus.Equals("HeldInEscrow", StringComparison.OrdinalIgnoreCase) ||
                              talentFeeStatus.Equals("ReadyForRelease", StringComparison.OrdinalIgnoreCase))
-                            ? (talentPlatformFeeStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase) ? "Paid" : "TalentReleasePendingPlatformFee")
+                            ? "TalentReleasePendingPlatformFee"
                             : budget > 0 && !talentFeeStatus.Equals("Released", StringComparison.OrdinalIgnoreCase)
                                 ? paymentStatus
                                 : serviceFeeStatus == "NotRequired" ? "NotRequired" : "Paid";
@@ -1227,7 +1243,7 @@ namespace ImajinationAPI.Controllers
                             ELSE target_completed_at
                         END,
                         talent_fee_status = CASE
-                            WHEN @completed = TRUE AND COALESCE(dispute_hold, FALSE) = FALSE AND COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') AND COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN 'Released'
+                            WHEN @completed = TRUE AND COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') THEN 'ReadyForRelease'
                             WHEN @completed = TRUE AND COALESCE(talent_fee_status, 'Unpaid') = 'HeldInEscrow' THEN 'HeldInEscrow'
                             ELSE talent_fee_status
                         END,
@@ -1235,7 +1251,9 @@ namespace ImajinationAPI.Controllers
                             WHEN @confirmed = TRUE AND talent_platform_fee > 0 AND COALESCE(talent_platform_fee_status, 'Unpaid') = 'Unpaid' THEN 'AwaitingPayment'
                             ELSE talent_platform_fee_status
                         END
-                    WHERE id = @id";
+                    WHERE id = @id AND status = @expectedStatus
+                      AND customer_completed_at IS NOT DISTINCT FROM @expectedCustomerCompletedAt
+                      AND target_completed_at IS NOT DISTINCT FROM @expectedTargetCompletedAt";
                 using var cmd = new NpgsqlCommand(sql, connection);
                 cmd.Parameters.Add("@status", NpgsqlDbType.Text).Value = normalizedStatus;
                 cmd.Parameters.Add("@paymentStatus", NpgsqlDbType.Text).Value = nextPaymentStatus;
@@ -1248,10 +1266,13 @@ namespace ImajinationAPI.Controllers
                     normalizedStatus.StartsWith("Cancelled by ", StringComparison.OrdinalIgnoreCase);
                 cmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
 
+                cmd.Parameters.Add("@expectedStatus", NpgsqlDbType.Text).Value = currentStatus;
+                cmd.Parameters.Add("@expectedCustomerCompletedAt", NpgsqlDbType.TimestampTz).Value = (object?)customerCompletedAt ?? DBNull.Value;
+                cmd.Parameters.Add("@expectedTargetCompletedAt", NpgsqlDbType.TimestampTz).Value = (object?)targetCompletedAt ?? DBNull.Value;
                 var rows = await cmd.ExecuteNonQueryAsync();
                 if (rows == 0)
                 {
-                    return NotFound(new { message = "Booking request not found." });
+                    return Conflict(new { message = "The booking changed while you were updating it. Refresh and try again." });
                 }
 
                 if (completionFinalized && budget > 0)
@@ -2163,7 +2184,8 @@ namespace ImajinationAPI.Controllers
                     return Conflict(new { message = "The talent platform fee has already been paid." });
                 }
 
-                if (paymentType == "platform" && !string.Equals(status, "Confirmed", StringComparison.OrdinalIgnoreCase))
+                if (paymentType == "platform" && !string.Equals(status, "Confirmed", StringComparison.OrdinalIgnoreCase) &&
+                    !IsCompletionPendingStatus(status) && !string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new { message = "The platform fee becomes payable after the booking is confirmed." });
                 }
@@ -2385,7 +2407,8 @@ namespace ImajinationAPI.Controllers
                            COALESCE(talent_platform_fee_checkout_reference, ''),
                            customer_id,
                            target_user_id,
-                           COALESCE(event_title, 'Booking Request')
+                           COALESCE(event_title, 'Booking Request'),
+                           COALESCE(booking_fee, 15), COALESCE(budget, 0), COALESCE(talent_platform_fee, 0)
                     FROM bookings
                     WHERE id = @id;";
 
@@ -2404,6 +2427,7 @@ namespace ImajinationAPI.Controllers
                 Guid customerId;
                 Guid targetUserId;
                 string eventTitle;
+                decimal serviceAmount, talentAmount, platformAmount;
 
                 using (var cmd = new NpgsqlCommand(sql, connection))
                 {
@@ -2429,6 +2453,9 @@ namespace ImajinationAPI.Controllers
                     customerId = reader.IsDBNull(12) ? Guid.Empty : reader.GetGuid(12);
                     targetUserId = reader.IsDBNull(13) ? Guid.Empty : reader.GetGuid(13);
                     eventTitle = reader.IsDBNull(14) ? "Booking Request" : reader.GetString(14);
+                    serviceAmount = Math.Max(reader.GetDecimal(15), PayMongoMinimumAmount);
+                    talentAmount = reader.GetDecimal(16);
+                    platformAmount = reader.GetDecimal(17);
                 }
 
                 var normalizedPaymentType = string.Equals(paymentType, "talent", StringComparison.OrdinalIgnoreCase)
@@ -2516,7 +2543,9 @@ namespace ImajinationAPI.Controllers
                 string paymentId = "";
                 DateTime? paidAt = null;
 
-                var firstPayment = payments[0];
+                var expectedAmount = normalizedPaymentType == "talent" ? talentAmount : normalizedPaymentType == "platform" ? platformAmount : serviceAmount;
+                if (!PayMongoPaymentVerification.TryGetPaidPayment(attributes, expectedAmount, out var firstPayment))
+                    return Conflict(new { message = "The checkout does not contain a verified paid payment for the expected amount and currency." });
                 if (firstPayment.TryGetProperty("id", out var paymentIdProp))
                 {
                     paymentId = paymentIdProp.GetString() ?? "";
@@ -2542,93 +2571,18 @@ namespace ImajinationAPI.Controllers
                     }
                 }
 
-                var nextStatus = normalizedPaymentType == "service" && status.StartsWith("Awaiting", StringComparison.OrdinalIgnoreCase)
-                    ? $"Pending {targetRole} Approval"
-                    : status;
-                var canReleaseEscrow = normalizedPaymentType == "platform" &&
-                    string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase) &&
-                    (talentFeeStatus == "HeldInEscrow" || talentFeeStatus == "ReadyForRelease");
-
-                var updateSql = normalizedPaymentType == "talent"
-                    ? @"
-                        UPDATE bookings
-                        SET payment_status = 'TalentFeeHeldInEscrow',
-                            talent_fee_status = CASE
-                                WHEN COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' AND COALESCE(status, 'Pending') = 'Completed' THEN 'Released'
-                                WHEN COALESCE(talent_platform_fee_status, 'Unpaid') = 'Paid' THEN 'ReadyForRelease'
-                                ELSE 'HeldInEscrow'
-                            END,
-                            talent_fee_paid_at = COALESCE(@paidAt, NOW()),
-                            talent_fee_payment_id = @paymentId,
-                            talent_fee_payment_reference = @paymentReference,
-                            talent_fee_payment_method = @paymentMethod,
-                            talent_fee_checkout_reference = @checkoutReference
-                        WHERE id = @bookingId;"
-                    : normalizedPaymentType == "platform"
-                        ? @"
-                        UPDATE bookings
-                        SET payment_status = CASE
-                                WHEN COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') AND COALESCE(status, 'Pending') = 'Completed' THEN 'Paid'
-                                ELSE payment_status
-                            END,
-                            talent_fee_status = CASE
-                                WHEN COALESCE(talent_fee_status, 'Unpaid') IN ('HeldInEscrow', 'ReadyForRelease') AND COALESCE(status, 'Pending') = 'Completed' THEN 'Released'
-                                WHEN COALESCE(talent_fee_status, 'Unpaid') = 'HeldInEscrow' THEN 'ReadyForRelease'
-                                ELSE talent_fee_status
-                            END,
-                            talent_platform_fee_status = 'Paid',
-                            talent_platform_fee_paid_at = COALESCE(@paidAt, NOW()),
-                            talent_platform_fee_payment_id = @paymentId,
-                            talent_platform_fee_payment_reference = @paymentReference,
-                            talent_platform_fee_payment_method = @paymentMethod,
-                            talent_platform_fee_checkout_reference = @checkoutReference
-                        WHERE id = @bookingId;"
-                    : @"
-                        UPDATE bookings
-                        SET payment_status = CASE
-                                WHEN COALESCE(budget, 0) > 0 THEN 'ServiceFeePaid'
-                                ELSE 'Paid'
-                            END,
-                            service_fee_status = 'Paid',
-                            status = @status,
-                            paid_at = COALESCE(@paidAt, NOW()),
-                            service_fee_paid_at = COALESCE(@paidAt, NOW()),
-                            paymongo_payment_id = @paymentId,
-                            paymongo_payment_reference = @paymentReference,
-                            payment_method = @paymentMethod,
-                            service_fee_payment_method = @paymentMethod,
-                            paymongo_checkout_reference = @checkoutReference
-                        WHERE id = @bookingId;";
-
-                using var updateCmd = new NpgsqlCommand(updateSql, connection);
-                updateCmd.Parameters.Add("@status", NpgsqlDbType.Text).Value = nextStatus;
-                updateCmd.Parameters.Add("@paidAt", NpgsqlDbType.TimestampTz).Value = (object?)paidAt ?? DBNull.Value;
-                updateCmd.Parameters.Add("@paymentId", NpgsqlDbType.Text).Value = (object?)paymentId ?? DBNull.Value;
-                updateCmd.Parameters.Add("@paymentReference", NpgsqlDbType.Text).Value = (object?)paymentReference ?? DBNull.Value;
-                updateCmd.Parameters.Add("@paymentMethod", NpgsqlDbType.Text).Value = (object?)paymentMethod ?? DBNull.Value;
-                updateCmd.Parameters.Add("@checkoutReference", NpgsqlDbType.Text).Value = (object?)checkoutReference ?? DBNull.Value;
-                updateCmd.Parameters.Add("@bookingId", NpgsqlDbType.Uuid).Value = bookingId;
-                await updateCmd.ExecuteNonQueryAsync();
-
-                if (normalizedPaymentType == "talent")
+                if (!await BookingPaymentReconciliationService.ReconcileAsync(connection, doc.RootElement.GetProperty("data")))
+                    return Conflict(new { message = "This checkout has not been linked to its payment record. Please retry shortly." });
+                await using var settledCmd = new NpgsqlCommand("SELECT COALESCE(escrow_status, ''), status FROM bookings WHERE id = @id", connection);
+                settledCmd.Parameters.AddWithValue("@id", bookingId);
+                bool canReleaseEscrow;
+                string nextStatus;
+                await using (var settledReader = await settledCmd.ExecuteReaderAsync())
                 {
-                    await EscrowService.MarkHeldAsync(connection, bookingId, paymentId);
+                    await settledReader.ReadAsync();
+                    canReleaseEscrow = settledReader.GetString(0) == "Released";
+                    nextStatus = settledReader.GetString(1);
                 }
-                else if (normalizedPaymentType == "platform" && canReleaseEscrow)
-                {
-                    await EscrowService.ReleaseAsync(connection, bookingId);
-                }
-
-                await PaymentLedgerService.MarkPaidAsync(
-                    connection,
-                    paymentScope: normalizedPaymentType == "talent" ? "booking_talent_fee" : normalizedPaymentType == "platform" ? "booking_talent_platform_fee" : "booking_service_fee",
-                    ticketId: null,
-                    bookingId: bookingId,
-                    paymentMethod: paymentMethod,
-                    paymentReference: paymentReference,
-                    checkoutReference: checkoutReference,
-                    featureUnlockState: normalizedPaymentType == "talent" ? "TalentFeeHeldInEscrow" : normalizedPaymentType == "platform" ? (canReleaseEscrow ? "TalentFeeReleased" : "TalentPlatformFeeSettled") : "MessagesUnlocked",
-                    paidAt: paidAt);
 
                 if (normalizedPaymentType == "service" && targetUserId != Guid.Empty)
                 {
@@ -2744,7 +2698,7 @@ namespace ImajinationAPI.Controllers
                 }
 
                 var isCustomerSide = actorUserId.Value == customerId;
-                var isTargetSide = actorUserId.Value == targetUserId || actorRole.Equals(targetRole, StringComparison.OrdinalIgnoreCase);
+                var isTargetSide = actorUserId.Value == targetUserId;
                 if (!isCustomerSide && !isTargetSide && !actorRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
                 {
                     return Forbid();
@@ -3002,6 +2956,9 @@ namespace ImajinationAPI.Controllers
                 return null;
             }
 
+            if (componentType == "talent" && !await EscrowService.MarkRefundPendingAsync(connection, bookingId))
+                return null; // Another refund or release already owns this escrow.
+
             var pendingStatusSql = componentType == "talent"
                 ? "UPDATE bookings SET talent_fee_status = 'Refund Pending', payment_status = 'Refund Pending' WHERE id = @id;"
                 : componentType == "platform"
@@ -3016,14 +2973,8 @@ namespace ImajinationAPI.Controllers
 
             if (componentType == "talent")
             {
-                await EscrowService.MarkRefundPendingAsync(connection, bookingId);
                 if (await EscrowService.IsWalletFundedAsync(connection, bookingId))
                 {
-                    await using var walletRefundCmd = new NpgsqlCommand(
-                        "UPDATE bookings SET talent_fee_status = 'Refunded', payment_status = 'Refunded' WHERE id = @id;",
-                        connection);
-                    walletRefundCmd.Parameters.Add("@id", NpgsqlDbType.Uuid).Value = bookingId;
-                    await walletRefundCmd.ExecuteNonQueryAsync();
                     await EscrowService.MarkRefundedAsync(connection, bookingId);
                     return "Refunded";
                 }
@@ -3100,7 +3051,7 @@ namespace ImajinationAPI.Controllers
             return targetStatus == "Failed" ? "Refund Failed" : "Refund Pending";
         }
 
-        private static async Task<string> RecomputeBookingPaymentStatusAsync(NpgsqlConnection connection, Guid bookingId)
+        internal static async Task<string> RecomputeBookingPaymentStatusAsync(NpgsqlConnection connection, Guid bookingId)
         {
             const string sql = @"
                 SELECT COALESCE(service_fee_status, COALESCE(payment_status, 'Unpaid')),

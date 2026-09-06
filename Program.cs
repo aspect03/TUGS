@@ -65,6 +65,10 @@ builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<TicketPdfService>();
 builder.Services.AddSingleton<ScannerLinkService>();
 builder.Services.AddHostedService<EventReminderService>();
+builder.Services.AddHostedService<EscrowReleaseWindowService>();
+EscrowService.InitializeReleaseWindow(double.TryParse(builder.Configuration["Escrow:ReleaseWindowHours"], out var releaseWindowHours)
+    ? TimeSpan.FromHours(releaseWindowHours)
+    : TimeSpan.FromHours(72));
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ImajinationAPI.Hubs.EventScanBroadcaster>();
 builder.Services.AddAuthentication(options =>

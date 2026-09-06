@@ -12,6 +12,7 @@
       document.documentElement.classList.toggle('signed-in', Boolean(userId && role));
     } catch (_) {}
   </script>
+  <script>document.documentElement.classList.add('landing-motion');</script>
   <!-- PWA -->
   <!-- Inline SVG favicon — eliminates 404 for missing favicon.ico -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23cc292b'/><text x='50%25' y='54%25' dominant-baseline='central' text-anchor='middle' font-size='20' font-family='Arial' fill='white' font-weight='900'>T!</text></svg>">
@@ -73,33 +74,32 @@
       transform: scale(1);
       transition: opacity 2s ease-in-out, transform 10s linear;
     }
-    @media (prefers-reduced-motion: no-preference) {
-      [data-scroll-reveal] {
+    @media all {
+      html.landing-motion [data-scroll-reveal] {
         opacity: 0;
         transform: translateY(64px);
         transition: opacity 780ms ease, transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
         will-change: opacity, transform;
       }
-      [data-scroll-reveal].is-revealed {
+      html.landing-motion [data-scroll-reveal].is-revealed {
         opacity: 1;
         transform: translateY(0);
       }
-      .scroll-reveal-card {
+      html.landing-motion .scroll-reveal-card {
         opacity: 0;
         transition: opacity 520ms ease, transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
         transition-delay: var(--reveal-delay, 0ms);
       }
-      #landingEventsContainer .scroll-reveal-card { transform: translateX(-34px); }
-      #spotlightArtistsContainer .scroll-reveal-card { transform: translateY(42px) scale(0.9); }
-      #spotlightSessionistsContainer .scroll-reveal-card { transform: translateX(34px); }
-      .cards-ready .scroll-reveal-card {
+      html.landing-motion #landingEventsContainer .scroll-reveal-card { transform: translateX(-34px); }
+      html.landing-motion #spotlightArtistsContainer .scroll-reveal-card { transform: translateY(42px) scale(0.9); }
+      html.landing-motion #spotlightSessionistsContainer .scroll-reveal-card { transform: translateX(34px); }
+      html.landing-motion .cards-ready .scroll-reveal-card {
         opacity: 1;
         transform: translate(0) scale(1) !important;
       }
     }
-    @media (prefers-reduced-motion: reduce) {
-      [data-scroll-reveal], .scroll-reveal-card { transition: none !important; }
-    }
+    html:not(.landing-motion) [data-scroll-reveal],
+    html:not(.landing-motion) .scroll-reveal-card { opacity: 1; transform: none; transition: none !important; }
     .detail-nav-link {
       display: inline-flex;
       align-items: center;
@@ -399,12 +399,7 @@
       </div>
 
       <div class="relative z-20 max-w-4xl mx-auto px-6 text-center">
-        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/15 bg-white/5 text-xs font-medium uppercase tracking-[0.18em] text-white/80 backdrop-blur-sm">
-          <span class="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-          Metro-made live platform
-        </div>
-
-        <h1 class="mt-6 text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[0.95]">
+<h1 class="mt-6 text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[0.95]">
           <span class="block text-white">DISCOVER</span>
           <span class="block text-[#cc292b] drop-shadow-lg">TUGS!</span>
         </h1>
@@ -804,6 +799,7 @@
     })();
 
     document.addEventListener('DOMContentLoaded', async () => {
+      initializeScrollReveals();
       const firstName = (localStorage.getItem('userFirstName') || '').trim();
       const username = (localStorage.getItem('username') || '').trim();
       const role = (localStorage.getItem('userRole') || '').trim();
@@ -855,44 +851,53 @@
       fetchPublicEvents();
       fetchSpotlightArtists();
       fetchSpotlightSessionists();
-      initializeScrollReveals();
       if (window.initGlobalNavbarNotifications) window.initGlobalNavbarNotifications();
     });
 
     function initializeScrollReveals() {
       const sections = document.querySelectorAll('[data-scroll-reveal]');
-      if (!sections.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      initializeScrollReveals.observer?.disconnect();
+      if (!sections.length || !document.documentElement.classList.contains('landing-motion')) {
         sections.forEach(section => section.classList.add('is-revealed'));
         return;
       }
 
-      let scheduled = false;
-      const revealVisibleSections = () => {
-        scheduled = false;
-        const triggerLine = window.innerHeight * 0.78;
-
-        sections.forEach(section => {
-          if (section.classList.contains('is-revealed')) return;
-          const bounds = section.getBoundingClientRect();
-          if (bounds.top > triggerLine || bounds.bottom < 0) return;
-
-          section.classList.add('is-revealed');
-          section.dispatchEvent(new Event('sectionrevealed'));
-        });
+      sections.forEach(section => section.classList.remove('is-revealed'));
+      const revealSection = section => {
+        if (section.classList.contains('is-revealed')) return;
+        section.classList.add('is-revealed');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (!section.classList.contains('is-revealed')) return;
+          section.querySelectorAll('#landingEventsContainer, #spotlightArtistsContainer, #spotlightSessionistsContainer').forEach(container => container.classList.add('cards-ready'));
+        }));
       };
 
-      const scheduleRevealCheck = () => {
-        if (scheduled) return;
-        scheduled = true;
-        requestAnimationFrame(revealVisibleSections);
-      };
-
-      window.addEventListener('scroll', scheduleRevealCheck, { passive: true });
-      window.addEventListener('resize', scheduleRevealCheck);
-      scheduleRevealCheck();
+      // Allow the initial hidden state to paint, including on fast desktops.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if ('IntersectionObserver' in window) {
+          const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+              const section = entry.target.querySelector('[data-scroll-reveal]');
+              if (!section) return;
+              if (entry.isIntersecting) {
+                revealSection(section);
+              } else {
+                section.classList.remove('is-revealed');
+                section.querySelectorAll('.cards-ready').forEach(container => container.classList.remove('cards-ready'));
+              }
+            });
+          }, { rootMargin: '0px', threshold: 0 });
+          initializeScrollReveals.observer = observer;
+          // Observe stationary wrappers so animated transforms cannot retrigger visibility.
+          sections.forEach(section => observer.observe(section.parentElement));
+        } else {
+          sections.forEach(revealSection);
+        }
+      }));
     }
 
     function stageDynamicCards(container) {
+      container.classList.remove('cards-ready');
       const cards = Array.from(container.querySelectorAll(':scope > div'));
       if (!cards.length) return;
 
@@ -903,11 +908,11 @@
 
       const section = container.closest('[data-scroll-reveal]');
       const revealCards = () => {
-        requestAnimationFrame(() => container.classList.add('cards-ready'));
+        requestAnimationFrame(() => requestAnimationFrame(() => container.classList.add('cards-ready')));
       };
 
       if (!section || section.classList.contains('is-revealed')) revealCards();
-      else section.addEventListener('sectionrevealed', revealCards, { once: true });
+
     }
 
     const profileBtn = document.getElementById('profileBtn');

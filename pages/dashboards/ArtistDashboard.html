@@ -2043,6 +2043,15 @@
     async function markArtistBookingCompleted(bookingId) {
       if (!bookingId) return;
 
+      const confirmed = await (window.systemDialog?.confirm(
+        'Confirm that this booking has been completed? Escrow funds will be released to you once the customer also confirms (and any release window has passed).',
+        { title: 'Confirm Completion', kicker: 'Booking Completion', okText: 'Yes, Confirm Completion', cancelText: 'Not Yet' }
+      ) ?? true);
+      if (!confirmed) return;
+
+      const btn = document.querySelector(`button[onclick="markArtistBookingCompleted('${bookingId}')"]`);
+      if (btn) { btn.disabled = true; btn.classList.add('opacity-60', 'cursor-not-allowed'); }
+
       try {
         const res = await fetch(`/api/booking/${bookingId}/status`, {
           method: 'PATCH',
@@ -2052,9 +2061,14 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Failed to confirm booking completion.');
         await loadArtistBookings(localStorage.getItem('userId'));
-        alert(data.message || 'Completion confirmation recorded.');
+        await (window.systemDialog?.alert
+          ? window.systemDialog.alert(data.message || 'Completion confirmation recorded.', { title: 'Booking Completion', kicker: 'Confirmed' })
+          : alert(data.message || 'Completion confirmation recorded.'));
       } catch (error) {
-        alert(error.message || 'Failed to mark booking as completed.');
+        await (window.systemDialog?.alert
+          ? window.systemDialog.alert(error.message || 'Failed to mark booking as completed.', { title: 'Completion Error' })
+          : alert(error.message || 'Failed to mark booking as completed.'));
+        if (btn) { btn.disabled = false; btn.classList.remove('opacity-60', 'cursor-not-allowed'); }
       }
     }
 
@@ -2106,7 +2120,7 @@
               ${canViewContract ? `<button type="button" onclick="openArtistBookingContract('${booking.id}')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">View Contract</button>` : ''}
               ${showDecisionButtons ? `<button type="button" onclick="${booking.hasMessages ? `updateArtistBookingStatus('${booking.id}', 'Confirmed')` : `openArtistBookingMessages('${booking.id}')`}" class="px-4 py-2 ${booking.hasMessages ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-amber-500/15 border border-amber-500/30 text-amber-200 hover:bg-amber-500/20'} text-xs font-bold uppercase tracking-wider rounded-xl transition-colors">${booking.hasMessages ? 'Confirm' : 'Message First'}</button>` : ''}
               ${canComplete ? `<button type="button" onclick="markArtistBookingCompleted('${booking.id}')" class="px-4 py-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-500/20 transition-colors">Confirm Completion</button>` : ''}
-              ${canCancelBooking ? `<button type="button" onclick="updateArtistBookingStatus('${booking.id}', 'Cancelled by Artist')" class="px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Cancel</button>` : ''}
+              ${canCancelBooking ? `<button type="button" onclick="cancelArtistBooking('${booking.id}')" class="px-4 py-2 bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-white/10 transition-colors">Cancel</button>` : ''}
               ${escrowReleased ? `<button type="button" onclick="showArtistEscrowReceipt('${booking.id}')" class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-500/20 transition-colors">Escrow Receipt</button>` : ''}
             </div>
           </div>
@@ -2163,18 +2177,32 @@
       }
     }
 
-    async function updateArtistBookingStatus(bookingId, status) {
+async function cancelArtistBooking(bookingId) {
+      const confirmed = await (window.systemDialog?.confirm(
+        'Cancel this booking? The customer will be notified and any escrow funds will not be released.',
+        { title: 'Cancel Booking', kicker: 'Booking Request', okText: 'Yes, Cancel', cancelText: 'Keep Booking', danger: true }
+      ) ?? true);
+      if (!confirmed) return;
+      await updateArtistBookingStatus(bookingId, 'Cancelled by Artist', 'This booking has been cancelled.');
+    }
+
+    async function updateArtistBookingStatus(bookingId, status, successMessage) {
       try {
         const res = await fetch(`/api/booking/${bookingId}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status })
         });
-
-        if (!res.ok) throw new Error();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Failed to update booking.');
         await loadArtistBookings(localStorage.getItem('userId'));
+        await (window.systemDialog?.alert
+          ? window.systemDialog.alert(data.message || successMessage || 'Booking updated.', { title: 'Booking Update', kicker: 'Done' })
+          : alert(data.message || successMessage || 'Booking updated.'));
       } catch (error) {
-        alert('Failed to update booking request.');
+        await (window.systemDialog?.alert
+          ? window.systemDialog.alert(error.message || 'Failed to update booking request.', { title: 'Booking Error' })
+          : alert(error.message || 'Failed to update booking request.'));
       }
     }
 
